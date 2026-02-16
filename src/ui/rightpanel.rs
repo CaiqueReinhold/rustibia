@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::conf::SIDE_PANEL_WIDTH;
+use crate::conf::ui::SIDE_PANEL_WIDTH;
 use crate::ui::window::{DockId, Index, UIWindowDock};
 
 #[derive(Component)]

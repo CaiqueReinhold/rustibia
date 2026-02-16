@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::conf::TOP_BAR_HEIGHT;
+use crate::conf::ui::TOP_BAR_HEIGHT;
 use crate::game::hud::{Health, HealthState, Mana};
 use crate::game::player::Player;
 use crate::ui::UiFonts;

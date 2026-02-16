@@ -87,7 +87,7 @@ fn spawn_main_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
         .add_children(&[left_panel, middle_container, right_panel]);
 
     let top_panel = toppanel::spawn_top_panel(&mut commands, &asset_server, &fonts);
-    let gameview = gameview::spawn_gameviewport(&mut commands, &asset_server);
+    let gameview = gameview::spawn_gameviewport(&mut commands);
     let chat = chat::spawn_chat(&mut commands, &asset_server);
     commands
         .entity(middle_container)

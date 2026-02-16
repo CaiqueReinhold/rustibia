@@ -16,11 +16,12 @@ impl Plugin for PlayerPlugin {
         app.add_systems(Startup, spawn_player).add_systems(
             Update,
             (
-                camera_follow_player,
                 tile_movement_input,
                 execute_tile_movement,
+                camera_follow_player,
                 animate_player,
-            ),
+            )
+                .chain(),
         );
     }
 }
@@ -73,13 +74,19 @@ fn spawn_player(
     let texture_atlas_handle = atlases.add(texture_atlas);
     let atlas = TextureAtlas::from(texture_atlas_handle);
 
-    let tile_x = 0;
-    let tile_y = 0;
+    let tile_x = 1028;
+    let tile_y = 1028;
 
     let world_pos = Vec3::new(
-        tile_x as f32 * TILE_SIZE + TILE_SIZE / 2.0,
-        tile_y as f32 * TILE_SIZE + TILE_SIZE / 2.0,
+        tile_x as f32 * TILE_SIZE,
+        -(tile_y as f32 * TILE_SIZE),
         10.0,
+    );
+
+    info!(
+        "player tile: {:?} world pos: {:?}",
+        (tile_x, tile_y),
+        world_pos
     );
 
     commands.spawn((
@@ -94,7 +101,7 @@ fn spawn_player(
             max_experience: 100,
             experience: 0,
             // level: 1,
-            speed: 200.0,
+            speed: 500.0,
         },
         Health {
             max: 100,
@@ -125,13 +132,13 @@ fn tile_movement_input(
         return;
     };
 
-    let (dx, dy, facing) = if keyboard.just_pressed(KeyCode::KeyW) {
-        (0, 1, Direction::North)
-    } else if keyboard.just_pressed(KeyCode::KeyS) {
-        (0, -1, Direction::South)
-    } else if keyboard.just_pressed(KeyCode::KeyA) {
+    let (dx, dy, facing) = if keyboard.pressed(KeyCode::KeyW) {
+        (0, -1, Direction::North)
+    } else if keyboard.pressed(KeyCode::KeyS) {
+        (0, 1, Direction::South)
+    } else if keyboard.pressed(KeyCode::KeyA) {
         (-1, 0, Direction::West)
-    } else if keyboard.just_pressed(KeyCode::KeyD) {
+    } else if keyboard.pressed(KeyCode::KeyD) {
         (1, 0, Direction::East)
     } else {
         return;
@@ -139,8 +146,8 @@ fn tile_movement_input(
 
     let start = transform.translation;
     let end = Vec3::new(
-        (tile.x + dx) as f32 * TILE_SIZE + TILE_SIZE / 2.0,
-        (tile.y + dy) as f32 * TILE_SIZE + TILE_SIZE / 2.0,
+        (tile.x + dx) as f32 * TILE_SIZE,
+        -(tile.y + dy) as f32 * TILE_SIZE,
         start.z,
     );
 
@@ -148,7 +155,7 @@ fn tile_movement_input(
         MoveTo {
             start,
             end,
-            timer: Timer::from_seconds(player.speed / 400.0, TimerMode::Once),
+            timer: Timer::from_seconds(1.0 / player.speed, TimerMode::Once),
         },
         Facing(facing),
     ));
@@ -172,7 +179,7 @@ fn execute_tile_movement(
         transform.translation = move_to.end;
 
         let dx = ((move_to.end.x - move_to.start.x) / TILE_SIZE).round() as i32;
-        let dy = ((move_to.end.y - move_to.start.y) / TILE_SIZE).round() as i32;
+        let dy = ((move_to.end.y - move_to.start.y) * -1.0 / TILE_SIZE).round() as i32;
 
         tile.x += dx;
         tile.y += dy;

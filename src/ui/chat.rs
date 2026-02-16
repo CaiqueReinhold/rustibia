@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::conf::CHAT_BOX_HEIGHT;
+use crate::conf::ui::CHAT_BOX_HEIGHT;
 
 pub fn spawn_chat(commands: &mut Commands, asset_server: &Res<AssetServer>) -> Entity {
     let font = asset_server.load("fonts/FiraSans-Bold.ttf");
