@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use bevy::asset::RenderAssetUsages;
 use bevy::mesh::MeshVertexBufferLayoutRef;
 use bevy::mesh::{Indices, Mesh, MeshVertexAttribute, PrimitiveTopology, VertexFormat};
@@ -7,11 +5,14 @@ use bevy::prelude::*;
 use bevy::render::render_resource::{
     AsBindGroup, RenderPipelineDescriptor, SpecializedMeshPipelineError,
 };
+use bevy::render::storage::ShaderStorageBuffer;
 use bevy::shader::ShaderRef;
 use bevy::sprite_render::{AlphaMode2d, Material2d, Material2dKey, Material2dPlugin};
+use std::collections::{HashMap, HashSet};
+use std::sync::Arc;
 
 use crate::conf::map::{CHUNK_LOAD_RADIUS, CHUNK_SIZE, FLOOR_Z_OFFSET, TILE_SIZE};
-use crate::data::map_assets::WorldMap;
+use crate::data::map_assets::{GroundConfig, WorldMap};
 
 use crate::data::{AppearanceData, State};
 use crate::game::TilePosition;
@@ -74,24 +75,37 @@ pub struct LoadedChunks {
 }
 
 #[derive(Resource)]
-pub struct TerrainMaterialHandle(Handle<ColorMaterial>);
+pub struct TerrainMaterialHandle {
+    pub handle: Handle<TerrainMaterial>,
+    pub lookup_map: HashMap<u32, u32>,
+}
 
 #[derive(Component)]
 pub struct TerrainChunk {
     pos: ChunkPosition,
 }
 
-/// Custom vertex attributes for terrain (must match shader @location).
-const ATTRIBUTE_SPRITE_ID: MeshVertexAttribute =
-    MeshVertexAttribute::new("sprite_id", 1001, VertexFormat::Uint32);
+const ATTRIBUTE_LOOKUP_INDEX: MeshVertexAttribute =
+    MeshVertexAttribute::new("lookup_index", 1001, VertexFormat::Uint32);
 const ATTRIBUTE_FRAME_COUNT: MeshVertexAttribute =
     MeshVertexAttribute::new("frame_count", 1002, VertexFormat::Uint32);
+const ATTRIBUTE_PATTERNS: MeshVertexAttribute =
+    MeshVertexAttribute::new("patterns", 1003, VertexFormat::Uint32x4);
 
 #[derive(Asset, TypePath, AsBindGroup, Debug, Clone)]
 pub struct TerrainMaterial {
     #[texture(0)]
     #[sampler(1)]
     pub atlas: Handle<Image>,
+
+    #[uniform(2)]
+    pub time_offset: f32,
+
+    #[uniform(3)]
+    pub atals_grid: Vec2,
+
+    #[storage(4, read_only)]
+    pub animated_sprite_lookup: Handle<ShaderStorageBuffer>,
 }
 
 impl Material2d for TerrainMaterial {
@@ -115,8 +129,9 @@ impl Material2d for TerrainMaterial {
         let vertex_layout = layout.0.get_layout(&[
             Mesh::ATTRIBUTE_POSITION.at_shader_location(0),
             Mesh::ATTRIBUTE_UV_0.at_shader_location(2),
-            ATTRIBUTE_SPRITE_ID.at_shader_location(3),
+            ATTRIBUTE_LOOKUP_INDEX.at_shader_location(3),
             ATTRIBUTE_FRAME_COUNT.at_shader_location(4),
+            ATTRIBUTE_PATTERNS.at_shader_location(5),
         ])?;
         descriptor.vertex.buffers = vec![vertex_layout];
         Ok(())
@@ -124,17 +139,42 @@ impl Material2d for TerrainMaterial {
 }
 
 fn init_material(
+    time: Res<Time>,
     mut commands: Commands,
     sheets: Res<AppearanceData>,
-    mut materials: ResMut<Assets<ColorMaterial>>,
+    world_map: Res<WorldMap>,
+    mut materials: ResMut<Assets<TerrainMaterial>>,
+    mut buffers: ResMut<Assets<ShaderStorageBuffer>>,
     mut player_q: Query<&mut Transform, With<GameCamera>>,
 ) {
     let sheet = sheets.ground_sheets.get(&1).unwrap();
-    // let material = TerrainMaterial {
-    //     atlas: sheet.texture.clone(),
-    // };
-    let handle = materials.add(sheet.texture.clone());
-    commands.insert_resource(TerrainMaterialHandle(handle));
+
+    let mut lookup_map: HashMap<u32, u32> = HashMap::new();
+    let mut animation_frame_lookup: Vec<u32> = Vec::new();
+
+    for config in world_map.appearances.iter() {
+        let id = config.id;
+        let index = animation_frame_lookup.len() as u32;
+        info!("{} -> {}", id, index);
+        lookup_map.insert(config.id, animation_frame_lookup.len() as u32);
+        animation_frame_lookup.extend_from_slice(config.sprite_ids.as_slice());
+        info!(
+            "sprite at {}: {}",
+            index, animation_frame_lookup[index as usize]
+        );
+    }
+
+    let material = TerrainMaterial {
+        atlas: sheet.texture.clone(),
+        time_offset: time.elapsed_secs_wrapped(),
+        atals_grid: Vec2::new(12.0, 33.0),
+        animated_sprite_lookup: buffers
+            .add(ShaderStorageBuffer::from(animation_frame_lookup.as_slice())),
+    };
+    commands.insert_resource(TerrainMaterialHandle {
+        handle: materials.add(material),
+        lookup_map: lookup_map,
+    });
 
     let mut transform = player_q.single_mut().unwrap();
     transform.translation = TilePosition::new(1028, 1028, 7).to_world_position();
@@ -160,7 +200,7 @@ fn check_input(
     }
 
     transform.translation =
-        transform.translation + (direction * Vec3::splat(0.5) * time.elapsed().as_secs_f32());
+        transform.translation + (direction * Vec3::splat(100.0) * time.delta().as_secs_f32());
 }
 
 fn fire_event(
@@ -193,7 +233,6 @@ fn update_visible_chunks_on_change(
     mut loaded: ResMut<LoadedChunks>,
     existing: Query<(Entity, &TerrainChunk)>,
     world: Res<WorldMap>,
-    sheets: Res<AppearanceData>,
     mut meshes: ResMut<Assets<Mesh>>,
     material_handle: Res<TerrainMaterialHandle>,
 ) {
@@ -220,7 +259,6 @@ fn update_visible_chunks_on_change(
                 pos.clone(),
                 &mut meshes,
                 &material_handle,
-                &sheets,
             );
             loaded.chunks.insert(pos.clone());
         }
@@ -240,31 +278,38 @@ fn spawn_chunk(
     pos: ChunkPosition,
     meshes: &mut Assets<Mesh>,
     material: &TerrainMaterialHandle,
-    sheets: &AppearanceData,
 ) {
-    let Some(mesh) = build_chunk_mesh(map, &pos, sheets) else {
-        return;
-    };
     let world_pos = pos.to_world_position();
-
-    commands.spawn((
-        Transform::from_xyz(world_pos.x, world_pos.y, world_pos.z),
-        GlobalTransform::default(),
-        Mesh2d(meshes.add(mesh)),
-        MeshMaterial2d(material.0.clone()),
-    ));
+    if let Some(mesh) = build_chunk_mesh(&map.ground, &pos, &material.lookup_map) {
+        commands.spawn((
+            Transform::from_xyz(world_pos.x, world_pos.y, world_pos.z),
+            GlobalTransform::default(),
+            Mesh2d(meshes.add(mesh)),
+            MeshMaterial2d(material.handle.clone()),
+        ));
+    };
+    if let Some(mesh) = build_chunk_mesh(&map.borders, &pos, &material.lookup_map) {
+        commands.spawn((
+            Transform::from_xyz(world_pos.x, world_pos.y, world_pos.z),
+            GlobalTransform::default(),
+            Mesh2d(meshes.add(mesh)),
+            MeshMaterial2d(material.handle.clone()),
+        ));
+    };
 }
 
 fn build_chunk_mesh(
-    world: &WorldMap,
+    ground_layer: &HashMap<(u32, u32, u32), Arc<GroundConfig>>,
     pos: &ChunkPosition,
-    appearance: &AppearanceData,
+    lookup_map: &HashMap<u32, u32>,
 ) -> Option<Mesh> {
-    let mut positions = Vec::<[f32; 3]>::new();
-    let mut uvs = Vec::<[f32; 2]>::new();
-    let mut sprite_ids = Vec::<u32>::new();
-    let mut frame_counts = Vec::<u32>::new();
-    let mut indices = Vec::<u32>::new();
+    let cap = (CHUNK_SIZE * CHUNK_SIZE * 4) as usize;
+    let mut positions = Vec::<[f32; 3]>::with_capacity(cap);
+    let mut uvs = Vec::<[f32; 2]>::with_capacity(cap);
+    let mut lookup_index = Vec::<u32>::with_capacity(cap);
+    let mut patterns = Vec::<[u32; 4]>::with_capacity(cap);
+    let mut frame_counts = Vec::<u32>::with_capacity(cap);
+    let mut indices = Vec::<u32>::with_capacity(cap);
     let mut quad_index: u32 = 0;
 
     let start_x = pos.cx * CHUNK_SIZE;
@@ -275,45 +320,24 @@ fn build_chunk_mesh(
             let x = start_x + tx;
             let y = start_y + ty;
 
-            let ground = world.ground.get(&(x, y, pos.cz));
+            let ground = ground_layer.get(&(x, y, pos.cz));
 
             let px = tx as f32 * TILE_SIZE;
             let py = -(ty as f32) * TILE_SIZE;
 
             if let Some(ground) = ground {
-                let atlas = appearance.ground_sheets.get(&1).unwrap();
                 push_quad(
                     &mut positions,
                     &mut uvs,
-                    &mut sprite_ids,
+                    &mut lookup_index,
                     &mut frame_counts,
+                    &mut patterns,
                     &mut indices,
                     &mut quad_index,
-                    px,
-                    py,
-                    atlas.get_uv(ground.sprite_id),
-                    0.0,
-                    ground.sprite_id,
-                    ground.frame_count,
-                );
-            }
-
-            let border = world.borders.get(&(x, y, pos.cz));
-            if let Some(border) = border {
-                let atlas = appearance.ground_sheets.get(&1).unwrap();
-                push_quad(
-                    &mut positions,
-                    &mut uvs,
-                    &mut sprite_ids,
-                    &mut frame_counts,
-                    &mut indices,
-                    &mut quad_index,
-                    px,
-                    py,
-                    atlas.get_uv(border.sprite_id),
-                    0.01,
-                    border.sprite_id,
-                    1,
+                    Vec3::new(px, py, 0.0),
+                    UVec2::new(x, y),
+                    ground.as_ref(),
+                    lookup_map,
                 );
             }
         }
@@ -329,8 +353,9 @@ fn build_chunk_mesh(
     )
     .with_inserted_attribute(Mesh::ATTRIBUTE_POSITION, positions)
     .with_inserted_attribute(Mesh::ATTRIBUTE_UV_0, uvs)
-    .with_inserted_attribute(ATTRIBUTE_SPRITE_ID, sprite_ids)
+    .with_inserted_attribute(ATTRIBUTE_LOOKUP_INDEX, lookup_index)
     .with_inserted_attribute(ATTRIBUTE_FRAME_COUNT, frame_counts)
+    .with_inserted_attribute(ATTRIBUTE_PATTERNS, patterns)
     .with_inserted_indices(Indices::U32(indices));
 
     Some(mesh)
@@ -339,36 +364,34 @@ fn build_chunk_mesh(
 fn push_quad(
     positions: &mut Vec<[f32; 3]>,
     uvs: &mut Vec<[f32; 2]>,
-    sprite_ids: &mut Vec<u32>,
+    lookup_index: &mut Vec<u32>,
     frame_counts: &mut Vec<u32>,
+    patterns: &mut Vec<[u32; 4]>,
     indices: &mut Vec<u32>,
     quad_index: &mut u32,
-    x: f32,
-    y: f32,
-    sprite_uv: Rect,
-    z: f32,
-    sprite_id: u32,
-    frame_count: u32,
+    w_pos: Vec3,
+    t_pos: UVec2,
+    ground: &GroundConfig,
+    lookup_map: &HashMap<u32, u32>,
 ) {
     let i = *quad_index * 4;
 
     positions.extend_from_slice(&[
-        [x, y, z],
-        [x + TILE_SIZE, y, z],
-        [x + TILE_SIZE, y - TILE_SIZE, z],
-        [x, y - TILE_SIZE, z],
+        [w_pos.x, w_pos.y, w_pos.z],
+        [w_pos.x + TILE_SIZE, w_pos.y, w_pos.z],
+        [w_pos.x + TILE_SIZE, w_pos.y - TILE_SIZE, w_pos.z],
+        [w_pos.x, w_pos.y - TILE_SIZE, w_pos.z],
     ]);
 
-    uvs.extend_from_slice(&[
-        [sprite_uv.min.x, sprite_uv.min.y],
-        [sprite_uv.max.x, sprite_uv.min.y],
-        [sprite_uv.max.x, sprite_uv.max.y],
-        [sprite_uv.min.x, sprite_uv.max.y],
-    ]);
+    uvs.extend_from_slice(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]);
 
+    let index = *lookup_map.get(&ground.id).unwrap();
     for _ in 0..4 {
-        sprite_ids.push(sprite_id);
-        frame_counts.push(frame_count);
+        let y_pat = t_pos.y % ground.pattern_y;
+        let x_pat = t_pos.x % ground.pattern_x;
+        lookup_index.push(index);
+        frame_counts.push(ground.animation_frames);
+        patterns.push([ground.pattern_x, ground.pattern_y, x_pat, y_pat]);
     }
 
     indices.extend_from_slice(&[i, i + 2, i + 1, i, i + 3, i + 2]);

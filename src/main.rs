@@ -3,10 +3,7 @@ use bevy::camera::{Camera, ClearColorConfig, OrthographicProjection, ScalingMode
 use bevy::prelude::*;
 use bevy::window::PresentMode;
 
-use bevy::diagnostic::{
-    EntityCountDiagnosticsPlugin, FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin,
-    SystemInformationDiagnosticsPlugin,
-};
+use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 
 use crate::data::State;
 
@@ -20,8 +17,6 @@ fn main() {
         .add_plugins((
             FrameTimeDiagnosticsPlugin::default(),
             LogDiagnosticsPlugin::default(),
-            EntityCountDiagnosticsPlugin::default(),
-            SystemInformationDiagnosticsPlugin::default(),
         ))
         .add_plugins(
             DefaultPlugins

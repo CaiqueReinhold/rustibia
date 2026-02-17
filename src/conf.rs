@@ -2,7 +2,7 @@ pub mod map {
     pub const TILE_SIZE: f32 = 32.0;
     pub const VIEW_TILES_X: f32 = 15.0;
     pub const VIEW_TILES_Y: f32 = 11.0;
-    pub const CHUNK_SIZE: u32 = 8;
+    pub const CHUNK_SIZE: u32 = 32;
     pub const CHUNK_LOAD_RADIUS: u32 = 2;
     pub const FLOOR_Z_OFFSET: f32 = 10.0;
 }
