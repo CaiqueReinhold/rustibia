@@ -7,6 +7,11 @@ pub mod map {
     pub const FLOOR_Z_OFFSET: f32 = 10.0;
 }
 
+pub mod actor {
+    pub const ADDON_1_FLAG: u32 = 0b1;
+    pub const ADDON_2_FLAG: u32 = 0b10;
+}
+
 pub mod viewport {
     use super::map;
     pub const GAME_VIEW_WIDTH: f32 = map::VIEW_TILES_X * map::TILE_SIZE;

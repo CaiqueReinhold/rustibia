@@ -1,14 +1,14 @@
 use bevy::camera::visibility::RenderLayers;
 use bevy::prelude::*;
 
-use crate::ui::window::UIWindowDock;
+use crate::main_ui::window::UIWindowDock;
 
-pub mod chat;
-pub mod gameview;
-pub mod leftpanel;
-pub mod rightpanel;
-pub mod toppanel;
-pub mod window;
+mod chat;
+mod gameview;
+mod leftpanel;
+mod rightpanel;
+mod toppanel;
+mod window;
 
 #[derive(Resource)]
 pub struct UiFonts {

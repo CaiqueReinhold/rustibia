@@ -1,14 +1,12 @@
 use bevy::camera::{Camera, Viewport};
 use bevy::prelude::*;
 
+use crate::camera::GameCamera;
 use crate::conf::ui::{SIDE_PANEL_WIDTH, TOP_BAR_HEIGHT};
 use crate::conf::viewport::ASPECT_RATIO;
 
 #[derive(Component)]
 pub struct GameViewport;
-
-#[derive(Component)]
-pub struct GameCamera;
 
 // #[derive(Component)]
 // pub struct GameFrame;

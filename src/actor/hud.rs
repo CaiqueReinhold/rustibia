@@ -41,8 +41,3 @@ pub struct Mana {
     pub current: u32,
     pub max: u32,
 }
-
-// #[derive(Component)]
-// pub struct DisplayName {
-//     pub name: String,
-// }

@@ -1,9 +1,8 @@
 use bevy::prelude::*;
 
+use crate::actor::{Health, HealthState, Mana, Player};
 use crate::conf::ui::TOP_BAR_HEIGHT;
-use crate::game::hud::{Health, HealthState, Mana};
-use crate::game::player::Player;
-use crate::ui::UiFonts;
+use crate::main_ui::UiFonts;
 
 #[derive(Component)]
 pub struct TopPanel;

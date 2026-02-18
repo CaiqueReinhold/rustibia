@@ -1,12 +1,12 @@
 use bevy::prelude::*;
 
 use crate::conf::ui::SIDE_PANEL_WIDTH;
-use crate::ui::window::{DockId, Index, UIWindowDock};
+use crate::main_ui::window::{DockId, Index, UIWindowDock};
 
 #[derive(Component)]
-pub struct LeftPanel;
+pub struct RightPanel;
 
-pub fn spawn_left_panel(commands: &mut Commands, asset_server: &Res<AssetServer>) -> Entity {
+pub fn spawn_right_panel(commands: &mut Commands, asset_server: &Res<AssetServer>) -> Entity {
     let bg_box = asset_server.load("ui/box.png");
 
     let slicer = TextureSlicer {
@@ -21,7 +21,7 @@ pub fn spawn_left_panel(commands: &mut Commands, asset_server: &Res<AssetServer>
 
     return commands
         .spawn((
-            LeftPanel,
+            RightPanel,
             Node {
                 position_type: PositionType::Relative,
                 max_width: Val::Px(SIDE_PANEL_WIDTH),
@@ -39,12 +39,11 @@ pub fn spawn_left_panel(commands: &mut Commands, asset_server: &Res<AssetServer>
             BoxShadow(vec![ShadowStyle {
                 color: Color::BLACK.with_alpha(0.8),
                 x_offset: px(0),
-                y_offset: px(2),
+                y_offset: px(-2),
                 spread_radius: px(1),
                 blur_radius: px(5),
             }]),
             ZIndex(1),
-            Name::new("Left Panel"),
         ))
         .with_children(|parent| {
             parent.spawn((
@@ -55,7 +54,7 @@ pub fn spawn_left_panel(commands: &mut Commands, asset_server: &Res<AssetServer>
                     ..default()
                 },
                 UIWindowDock { id: DockId::new() },
-                Index(1),
+                Index(0),
             ));
         })
         .id();
