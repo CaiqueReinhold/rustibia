@@ -11,10 +11,11 @@ pub mod z_order {
     pub const ACTOR_Z_OFFSET: f32 = 1.0;
 }
 
-// pub mod actor {
-//     pub const ADDON_1_FLAG: u32 = 0b1;
-//     pub const ADDON_2_FLAG: u32 = 0b10;
-// }
+pub mod actor {
+    pub const ADDONS_NONE: u32 = 0;
+    // pub const ADDON_1_FLAG: u32 = 0b1;
+    // pub const ADDON_2_FLAG: u32 = 0b10;
+}
 
 pub mod viewport {
     use super::map;

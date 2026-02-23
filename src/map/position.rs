@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use crate::conf::map::{CHUNK_SIZE, TILE_SIZE};
 use crate::conf::z_order::FLOOR_Z_MULTIPLIER;
 
-#[derive(Component, Hash, PartialEq, Eq, Clone)]
+#[derive(Component, Hash, PartialEq, Eq, Clone, Debug)]
 pub struct TilePosition {
     pub x: u32,
     pub y: u32,
@@ -21,6 +21,14 @@ impl TilePosition {
             -(self.y as f32) * TILE_SIZE,
             self.floor as f32 * FLOOR_Z_MULTIPLIER,
         )
+    }
+
+    pub fn delta(&self, x: i32, y: i32) -> Self {
+        TilePosition {
+            x: ((self.x as i32) + x) as u32,
+            y: ((self.y as i32) + y) as u32,
+            floor: self.floor,
+        }
     }
 }
 

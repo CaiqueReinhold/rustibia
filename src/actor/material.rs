@@ -4,6 +4,7 @@ use bevy::render::storage::ShaderStorageBuffer;
 use bevy::shader::ShaderRef;
 use bevy::sprite_render::{AlphaMode2d, Material2d};
 
+#[repr(C)]
 #[derive(ShaderType, Clone, Copy, Debug, Default)]
 pub struct ActorInstance {
     pub moving: u32,
@@ -15,8 +16,10 @@ pub struct ActorInstance {
     pub color_legs: Vec4,
     pub color_feet: Vec4,
     pub time_offset: f32,
+    pub _pad: Vec3,
 }
 
+#[repr(C)]
 #[derive(ShaderType, Clone, Copy, Debug, Default)]
 pub struct ActorParams {
     pub atlas_grid: Vec2,

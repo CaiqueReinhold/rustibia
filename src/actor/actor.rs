@@ -42,11 +42,10 @@ impl ActorInstances {
     }
 
     fn trim(&mut self) {
-        for i in self.in_use.len()..=0 {
-            if self.in_use[i] {
-                return;
+        while let Some(&in_use) = self.in_use.last() {
+            if in_use {
+                break;
             }
-
             self.in_use.pop();
             self.data.pop();
         }
@@ -58,16 +57,43 @@ pub struct RemoveActor {
     pub entity: Entity,
 }
 
+#[derive(Debug, Clone, Copy)]
+pub enum FacingDirection {
+    North = 0,
+    East = 1,
+    South = 2,
+    West = 3,
+}
+
+impl From<FacingDirection> for u32 {
+    fn from(value: FacingDirection) -> Self {
+        value as u32
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum Mounted {
+    Unmounted = 0,
+    Mounted = 1,
+}
+
+impl From<Mounted> for u32 {
+    fn from(value: Mounted) -> Self {
+        value as u32
+    }
+}
+
 #[derive(Component, Debug)]
 pub struct Actor {
     pub outfit_id: u32,
-    pub direction: u32,
+    pub direction: FacingDirection,
     pub addons: u32,
-    pub mounted: u32,
+    pub mounted: Mounted,
     pub color_head: u32,
     pub color_body: u32,
     pub color_legs: u32,
     pub color_feet: u32,
+    pub speed: u32,
 }
 
 pub fn init_instances_buffer(
@@ -95,7 +121,6 @@ pub fn on_spawn_actor(
     time: Res<Time>,
     actor_q: Query<&Actor>,
 ) {
-    info!("Adding mesh to actor");
     let actor = actor_q.get(event.entity).unwrap();
     let outfit = outfits.outfits.get(&actor.outfit_id).unwrap();
 
@@ -119,7 +144,6 @@ pub fn on_spawn_actor(
         MeshMaterial2d(material.clone()),
         MeshTag(index),
     ));
-    info!("actor: {} mesh: {:?} material: {:?}", index, mesh, material);
 }
 
 fn init_material(
@@ -158,12 +182,8 @@ fn init_material(
     let material_handle = materials.add(ActorMaterial {
         texture: sheet.texture.clone(),
         params,
-        still_indexes: buffers.add(ShaderStorageBuffer::from(
-            still_sprite.sprite_ids.as_slice(),
-        )),
-        moving_indexes: buffers.add(ShaderStorageBuffer::from(
-            still_sprite.sprite_ids.as_slice(),
-        )),
+        still_indexes: buffers.add(ShaderStorageBuffer::from(&still_sprite.sprite_ids)),
+        moving_indexes: buffers.add(ShaderStorageBuffer::from(&moving_sprite.sprite_ids)),
         instances: instances.buffer.clone(),
     });
 
@@ -193,13 +213,20 @@ pub fn on_remove_actor(
 pub fn upload_instance_buffer(
     instances: Res<ActorInstances>,
     mut buffers: ResMut<Assets<ShaderStorageBuffer>>,
+    loaded_materials: Res<LoadedMaterials>,
+    mut materials: ResMut<Assets<ActorMaterial>>,
 ) {
     if !instances.is_changed() {
         return;
     }
 
     if let Some(ssb) = buffers.get_mut(&instances.buffer) {
-        ssb.set_data(instances.data.as_slice());
+        ssb.set_data(&instances.data);
+    }
+
+    for (_, mat) in loaded_materials.materials.values() {
+        // set material as changed so buffer gets updated in the pipeline
+        let _ = materials.get_mut(mat).unwrap();
     }
 }
 
@@ -211,8 +238,8 @@ pub fn update_actor_instances(
         let index = tag.0;
         let instance = &mut instances.data[index as usize];
         instance.moving = if moving.is_some() { 1 } else { 0 };
-        instance.direction = actor.direction;
-        instance.mounted = actor.mounted;
+        instance.direction = actor.direction.into();
+        instance.mounted = actor.mounted.into();
         instance.addons = actor.addons;
         instance.color_head = COLOR_TABLE[actor.color_head as usize];
         instance.color_body = COLOR_TABLE[actor.color_body as usize];

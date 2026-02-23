@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy::window::PresentMode;
 
-// use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
+use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 
 mod actor;
 mod camera;
@@ -14,10 +14,10 @@ use crate::core::{GameAssetsLoaded, State};
 
 fn main() {
     App::new()
-        // .add_plugins((
-        //     FrameTimeDiagnosticsPlugin::default(),
-        //     LogDiagnosticsPlugin::default(),
-        // ))
+        .add_plugins((
+            FrameTimeDiagnosticsPlugin::default(),
+            LogDiagnosticsPlugin::default(),
+        ))
         .add_plugins(
             DefaultPlugins
                 .set(ImagePlugin::default_nearest())

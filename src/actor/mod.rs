@@ -3,6 +3,7 @@ use bevy::sprite_render::Material2dPlugin;
 
 use crate::core::State;
 
+mod actions;
 mod actor;
 mod assets;
 mod colors;
@@ -29,8 +30,10 @@ impl Plugin for ActorPlugin {
                     .run_if(in_state(State::InGame)),
             )
             .add_systems(OnEnter(State::InGame), player::spawn_player)
-            .add_systems(Update, player::center_on_player)
+            .add_systems(Update, (movement::move_actor, player::center_on_player))
+            .add_systems(Update, (player::read_player_input,))
             .add_observer(actor::on_spawn_actor)
-            .add_observer(actor::on_remove_actor);
+            .add_observer(actor::on_remove_actor)
+            .add_observer(actions::on_player_move);
     }
 }
