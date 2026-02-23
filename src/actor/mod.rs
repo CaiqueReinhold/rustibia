@@ -1,6 +1,8 @@
 use bevy::prelude::*;
 use bevy::sprite_render::Material2dPlugin;
 
+use crate::core::State;
+
 mod actor;
 mod assets;
 mod colors;
@@ -9,6 +11,7 @@ mod material;
 mod movement;
 mod player;
 
+pub use crate::actor::assets::*;
 pub use crate::actor::hud::*;
 pub use crate::actor::player::*;
 
@@ -21,8 +24,12 @@ impl Plugin for ActorPlugin {
             .add_systems(Startup, actor::init_instances_buffer)
             .add_systems(
                 Update,
-                (actor::update_actor_instances, actor::upload_instance_buffer).chain(),
+                (actor::update_actor_instances, actor::upload_instance_buffer)
+                    .chain()
+                    .run_if(in_state(State::InGame)),
             )
+            .add_systems(OnEnter(State::InGame), player::spawn_player)
+            .add_systems(Update, player::center_on_player)
             .add_observer(actor::on_spawn_actor)
             .add_observer(actor::on_remove_actor);
     }

@@ -95,6 +95,7 @@ pub fn on_spawn_actor(
     time: Res<Time>,
     actor_q: Query<&Actor>,
 ) {
+    info!("Adding mesh to actor");
     let actor = actor_q.get(event.entity).unwrap();
     let outfit = outfits.outfits.get(&actor.outfit_id).unwrap();
 
@@ -102,31 +103,33 @@ pub fn on_spawn_actor(
         init_material(
             outfit,
             &appearances,
-            &time,
             &mut materials,
             &mut meshes,
             &mut buffers,
             &mut loaded_materials,
+            &instances,
         );
     }
 
     let (mesh, material) = loaded_materials.materials.get(&outfit.id).unwrap();
     let index = instances.alloc_index();
+    instances.data[index as usize].time_offset = time.elapsed_secs_wrapped();
     commands.entity(event.entity).insert((
         Mesh2d(mesh.clone()),
         MeshMaterial2d(material.clone()),
         MeshTag(index),
     ));
+    info!("actor: {} mesh: {:?} material: {:?}", index, mesh, material);
 }
 
 fn init_material(
     outfit: &Outfit,
     appearances: &Appearances,
-    time: &Time,
     materials: &mut Assets<ActorMaterial>,
     meshes: &mut Assets<Mesh>,
     buffers: &mut Assets<ShaderStorageBuffer>,
     loaded_materials: &mut LoadedMaterials,
+    instances: &ActorInstances,
 ) {
     let sheet = appearances.sheets.get(&outfit.sprite_group).unwrap();
     let still_sprite = appearances
@@ -149,8 +152,7 @@ fn init_material(
             moving_sprite.animation.total_animation_phases(),
         ),
         phase_duration: 0.1,
-        time_offset: time.elapsed_secs_wrapped(),
-        _pad: Vec2::ZERO,
+        _pad: Vec3::ZERO,
     };
 
     let material_handle = materials.add(ActorMaterial {
@@ -162,11 +164,12 @@ fn init_material(
         moving_indexes: buffers.add(ShaderStorageBuffer::from(
             still_sprite.sprite_ids.as_slice(),
         )),
+        instances: instances.buffer.clone(),
     });
 
     let mesh = Mesh::from(Rectangle::new(
-        still_sprite.bounding_box as f32,
-        still_sprite.bounding_box as f32,
+        still_sprite.box_size.x as f32,
+        still_sprite.box_size.y as f32,
     ));
     let mesh_handle = meshes.add(mesh);
     loaded_materials

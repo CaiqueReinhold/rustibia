@@ -14,6 +14,7 @@ pub struct ActorInstance {
     pub color_body: Vec4,
     pub color_legs: Vec4,
     pub color_feet: Vec4,
+    pub time_offset: f32,
 }
 
 #[derive(ShaderType, Clone, Copy, Debug, Default)]
@@ -25,8 +26,7 @@ pub struct ActorParams {
     pub layers: UVec2,
     pub phase_count: UVec2,
     pub phase_duration: f32,
-    pub time_offset: f32,
-    pub _pad: Vec2,
+    pub _pad: Vec3,
 }
 
 #[derive(Asset, AsBindGroup, TypePath, Debug, Clone, Default)]
@@ -43,10 +43,17 @@ pub struct ActorMaterial {
 
     #[storage(4, read_only)]
     pub moving_indexes: Handle<ShaderStorageBuffer>,
+
+    #[storage(5, read_only)]
+    pub instances: Handle<ShaderStorageBuffer>,
 }
 
 impl Material2d for ActorMaterial {
     fn fragment_shader() -> ShaderRef {
+        "shaders/actor.wgsl".into()
+    }
+
+    fn vertex_shader() -> ShaderRef {
         "shaders/actor.wgsl".into()
     }
 

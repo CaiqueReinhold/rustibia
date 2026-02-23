@@ -7,8 +7,8 @@ use crate::map::{
     position::TilePosition,
 };
 
-fn load_map() -> Map {
-    let Ok(contents) = fs::read_to_string("assets/maps/map.json") else {
+pub fn read_map_config() -> Map {
+    let Ok(contents) = fs::read_to_string("assets/configs/map_conf.json") else {
         panic!("Could not read map file");
     };
     let map_json: serde_json::Value = serde_json::from_str(&contents).unwrap();

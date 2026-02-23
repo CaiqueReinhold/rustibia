@@ -4528,6 +4528,7 @@ version = "0.1.0"
 dependencies = [
  "bevy",
  "bevy_asset_loader",
+ "futures-lite",
  "serde",
  "serde_json",
 ]

@@ -4,13 +4,17 @@ pub mod map {
     pub const VIEW_TILES_Y: f32 = 11.0;
     pub const CHUNK_SIZE: u32 = 32;
     pub const CHUNK_LOAD_RADIUS: u32 = 2;
-    pub const FLOOR_Z_OFFSET: f32 = 10.0;
 }
 
-pub mod actor {
-    pub const ADDON_1_FLAG: u32 = 0b1;
-    pub const ADDON_2_FLAG: u32 = 0b10;
+pub mod z_order {
+    pub const FLOOR_Z_MULTIPLIER: f32 = 10.0;
+    pub const ACTOR_Z_OFFSET: f32 = 1.0;
 }
+
+// pub mod actor {
+//     pub const ADDON_1_FLAG: u32 = 0b1;
+//     pub const ADDON_2_FLAG: u32 = 0b10;
+// }
 
 pub mod viewport {
     use super::map;

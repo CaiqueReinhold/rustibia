@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use crate::actor::Player;
 use crate::conf::map::{CHUNK_LOAD_RADIUS, CHUNK_SIZE, TILE_SIZE};
-use crate::core::{Appearances, SpriteAnimation, SpriteConfig};
+use crate::core::{Appearances, SpriteConfig};
 use crate::map::material::TerrainMaterial;
 use crate::map::material::{ATTRIBUTE_FRAME_COUNT, ATTRIBUTE_LOOKUP_INDEX, ATTRIBUTE_PATTERNS};
 use crate::map::{
@@ -143,7 +143,14 @@ fn spawn_chunk(
         return;
     }
 
-    let entity = commands.spawn((position.clone(),)).id();
+    let entity = commands
+        .spawn((
+            position.clone(),
+            Transform::default(),
+            GlobalTransform::default(),
+            Visibility::Visible,
+        ))
+        .id();
 
     if ground.len() > 0 {
         let group = &ground.first().unwrap().1.group;
@@ -265,11 +272,13 @@ fn push_quad(
 
     uvs.extend_from_slice(&[[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]);
 
-    let index = *lookup_map.get(&ground.id).unwrap();
-    let animation_frames = match ground.animation {
-        SpriteAnimation::Static => 1,
-        SpriteAnimation::Uniform { phase_count, .. } => phase_count,
+    let index = match lookup_map.get(&ground.id) {
+        Some(i) => *i,
+        None => {
+            panic!("failed");
+        }
     };
+    let animation_frames = ground.animation.total_animation_phases();
     for _ in 0..4 {
         let y_pat = t_pos.y % ground.pattern_y;
         let x_pat = t_pos.x % ground.pattern_x;

@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
-use crate::conf::map::{CHUNK_SIZE, FLOOR_Z_OFFSET, TILE_SIZE};
+use crate::conf::map::{CHUNK_SIZE, TILE_SIZE};
+use crate::conf::z_order::FLOOR_Z_MULTIPLIER;
 
 #[derive(Component, Hash, PartialEq, Eq, Clone)]
 pub struct TilePosition {
@@ -18,7 +19,7 @@ impl TilePosition {
         Vec3::new(
             (self.x as f32) * TILE_SIZE,
             -(self.y as f32) * TILE_SIZE,
-            self.floor as f32 * FLOOR_Z_OFFSET,
+            self.floor as f32 * FLOOR_Z_MULTIPLIER,
         )
     }
 }
@@ -41,14 +42,6 @@ impl ChunkPosition {
             cy: tile_pos.y / CHUNK_SIZE,
             floor: tile_pos.floor,
         }
-    }
-
-    pub fn to_world(&self) -> Vec3 {
-        Vec3::new(
-            (self.cx * CHUNK_SIZE) as f32 * TILE_SIZE,
-            -((self.cy * CHUNK_SIZE) as f32) * TILE_SIZE,
-            self.floor as f32 * FLOOR_Z_OFFSET,
-        )
     }
 
     pub fn start_position(&self) -> TilePosition {

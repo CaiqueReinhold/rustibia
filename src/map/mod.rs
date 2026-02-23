@@ -9,7 +9,9 @@ mod map;
 mod material;
 mod position;
 
-// pub use crate::map::position::TilePosition;
+pub use crate::map::assets::read_map_config;
+pub use crate::map::map::Map;
+pub use crate::map::position::TilePosition;
 pub struct MapPlugin;
 
 impl Plugin for MapPlugin {
@@ -19,7 +21,7 @@ impl Plugin for MapPlugin {
             .init_resource::<chunks::LoadedMaterials>()
             .add_observer(chunks::update_visible_chunks)
             .add_systems(
-                Update,
+                FixedUpdate,
                 (chunks::player_chunk_changed).run_if(in_state(State::InGame)),
             );
     }
