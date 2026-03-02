@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::sync::Arc;
 
 use bevy::prelude::*;
 use bevy::tasks::{IoTaskPool, Task};
@@ -12,7 +11,7 @@ use crate::map::{read_map_config, Map};
 
 #[derive(Resource)]
 pub struct LoadTasks {
-    sprite_conf_task: Task<HashMap<u32, Arc<SpriteConfig>>>,
+    sprite_conf_task: Task<HashMap<u32, SpriteConfig>>,
     sprite_sheet_task: Task<HashMap<String, SpriteSheet>>,
     outfits_task: Task<Outfits>,
     map_task: Task<Map>,

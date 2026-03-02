@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use bevy::prelude::*;
 
 use crate::actor::actor::{Actor, FacingDirection};
@@ -41,10 +43,19 @@ impl WalkingDirection {
 }
 
 #[derive(Component, Debug)]
+pub struct QueuedMove {
+    pub start: TilePosition,
+    pub end: TilePosition,
+    pub step_time_ms: u32,
+    pub facing: FacingDirection,
+}
+
+#[derive(Component, Debug)]
 pub struct Moving {
     pub start: TilePosition,
     pub end: TilePosition,
     pub timer: Timer,
+    pub queued: Option<QueuedMove>,
 }
 
 pub fn move_actor(
@@ -56,15 +67,29 @@ pub fn move_actor(
     for (entity, mut transform, mut moving) in moving_q.iter_mut() {
         moving.timer.tick(time.delta());
         if moving.timer.is_finished() {
+            let mut actor = actor_q.get_mut(entity).unwrap();
+            actor.set_changed();
+
             commands
                 .entity(entity)
                 .insert(moving.end.clone())
                 .remove::<Moving>();
 
-            let mut actor = actor_q.get_mut(entity).unwrap();
-            actor.set_changed();
-
-            continue;
+            match &moving.queued {
+                Some(q) => {
+                    commands.entity(entity).insert(Moving {
+                        start: q.start.clone(),
+                        end: q.end.clone(),
+                        timer: Timer::new(
+                            Duration::from_millis(q.step_time_ms as u64),
+                            TimerMode::Once,
+                        ),
+                        queued: None,
+                    });
+                    actor.direction = q.facing;
+                }
+                None => (),
+            };
         }
 
         let start = moving.start.to_world();

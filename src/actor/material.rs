@@ -16,7 +16,10 @@ pub struct ActorInstance {
     pub color_legs: Vec4,
     pub color_feet: Vec4,
     pub time_offset: f32,
-    pub _pad: Vec3,
+    pub bounding_square: f32,
+    pub bbox_min: Vec2,
+    pub bbox_size: Vec2,
+    pub _pad: Vec2,
 }
 
 #[repr(C)]

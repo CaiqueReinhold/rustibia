@@ -1,5 +1,4 @@
 use std::collections::{HashMap, HashSet};
-use std::sync::Arc;
 
 use crate::actor::Player;
 use crate::conf::map::{CHUNK_LOAD_RADIUS, CHUNK_SIZE, TILE_SIZE};
@@ -116,9 +115,9 @@ fn spawn_chunk(
     buffers: &mut Assets<ShaderStorageBuffer>,
     time: &Time,
 ) {
-    let mut ground: Vec<(TilePosition, Arc<SpriteConfig>)> =
+    let mut ground: Vec<(TilePosition, &SpriteConfig)> =
         Vec::with_capacity((CHUNK_SIZE * CHUNK_SIZE) as usize);
-    let mut borders: Vec<(TilePosition, Arc<SpriteConfig>)> =
+    let mut borders: Vec<(TilePosition, &SpriteConfig)> =
         Vec::with_capacity((CHUNK_SIZE * CHUNK_SIZE) as usize);
 
     let start = position.start_position();
@@ -129,11 +128,11 @@ fn spawn_chunk(
             if let Some(tile) = map.tiles.get(&tile_pos) {
                 if let Some(g) = &tile.ground {
                     let ground_sprite = appearances.sprite_configs.get(&g.sprite_id).unwrap();
-                    ground.push((tile_pos.clone(), ground_sprite.clone()));
+                    ground.push((tile_pos.clone(), ground_sprite));
                 }
                 if let Some(b) = &tile.border {
                     let border_sprite = appearances.sprite_configs.get(&b.sprite_id).unwrap();
-                    borders.push((tile_pos, border_sprite.clone()));
+                    borders.push((tile_pos, border_sprite));
                 }
             }
         }
@@ -207,7 +206,7 @@ fn spawn_chunk(
 }
 
 fn build_chunk_mesh(
-    tiles: Vec<(TilePosition, Arc<SpriteConfig>)>,
+    tiles: Vec<(TilePosition, &SpriteConfig)>,
     lookup_map: &HashMap<u32, u32>,
 ) -> Mesh {
     let cap = (CHUNK_SIZE * CHUNK_SIZE * 4) as usize;
@@ -229,7 +228,7 @@ fn build_chunk_mesh(
             &mut indices,
             &mut quad_index,
             pos,
-            tile.as_ref(),
+            *tile,
             lookup_map,
         );
     }
@@ -321,4 +320,28 @@ fn init_material(
     });
     loaded_materials.materials.insert(group.clone(), material);
     loaded_materials.lookups.insert(group.clone(), lookup_map);
+}
+
+pub fn draw_tile_grid(mut gizmos: Gizmos) {
+    // Vertical lines
+    for x in -40000..=40000 {
+        let world_x = x as f32 * TILE_SIZE;
+
+        gizmos.line_2d(
+            Vec2::new(world_x, -80000.0),
+            Vec2::new(world_x, 80000.0),
+            Color::srgb(1.0, 1., 1.),
+        );
+    }
+
+    // Horizontal lines
+    for y in -40000..=40000 {
+        let world_y = y as f32 * TILE_SIZE;
+
+        gizmos.line_2d(
+            Vec2::new(-80000.0, world_y),
+            Vec2::new(80000.0, world_y),
+            Color::srgb(1.0, 1., 1.),
+        );
+    }
 }

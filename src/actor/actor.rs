@@ -3,12 +3,14 @@ use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
 use bevy::render::storage::ShaderStorageBuffer;
 
-use crate::core::Appearances;
+use crate::conf::z_order::ACTOR_Z_OFFSET;
+use crate::core::{Appearances, SpriteConfig, SpriteSheet};
 
 use crate::actor::assets::{Outfit, Outfits};
 use crate::actor::colors::COLOR_TABLE;
 use crate::actor::material::{ActorInstance, ActorMaterial, ActorParams};
 use crate::actor::movement::Moving;
+use crate::map::TilePosition;
 
 #[derive(Resource, Default, Debug)]
 pub struct LoadedMaterials {
@@ -57,8 +59,9 @@ pub struct RemoveActor {
     pub entity: Entity,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
 pub enum FacingDirection {
+    #[default]
     North = 0,
     East = 1,
     South = 2,
@@ -71,8 +74,15 @@ impl From<FacingDirection> for u32 {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+impl From<FacingDirection> for usize {
+    fn from(value: FacingDirection) -> Self {
+        value as usize
+    }
+}
+
+#[derive(Debug, Clone, Copy, Default)]
 pub enum Mounted {
+    #[default]
     Unmounted = 0,
     Mounted = 1,
 }
@@ -83,9 +93,9 @@ impl From<Mounted> for u32 {
     }
 }
 
-#[derive(Component, Debug)]
+#[derive(Component, Debug, Default)]
 pub struct Actor {
-    pub outfit_id: u32,
+    // pub outfit_id: u32,
     pub direction: FacingDirection,
     pub addons: u32,
     pub mounted: Mounted,
@@ -94,6 +104,8 @@ pub struct Actor {
     pub color_legs: u32,
     pub color_feet: u32,
     pub speed: u32,
+    pub box_size: [f32; 2],
+    pub boxes: [[Rect; 4]; 2],
 }
 
 pub fn init_instances_buffer(
@@ -108,53 +120,25 @@ pub fn init_instances_buffer(
     commands.insert_resource(instances);
 }
 
-pub fn on_spawn_actor(
-    event: On<Add, Actor>,
-    mut commands: Commands,
-    mut loaded_materials: ResMut<LoadedMaterials>,
-    mut materials: ResMut<Assets<ActorMaterial>>,
-    mut meshes: ResMut<Assets<Mesh>>,
-    mut buffers: ResMut<Assets<ShaderStorageBuffer>>,
-    mut instances: ResMut<ActorInstances>,
-    appearances: Res<Appearances>,
-    outfits: Res<Outfits>,
-    time: Res<Time>,
-    actor_q: Query<&Actor>,
-) {
-    let actor = actor_q.get(event.entity).unwrap();
-    let outfit = outfits.outfits.get(&actor.outfit_id).unwrap();
-
-    if !loaded_materials.materials.contains_key(&outfit.id) {
-        init_material(
-            outfit,
-            &appearances,
-            &mut materials,
-            &mut meshes,
-            &mut buffers,
-            &mut loaded_materials,
-            &instances,
-        );
-    }
-
-    let (mesh, material) = loaded_materials.materials.get(&outfit.id).unwrap();
-    let index = instances.alloc_index();
-    instances.data[index as usize].time_offset = time.elapsed_secs_wrapped();
-    commands.entity(event.entity).insert((
-        Mesh2d(mesh.clone()),
-        MeshMaterial2d(material.clone()),
-        MeshTag(index),
-    ));
-}
-
-fn init_material(
-    outfit: &Outfit,
-    appearances: &Appearances,
+pub fn spawn_actor(
+    commands: &mut Commands,
+    loaded_materials: &mut LoadedMaterials,
     materials: &mut Assets<ActorMaterial>,
     meshes: &mut Assets<Mesh>,
     buffers: &mut Assets<ShaderStorageBuffer>,
-    loaded_materials: &mut LoadedMaterials,
-    instances: &ActorInstances,
-) {
+    instances: &mut ActorInstances,
+    appearances: &Appearances,
+    outfits: &Outfits,
+    time: &Time,
+    outfit_id: u32,
+    color_head: u32,
+    color_body: u32,
+    color_legs: u32,
+    color_feet: u32,
+    speed: u32,
+    position: TilePosition,
+) -> Entity {
+    let outfit = outfits.outfits.get(&outfit_id).unwrap();
     let sheet = appearances.sheets.get(&outfit.sprite_group).unwrap();
     let still_sprite = appearances
         .sprite_configs
@@ -164,7 +148,69 @@ fn init_material(
         .sprite_configs
         .get(&outfit.moving_sprite_id)
         .unwrap();
+    if !loaded_materials.materials.contains_key(&outfit.id) {
+        init_material(
+            outfit,
+            sheet,
+            still_sprite,
+            moving_sprite,
+            materials,
+            meshes,
+            buffers,
+            loaded_materials,
+            instances,
+        );
+    }
 
+    let (mesh, material) = loaded_materials.materials.get(&outfit.id).unwrap();
+    let index = instances.alloc_index();
+    let instance = &mut instances.data[index as usize];
+    instance.time_offset = time.elapsed_secs_wrapped();
+
+    let actor = Actor {
+        // outfit_id,
+        color_head,
+        color_body,
+        color_feet,
+        color_legs,
+        speed,
+        box_size: [still_sprite.box_size, moving_sprite.box_size],
+        boxes: [
+            still_sprite.boxes.clone().try_into().unwrap(),
+            moving_sprite.boxes.clone().try_into().unwrap(),
+        ],
+        ..default()
+    };
+
+    let world_position = position.to_world();
+    let entity = commands
+        .spawn((
+            actor,
+            Mesh2d(mesh.clone()),
+            MeshMaterial2d(material.clone()),
+            MeshTag(index),
+            position,
+            Transform::from_xyz(
+                world_position.x,
+                world_position.y,
+                world_position.z + ACTOR_Z_OFFSET,
+            ),
+        ))
+        .id();
+    entity
+}
+
+fn init_material(
+    outfit: &Outfit,
+    sheet: &SpriteSheet,
+    still_sprite: &SpriteConfig,
+    moving_sprite: &SpriteConfig,
+    materials: &mut Assets<ActorMaterial>,
+    meshes: &mut Assets<Mesh>,
+    buffers: &mut Assets<ShaderStorageBuffer>,
+    loaded_materials: &mut LoadedMaterials,
+    instances: &ActorInstances,
+) {
     let params = ActorParams {
         atlas_grid: sheet.grid_size,
         pattern_x: UVec2::new(still_sprite.pattern_x, moving_sprite.pattern_x),
@@ -187,10 +233,7 @@ fn init_material(
         instances: instances.buffer.clone(),
     });
 
-    let mesh = Mesh::from(Rectangle::new(
-        still_sprite.box_size.x as f32,
-        still_sprite.box_size.y as f32,
-    ));
+    let mesh = Mesh::from(Rectangle::new(64.0, 64.0));
     let mesh_handle = meshes.add(mesh);
     loaded_materials
         .materials
@@ -245,5 +288,29 @@ pub fn update_actor_instances(
         instance.color_body = COLOR_TABLE[actor.color_body as usize];
         instance.color_legs = COLOR_TABLE[actor.color_legs as usize];
         instance.color_feet = COLOR_TABLE[actor.color_feet as usize];
+        instance.bounding_square = actor.box_size[instance.moving as usize];
+        let bbox = &actor.boxes[instance.moving as usize][actor.direction as usize];
+        instance.bbox_min = bbox.min.clone();
+        instance.bbox_size = bbox.max.clone();
+    }
+}
+
+pub fn actor_rect(actors_q: Query<(&Transform, &Actor, Option<&Moving>)>, mut gizmos: Gizmos) {
+    for (pos, actor, moving) in &actors_q {
+        gizmos.circle_2d(pos.translation.truncate(), 2.0, Color::srgb(1.0, 0.0, 0.0));
+
+        gizmos.rect_2d(
+            pos.translation.truncate(),
+            Vec2::splat(64.0),
+            Color::srgb(0.0, 0.5, 1.0),
+        );
+
+        let mesh_start = pos.translation.truncate();
+        let moving = if moving.is_some() { 1 } else { 0 } as usize;
+        let iso =
+            mesh_start + (actor.boxes[moving][actor.direction as usize].min * Vec2::new(0.5, -0.5));
+        let bbox_size = actor.boxes[moving][actor.direction as usize].max;
+
+        gizmos.rect_2d(iso, bbox_size, Color::srgb(1.0, 1.0, 0.0));
     }
 }

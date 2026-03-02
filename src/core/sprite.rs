@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 use std::fs;
-use std::sync::Arc;
 use std::time::Duration;
 
 use bevy::prelude::*;
@@ -9,16 +8,16 @@ use serde_json::*;
 #[derive(Resource, Debug)]
 pub struct Appearances {
     pub sheets: HashMap<String, SpriteSheet>,
-    pub sprite_configs: HashMap<u32, Arc<SpriteConfig>>,
+    pub sprite_configs: HashMap<u32, SpriteConfig>,
 }
 
 impl Appearances {
-    pub fn get_group(&self, group: &String) -> impl Iterator<Item = Arc<SpriteConfig>> {
+    pub fn get_group(&self, group: &String) -> impl Iterator<Item = &SpriteConfig> {
         self.sprite_configs
             .values()
             .filter(|i| &i.group == group)
-            .map(|i| i.clone())
-            .collect::<Vec<Arc<SpriteConfig>>>()
+            .map(|i| i)
+            .collect::<Vec<&SpriteConfig>>()
             .into_iter()
     }
 }
@@ -69,17 +68,17 @@ pub struct SpriteConfig {
     pub layers: u32,
     pub sprite_ids: Vec<u32>,
     pub animation: SpriteAnimation,
-    pub box_size: Vec2,
+    pub box_size: f32,
     pub boxes: Vec<Rect>,
 }
 
-pub fn read_sprites_config() -> HashMap<u32, Arc<SpriteConfig>> {
+pub fn read_sprites_config() -> HashMap<u32, SpriteConfig> {
     let Ok(contents) = fs::read_to_string("assets/configs/sprite_conf.json") else {
         panic!("Could not read sprites file");
     };
     let sprites: Value = serde_json::from_str(&contents).unwrap();
 
-    let mut config_map: HashMap<u32, Arc<SpriteConfig>> = HashMap::new();
+    let mut config_map: HashMap<u32, SpriteConfig> = HashMap::new();
 
     for conf in sprites.as_array().unwrap().iter() {
         let id = conf["id"].as_u64().unwrap() as u32;
@@ -96,7 +95,6 @@ pub fn read_sprites_config() -> HashMap<u32, Arc<SpriteConfig>> {
             .collect();
         let animation = read_animation(&conf["animation"]);
         let box_size = conf["box_size"].as_u64().unwrap() as f32;
-        let box_size = Vec2::new(box_size, box_size);
         let mut boxes: Vec<Rect> = Vec::new();
         for b in conf["boxes"].as_array().unwrap().iter() {
             boxes.push(Rect {
@@ -111,7 +109,7 @@ pub fn read_sprites_config() -> HashMap<u32, Arc<SpriteConfig>> {
             });
         }
 
-        let spr_conf = Arc::new(SpriteConfig {
+        let spr_conf = SpriteConfig {
             id,
             group,
             pattern_x,
@@ -122,7 +120,7 @@ pub fn read_sprites_config() -> HashMap<u32, Arc<SpriteConfig>> {
             box_size,
             boxes,
             animation,
-        });
+        };
         config_map.insert(id, spr_conf);
     }
 

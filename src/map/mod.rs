@@ -23,6 +23,7 @@ impl Plugin for MapPlugin {
             .add_systems(
                 FixedUpdate,
                 (chunks::player_chunk_changed).run_if(in_state(State::InGame)),
-            );
+            )
+            .add_systems(Update, chunks::draw_tile_grid);
     }
 }

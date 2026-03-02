@@ -1,14 +1,16 @@
 use bevy::prelude::*;
+use bevy::render::storage::ShaderStorageBuffer;
 
-use crate::actor::actions::PlayerMove;
-use crate::actor::actor::{FacingDirection, Mounted};
+use crate::actor::actions::{PlayerChangeDirection, PlayerMove};
+use crate::actor::actor::{ActorInstances, FacingDirection, LoadedMaterials};
+use crate::actor::material::ActorMaterial;
 use crate::actor::movement::WalkingDirection;
-use crate::actor::{actor::Actor, hud::Health};
+use crate::actor::{actor::spawn_actor, hud::Health};
+use crate::actor::{Mana, Outfits};
 use crate::camera::GameCamera;
-use crate::conf::actor::ADDONS_NONE;
+use crate::conf::map::TILE_SIZE;
+use crate::core::Appearances;
 use crate::map::TilePosition;
-
-use crate::conf::z_order::ACTOR_Z_OFFSET;
 
 #[derive(Component)]
 pub struct Player {
@@ -16,16 +18,42 @@ pub struct Player {
     pub experience: u32,
 }
 
-pub fn spawn_player(mut commands: Commands) {
-    info!("Player spawned");
-    let position = TilePosition {
-        x: 1028,
-        y: 1028,
-        floor: 7,
-    };
-    let world_position = position.to_world();
-    info!("player position: {}", world_position);
-    commands.spawn((
+pub fn spawn_player(
+    mut commands: Commands,
+    mut loaded_materials: ResMut<LoadedMaterials>,
+    mut materials: ResMut<Assets<ActorMaterial>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut buffers: ResMut<Assets<ShaderStorageBuffer>>,
+    mut instances: ResMut<ActorInstances>,
+    appearances: Res<Appearances>,
+    outfits: Res<Outfits>,
+    time: Res<Time>,
+) {
+    let entity = spawn_actor(
+        &mut commands,
+        &mut loaded_materials,
+        &mut materials,
+        &mut meshes,
+        &mut buffers,
+        &mut instances,
+        &appearances,
+        &outfits,
+        &time,
+        1649,
+        0,
+        0,
+        0,
+        0,
+        500,
+        TilePosition {
+            x: 1028,
+            y: 1028,
+            floor: 7,
+        },
+    );
+
+    use bevy::sprite::Text2dShadow;
+    commands.entity(entity).insert((
         Player {
             max_experience: 100,
             experience: 0,
@@ -34,23 +62,26 @@ pub fn spawn_player(mut commands: Commands) {
             current: 150,
             max: 150,
         },
-        Actor {
-            outfit_id: 1649,
-            direction: FacingDirection::North,
-            addons: ADDONS_NONE,
-            mounted: Mounted::Unmounted,
-            color_head: 0,
-            color_body: 0,
-            color_feet: 0,
-            color_legs: 0,
-            speed: 500,
+        Mana {
+            current: 100,
+            max: 120,
         },
-        position,
-        Transform::from_xyz(
-            world_position.x,
-            world_position.y,
-            world_position.z + ACTOR_Z_OFFSET,
-        ),
+        children![(
+            Text2d::new("1028, 1028"),
+            TextFont {
+                font_size: 12.0,
+                ..default()
+            },
+            Transform::from_translation(Vec3 {
+                x: 0.0,
+                y: 44.0,
+                z: 0.0
+            }),
+            Text2dShadow {
+                offset: Vec2::new(1.2, 1.2),
+                color: Color::BLACK
+            }
+        )],
     ));
 }
 
@@ -61,41 +92,68 @@ pub fn center_on_player(
     let player_transform = *player_q;
     let mut camera_transform = camera_q;
 
-    camera_transform.translation = player_transform.translation;
+    camera_transform.translation =
+        player_transform.translation + Vec3::new(-(TILE_SIZE / 2.0), -(TILE_SIZE / 2.0), 0.0);
 }
 
 pub fn read_player_input(keyboard: Res<ButtonInput<KeyCode>>, mut commands: Commands) {
-    if keyboard.any_pressed([KeyCode::KeyW, KeyCode::ArrowUp]) {
+    if keyboard.pressed(KeyCode::ShiftLeft) && keyboard.just_pressed(KeyCode::KeyW) {
+        commands.trigger(PlayerChangeDirection {
+            direction: FacingDirection::North,
+        });
+    } else if keyboard.pressed(KeyCode::ShiftLeft) && keyboard.just_pressed(KeyCode::KeyD) {
+        commands.trigger(PlayerChangeDirection {
+            direction: FacingDirection::East,
+        })
+    } else if keyboard.pressed(KeyCode::ShiftLeft) && keyboard.just_pressed(KeyCode::KeyS) {
+        commands.trigger(PlayerChangeDirection {
+            direction: FacingDirection::South,
+        })
+    } else if keyboard.pressed(KeyCode::ShiftLeft) && keyboard.just_pressed(KeyCode::KeyA) {
+        commands.trigger(PlayerChangeDirection {
+            direction: FacingDirection::West,
+        })
+    } else if keyboard.any_just_pressed([KeyCode::KeyW, KeyCode::ArrowUp]) {
         commands.trigger(PlayerMove {
             direction: WalkingDirection::North,
         });
-    } else if keyboard.any_pressed([KeyCode::KeyD, KeyCode::ArrowRight]) {
+    } else if keyboard.any_just_pressed([KeyCode::KeyD, KeyCode::ArrowRight]) {
         commands.trigger(PlayerMove {
             direction: WalkingDirection::East,
         });
-    } else if keyboard.any_pressed([KeyCode::KeyS, KeyCode::ArrowDown]) {
+    } else if keyboard.any_just_pressed([KeyCode::KeyS, KeyCode::ArrowDown]) {
         commands.trigger(PlayerMove {
             direction: WalkingDirection::South,
         });
-    } else if keyboard.any_pressed([KeyCode::KeyA, KeyCode::ArrowLeft]) {
+    } else if keyboard.any_just_pressed([KeyCode::KeyA, KeyCode::ArrowLeft]) {
         commands.trigger(PlayerMove {
             direction: WalkingDirection::West,
         });
-    } else if keyboard.pressed(KeyCode::KeyQ) {
+    } else if keyboard.just_pressed(KeyCode::KeyQ) {
         commands.trigger(PlayerMove {
             direction: WalkingDirection::NorthWest,
         });
-    } else if keyboard.pressed(KeyCode::KeyE) {
+    } else if keyboard.just_pressed(KeyCode::KeyE) {
         commands.trigger(PlayerMove {
             direction: WalkingDirection::NorthEast,
         });
-    } else if keyboard.pressed(KeyCode::KeyZ) {
+    } else if keyboard.just_pressed(KeyCode::KeyZ) {
         commands.trigger(PlayerMove {
             direction: WalkingDirection::SouthWest,
         });
-    } else if keyboard.pressed(KeyCode::KeyC) {
+    } else if keyboard.just_pressed(KeyCode::KeyC) {
         commands.trigger(PlayerMove {
             direction: WalkingDirection::SouthEast,
         });
     }
+}
+
+pub fn show_pos(
+    pos_q: Single<&TilePosition, (With<Player>, Changed<TilePosition>)>,
+    mut text_q: Single<&mut Text2d>,
+) {
+    let posx = pos_q.x;
+    let posy = pos_q.y;
+
+    text_q.0 = format!("{}, {}", posx, posy);
 }

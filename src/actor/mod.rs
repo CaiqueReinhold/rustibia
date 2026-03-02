@@ -30,10 +30,11 @@ impl Plugin for ActorPlugin {
                     .run_if(in_state(State::InGame)),
             )
             .add_systems(OnEnter(State::InGame), player::spawn_player)
+            .add_systems(PreUpdate, player::read_player_input)
             .add_systems(Update, (movement::move_actor, player::center_on_player))
-            .add_systems(Update, (player::read_player_input,))
-            .add_observer(actor::on_spawn_actor)
+            .add_systems(Update, (actor::actor_rect, player::show_pos))
             .add_observer(actor::on_remove_actor)
-            .add_observer(actions::on_player_move);
+            .add_observer(actions::on_player_move)
+            .add_observer(actions::on_player_change_direction);
     }
 }

@@ -20,7 +20,10 @@ struct ActorInstance {
     color_body: vec4<f32>,
     color_legs: vec4<f32>,
     color_feet: vec4<f32>,
-    time_offset: f32
+    time_offset: f32,
+    bounding_square: f32,
+    bbox_min: vec2<f32>,
+    bbox_size: vec2<f32>
 }
 
 @group(#{MATERIAL_BIND_GROUP}) @binding(0)
@@ -44,9 +47,9 @@ var<storage, read> instances: array<ActorInstance>;
 struct VertexOutput {
     @builtin(position) position: vec4<f32>,
     @location(0) world_position: vec4<f32>,
-    @location(1) world_normal: vec3<f32>,
     @location(2) uv: vec2<f32>,
-    @location(5) instance_index: u32
+    @location(5) instance_index: u32,
+    @location(6) phase: u32,
 }
 
 struct Vertex {
@@ -55,19 +58,75 @@ struct Vertex {
     @location(2) uv: vec2<f32>
 }
 
+fn calculate_world_pos_with_bbox_crop(
+    position: vec3<f32>,
+    square: f32,
+    bbox_min: vec2<f32>,
+    bbox_size: vec2<f32>,
+    instance_index: u32
+) -> vec4<f32> {
+    let local01 = (position.xy + vec2<f32>(32.0)) / 64.0;
+    let logical_pos = (local01 - vec2<f32>(0.5)) * square;
+    let bbox_center = vec2<f32>(
+        bbox_min.x + bbox_size.x * 0.5 - square * 0.5,
+        square * 0.5 - (bbox_min.y + bbox_size.y * 0.5)
+    );
+    let cropped_local =
+        logical_pos * (bbox_size / square) + bbox_center;
+
+    var world_from_local = mesh_functions::get_world_from_local(instance_index);
+    return mesh_functions::mesh2d_position_local_to_world(
+        world_from_local,
+        vec4<f32>(cropped_local, position.z, 1.0)
+    );
+}
+
+fn adjust_uv_to_bbox(
+    uv: vec2<f32>,
+    square: f32,
+    bbox_min: vec2<f32>,
+    bbox_size: vec2<f32>
+) -> vec2<f32> {
+    let bbox_min_n = bbox_min / square;
+    let bbox_size_n = bbox_size / square;
+    return bbox_min_n + uv * bbox_size_n;
+}
+
+fn get_animation_phase(
+    phase_count: u32,
+    phase_duration: f32,
+    instance: ActorInstance
+) -> u32 {
+    let t = globals.time - instance.time_offset;
+    let p = floor(t / phase_duration);
+    let phase = u32(p) % phase_count;
+    return phase;
+}
+
 @vertex
 fn vertex(vertex: Vertex) -> VertexOutput {
     var out: VertexOutput;
-    out.uv = vertex.uv;
 
-    var world_from_local = mesh_functions::get_world_from_local(vertex.instance_index);
-    out.world_position = mesh_functions::mesh2d_position_local_to_world(
-        world_from_local,
-        vec4<f32>(vertex.position, 1.0)
+    let inst_index = mesh_functions::get_tag(vertex.instance_index);
+    let inst = instances[inst_index];
+    let square = inst.bounding_square;
+    let bbox_min = inst.bbox_min;
+    let bbox_size = inst.bbox_size;
+
+    out.world_position = calculate_world_pos_with_bbox_crop(
+        vertex.position,
+        square,
+        bbox_min,
+        bbox_size,
+        vertex.instance_index
     );
     out.position = mesh_functions::mesh2d_position_world_to_clip(out.world_position);
-
-    out.instance_index = mesh_functions::get_tag(vertex.instance_index);
+    out.uv = adjust_uv_to_bbox(vertex.uv, square, bbox_min, bbox_size);
+    out.instance_index = inst_index;
+    out.phase = get_animation_phase(
+        params.phase_count[inst.moving], params.phase_duration, inst
+    );
+    
     return out;
 }
 
@@ -144,19 +203,11 @@ fn compute_index(
 fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     var color = vec4<f32>(0.0);
 
-    let time = globals.time;
-
     let instance = instances[in.instance_index];
-
     let pattern_x = params.pattern_x[instance.moving];
     let pattern_y = params.pattern_y[instance.moving];
     let pattern_z = params.pattern_z[instance.moving];
     let layers = params.layers[instance.moving];
-    let phase_count = params.phase_count[instance.moving];
-
-    let t = time - instance.time_offset;
-    let p = floor(t / params.phase_duration);
-    let phase = u32(p) % phase_count;
 
     for (var addon: u32 = 0u; addon < pattern_y; addon = addon + 1u) {
         for (var layer: u32 = 0u; layer < layers; layer = layer + 1u) {
@@ -165,7 +216,7 @@ fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
             }
 
             let index = compute_index(
-                phase,
+                in.phase,
                 layer,
                 addon,
                 pattern_z,
