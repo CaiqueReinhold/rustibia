@@ -48,8 +48,8 @@ pub fn on_player_move(
     };
 
     if map.can_move(&end_postion) {
-        let step_time_ms =
-            map.get_step_duration_ms(&end_postion, actor.speed, event.direction.is_diagonal());
+        let tile_modifier = map.get_tile_speed_modifier(&end_postion);
+        let step_time_ms = actor.get_tile_speed(tile_modifier, event.direction.is_diagonal());
         match moving {
             Some(mut m) => {
                 m.queued = Some(QueuedMove {

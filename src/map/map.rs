@@ -52,19 +52,10 @@ impl Map {
         true
     }
 
-    pub fn get_step_duration_ms(
-        &self,
-        pos: &TilePosition,
-        base_speed: u32,
-        is_diagonal: bool,
-    ) -> u32 {
-        if base_speed == 0 {
-            return 1000;
-        }
-
+    pub fn get_tile_speed_modifier(&self, pos: &TilePosition) -> u32 {
         let tile = match self.tiles.get(pos) {
             Some(t) => t,
-            None => return 1000,
+            None => return 100,
         };
 
         let ground_speed = tile
@@ -74,12 +65,6 @@ impl Map {
             .filter(|s| *s > 0)
             .unwrap_or(100);
 
-        let mut step = ((1000u32).saturating_mul(ground_speed) / base_speed).max(1);
-
-        if is_diagonal {
-            step = step.saturating_mul(3) / 2;
-        }
-
-        step.max(1)
+        ground_speed
     }
 }

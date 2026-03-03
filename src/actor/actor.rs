@@ -4,7 +4,7 @@ use bevy::prelude::*;
 use bevy::render::storage::ShaderStorageBuffer;
 
 use crate::conf::z_order::ACTOR_Z_OFFSET;
-use crate::core::{Appearances, SpriteConfig, SpriteSheet};
+use crate::core::{Appearances, SpriteAnimation, SpriteConfig, SpriteSheet};
 
 use crate::actor::assets::{Outfit, Outfits};
 use crate::actor::colors::COLOR_TABLE;
@@ -106,6 +106,7 @@ pub struct Actor {
     pub speed: u32,
     pub box_size: [f32; 2],
     pub boxes: [[Rect; 4]; 2],
+    pub phase_counts: [u32; 2],
 }
 
 pub fn init_instances_buffer(
@@ -166,6 +167,11 @@ pub fn spawn_actor(
     let index = instances.alloc_index();
     let instance = &mut instances.data[index as usize];
     instance.time_offset = time.elapsed_secs_wrapped();
+    instance.phase_duration = match &still_sprite.animation {
+        SpriteAnimation::Static => 0.1,
+        SpriteAnimation::Uniform { phase_duration, .. } => phase_duration.as_secs_f32(),
+        _ => 0.1,
+    };
 
     let actor = Actor {
         // outfit_id,
@@ -178,6 +184,10 @@ pub fn spawn_actor(
         boxes: [
             still_sprite.boxes.clone().try_into().unwrap(),
             moving_sprite.boxes.clone().try_into().unwrap(),
+        ],
+        phase_counts: [
+            still_sprite.animation.total_animation_phases(),
+            moving_sprite.animation.total_animation_phases(),
         ],
         ..default()
     };
@@ -217,12 +227,6 @@ fn init_material(
         pattern_y: UVec2::new(still_sprite.pattern_y, moving_sprite.pattern_y),
         pattern_z: UVec2::new(still_sprite.pattern_z, moving_sprite.pattern_z),
         layers: UVec2::new(still_sprite.layers, moving_sprite.layers),
-        phase_count: UVec2::new(
-            still_sprite.animation.total_animation_phases(),
-            moving_sprite.animation.total_animation_phases(),
-        ),
-        phase_duration: 0.1,
-        _pad: Vec3::ZERO,
     };
 
     let material_handle = materials.add(ActorMaterial {
@@ -274,13 +278,16 @@ pub fn upload_instance_buffer(
 }
 
 pub fn update_actor_instances(
-    actors_q: Query<(&Actor, &MeshTag, Option<&Moving>), Changed<Actor>>,
+    actors_q: Query<(&Actor, &MeshTag, Option<&Moving>), Or<(Changed<Actor>, Changed<Moving>)>>,
     mut instances: ResMut<ActorInstances>,
 ) {
     for (actor, tag, moving) in actors_q {
         let index = tag.0;
         let instance = &mut instances.data[index as usize];
-        instance.moving = if moving.is_some() { 1 } else { 0 };
+        instance.moving = match moving {
+            Some(..) => 1,
+            None => 0,
+        };
         instance.direction = actor.direction.into();
         instance.mounted = actor.mounted.into();
         instance.addons = actor.addons;
@@ -292,6 +299,11 @@ pub fn update_actor_instances(
         let bbox = &actor.boxes[instance.moving as usize][actor.direction as usize];
         instance.bbox_min = bbox.min.clone();
         instance.bbox_size = bbox.max.clone();
+        instance.moving_progress = match moving {
+            Some(m) => m.timer.fraction(),
+            None => 0.0,
+        };
+        instance.phase_count = actor.phase_counts[instance.moving as usize];
     }
 }
 

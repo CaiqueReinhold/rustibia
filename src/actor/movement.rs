@@ -3,6 +3,8 @@ use std::time::Duration;
 use bevy::prelude::*;
 
 use crate::actor::actor::{Actor, FacingDirection};
+use crate::conf::actor::{SPEED_PARAM_A, SPEED_PARAM_B, SPEED_PARAM_C};
+use crate::conf::server::TICK_DURATION_MS;
 use crate::map::TilePosition;
 
 #[derive(Copy, Clone, Debug)]
@@ -39,6 +41,24 @@ impl WalkingDirection {
             WalkingDirection::NorthWest => FacingDirection::West,
             WalkingDirection::SouthWest => FacingDirection::West,
         }
+    }
+}
+
+impl Actor {
+    pub fn get_tile_speed(&self, tile_modifier: u32, is_diagonal: bool) -> u32 {
+        let move_speed = (SPEED_PARAM_A * ((self.speed as f32) + SPEED_PARAM_B).ln()
+            + SPEED_PARAM_C)
+            .round()
+            .max(1.0);
+
+        let mut tile_speed = (1000.0 * (tile_modifier as f32) / move_speed).floor();
+        if is_diagonal {
+            tile_speed = tile_speed / 2.0;
+        }
+        let tile_speed_tick =
+            (tile_speed / (TICK_DURATION_MS as f32)).ceil() * (TICK_DURATION_MS as f32);
+
+        return tile_speed_tick as u32;
     }
 }
 

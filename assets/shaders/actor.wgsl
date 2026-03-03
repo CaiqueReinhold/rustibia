@@ -6,9 +6,7 @@ struct ActorParams {
     pattern_x: vec2<u32>,
     pattern_y: vec2<u32>,
     pattern_z: vec2<u32>,
-    layers: vec2<u32>,
-    phase_count: vec2<u32>,
-    phase_duration: f32
+    layers: vec2<u32>
 }
 
 struct ActorInstance {
@@ -23,7 +21,10 @@ struct ActorInstance {
     time_offset: f32,
     bounding_square: f32,
     bbox_min: vec2<f32>,
-    bbox_size: vec2<f32>
+    bbox_size: vec2<f32>,
+    moving_progress: f32,
+    phase_count: u32,
+    phase_duration: f32,
 }
 
 @group(#{MATERIAL_BIND_GROUP}) @binding(0)
@@ -92,14 +93,15 @@ fn adjust_uv_to_bbox(
     return bbox_min_n + uv * bbox_size_n;
 }
 
-fn get_animation_phase(
-    phase_count: u32,
-    phase_duration: f32,
-    instance: ActorInstance
-) -> u32 {
+fn get_animation_phase(instance: ActorInstance) -> u32 {
+    if (instance.moving == 1u) {
+        let phase = u32(instance.moving_progress * f32(instance.phase_count));
+        return phase;
+    }
+
     let t = globals.time - instance.time_offset;
-    let p = floor(t / phase_duration);
-    let phase = u32(p) % phase_count;
+    let p = floor(t / instance.phase_duration);
+    let phase = u32(p) % instance.phase_count;
     return phase;
 }
 
@@ -123,9 +125,7 @@ fn vertex(vertex: Vertex) -> VertexOutput {
     out.position = mesh_functions::mesh2d_position_world_to_clip(out.world_position);
     out.uv = adjust_uv_to_bbox(vertex.uv, square, bbox_min, bbox_size);
     out.instance_index = inst_index;
-    out.phase = get_animation_phase(
-        params.phase_count[inst.moving], params.phase_duration, inst
-    );
+    out.phase = get_animation_phase(inst);
     
     return out;
 }

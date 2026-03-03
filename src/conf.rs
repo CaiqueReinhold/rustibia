@@ -12,9 +12,12 @@ pub mod z_order {
 }
 
 pub mod actor {
-    pub const ADDONS_NONE: u32 = 0;
+    // pub const ADDONS_NONE: u32 = 0;
     // pub const ADDON_1_FLAG: u32 = 0b1;
     // pub const ADDON_2_FLAG: u32 = 0b10;
+    pub const SPEED_PARAM_A: f32 = 857.36;
+    pub const SPEED_PARAM_B: f32 = 261.29;
+    pub const SPEED_PARAM_C: f32 = -4795.009;
 }
 
 pub mod viewport {
@@ -28,4 +31,8 @@ pub mod ui {
     pub const TOP_BAR_HEIGHT: f32 = 80.0;
     pub const SIDE_PANEL_WIDTH: f32 = 220.0;
     pub const CHAT_BOX_HEIGHT: f32 = 220.0;
+}
+
+pub mod server {
+    pub const TICK_DURATION_MS: u32 = 50;
 }

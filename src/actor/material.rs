@@ -19,7 +19,10 @@ pub struct ActorInstance {
     pub bounding_square: f32,
     pub bbox_min: Vec2,
     pub bbox_size: Vec2,
-    pub _pad: Vec2,
+    pub moving_progress: f32,
+    pub phase_count: u32,
+    pub phase_duration: f32,
+    _pad: Vec3,
 }
 
 #[repr(C)]
@@ -30,9 +33,6 @@ pub struct ActorParams {
     pub pattern_y: UVec2,
     pub pattern_z: UVec2,
     pub layers: UVec2,
-    pub phase_count: UVec2,
-    pub phase_duration: f32,
-    pub _pad: Vec3,
 }
 
 #[derive(Asset, AsBindGroup, TypePath, Debug, Clone, Default)]
