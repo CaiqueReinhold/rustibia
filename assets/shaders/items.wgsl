@@ -82,7 +82,7 @@ fn adjust_uv_to_bbox(
 }
 
 fn get_animation_phase(instance: ItemInstance) -> u32 {
-    if (instance.phase_duration == 0u) {
+    if (instance.phase_duration == 0.0) {
         return 0;
     }
     let t = globals.time - instance.time_offset;
@@ -92,12 +92,12 @@ fn get_animation_phase(instance: ItemInstance) -> u32 {
 }
 
 fn atlas_uv(base_uv: vec2<f32>, index: u32) -> vec2<f32> {
-    let cols = u32(params.atlas_grid.x);
-    let rows = u32(params.atlas_grid.y);
+    let cols = u32(atlas_grid.x);
+    let rows = u32(atlas_grid.y);
 
     let tile_size = vec2<f32>(
-        1.0 / params.atlas_grid.x,
-        1.0 / params.atlas_grid.y
+        1.0 / atlas_grid.x,
+        1.0 / atlas_grid.y
     );
 
     let col = index % cols;
@@ -129,63 +129,43 @@ fn compute_index(
     );
 }
 
-// @vertex
-// fn vertex(vertex: Vertex) -> VertexOutput {
-//     var out: VertexOutput;
-
-//     let inst_index = mesh_functions::get_tag(vertex.instance_index);
-//     let inst = instances[inst_index];
-//     let square = inst.bounding_square;
-//     let bbox_min = inst.bbox_min;
-//     let bbox_size = inst.bbox_size;
-
-//     out.world_position = calculate_world_pos_with_bbox_crop(
-//         vertex.position,
-//         square,
-//         bbox_min,
-//         bbox_size,
-//         vertex.instance_index
-//     );
-//     out.position = mesh_functions::mesh2d_position_world_to_clip(out.world_position);
-//     let base_uv = adjust_uv_to_bbox(vertex.uv, square, bbox_min, bbox_size);
-//     let phase = get_animation_phase(inst);
-//     let lookup_index = compute_index(
-//         phase,
-//         inst.value_x,
-//         inst.value_y,
-//         inst.value_z,
-//         inst.pattern_x,
-//         inst.pattern_y,
-//         inst.pattern_z,
-//     ) + inst.lookup_offset;
-//     let atlas_index = sprite_lookup[lookup_index];
-//     out.uv = atlas_uv(base_uv, 0);
-    
-//     return out;
-// }
-
 @vertex
-fn vertex(
-    vertex: Vertex
-) -> VertexOutput {
+fn vertex(vertex: Vertex) -> VertexOutput {
     var out: VertexOutput;
-    
-    out.uv = vertex.uv;
-    
-    var world_from_local = mesh_functions::get_world_from_local(vertex.instance_index);
-    out.world_position = mesh_functions::mesh2d_position_local_to_world(
-        world_from_local,
-        vec4<f32>(vertex.position, 1.0)
+
+    let inst_index = mesh_functions::get_tag(vertex.instance_index);
+    let inst = instances[inst_index];
+    let square = inst.bounding_square;
+    let bbox_min = inst.bbox_min;
+    let bbox_size = inst.bbox_size;
+
+    out.world_position = calculate_world_pos_with_bbox_crop(
+        vertex.position,
+        square,
+        bbox_min,
+        bbox_size,
+        vertex.instance_index
     );
     out.position = mesh_functions::mesh2d_position_world_to_clip(out.world_position);
+    let base_uv = adjust_uv_to_bbox(vertex.uv, square, bbox_min, bbox_size);
+    let phase = get_animation_phase(inst);
+    let lookup_index = compute_index(
+        phase,
+        inst.value_x,
+        inst.value_y,
+        inst.value_z,
+        inst.pattern_x,
+        inst.pattern_y,
+        inst.pattern_z,
+    ) + inst.lookup_offset;
+    let atlas_index = sprite_lookup[lookup_index];
+    out.uv = atlas_uv(base_uv, atlas_index);
     
     return out;
 }
 
 
-
 @fragment
 fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
-    return vec4<f32>(1.0);
     return textureSample(atlas_tex, atlas_smp, in.uv);
 }

@@ -112,10 +112,11 @@ pub fn on_tile_changed(
 
         let world_pos = event.position.to_world();
         let parent = commands
-            .spawn((
-                Transform::from_xyz(world_pos.x, world_pos.y, world_pos.z + 15.0),
-                Text2d::new("AQUI"),
-            ))
+            .spawn((Transform::from_xyz(
+                world_pos.x,
+                world_pos.y,
+                world_pos.z + 0.2,
+            ),))
             .id();
         for item in tile.items.iter() {
             let item_entity = spawn_item(
@@ -182,22 +183,16 @@ fn spawn_item(
         item.get_patterns(position, sprite),
     );
 
-    let world_position = position.to_world();
-    let item_offset = 0.0;
     let entity = commands
         .spawn((
             SpawnedItem,
             Mesh2d(mesh.clone()),
             MeshMaterial2d(material.clone()),
             MeshTag(index),
-            Transform::from_xyz(
-                world_position.x,
-                world_position.y,
-                world_position.z + item_offset,
-            ),
+            Transform::default(),
+            GlobalTransform::default(),
         ))
         .id();
-    info!("spawned item {:?}", item);
     entity
 }
 

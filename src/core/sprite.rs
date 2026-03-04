@@ -181,7 +181,7 @@ pub fn read_sprite_sheets(a_server: &AssetServer) -> HashMap<String, SpriteSheet
         let sheet_name = sheet["sheet_name"].as_str().unwrap().to_string();
         let group = sheet["group"].as_str().unwrap().to_string();
 
-        let handle = a_server.load(format!("sprites/{}", sheet_name));
+        let handle = a_server.load(format!("sheets/{}", sheet_name));
 
         sheets_map.insert(
             group,
