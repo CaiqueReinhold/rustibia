@@ -7,6 +7,7 @@ mod actor;
 mod camera;
 mod conf;
 mod core;
+mod items;
 mod main_ui;
 mod map;
 
@@ -40,6 +41,7 @@ fn main() {
             actor::ActorPlugin,
             map::MapPlugin,
             main_ui::UiPlugin,
+            items::ItemsPlugin,
         ))
         .init_state::<State>()
         .init_resource::<GameAssetsLoaded>()

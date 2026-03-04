@@ -3,23 +3,14 @@ use std::sync::Arc;
 
 use bevy::prelude::*;
 
+use crate::items::{Item, ItemConfig};
 use crate::map::position::TilePosition;
 
 #[derive(Debug)]
-pub struct TileConfig {
-    pub id: u32,
-    pub sprite_id: u32,
-    pub ground_speed: u32,
-    pub can_walk: bool,
-    pub fullbank: bool,
-    pub avoid: bool,
-    pub minimap_color: u32,
-}
-
-#[derive(Debug)]
 pub struct MapTile {
-    pub ground: Option<Arc<TileConfig>>,
-    pub border: Option<Arc<TileConfig>>,
+    pub ground: Option<Arc<ItemConfig>>,
+    pub border: Option<Arc<ItemConfig>>,
+    pub items: Vec<Item>,
 }
 
 #[derive(Resource)]
@@ -45,6 +36,12 @@ impl Map {
 
         if let Some(border) = &tile.border {
             if !border.can_walk {
+                return false;
+            }
+        }
+
+        for item in tile.items.iter() {
+            if !item.config.can_walk {
                 return false;
             }
         }

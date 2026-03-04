@@ -1,9 +1,11 @@
 use bevy::prelude::*;
 
 mod assets;
+mod instances;
 mod sprite;
 
 pub use crate::core::assets::*;
+pub use crate::core::instances::*;
 pub use crate::core::sprite::*;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, States, Default)]

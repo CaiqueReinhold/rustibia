@@ -5,11 +5,13 @@ use crate::core::State;
 
 mod assets;
 mod chunks;
+mod events;
 mod map;
 mod material;
 mod position;
 
 pub use crate::map::assets::read_map_config;
+pub use crate::map::events::TileChanged;
 pub use crate::map::map::Map;
 pub use crate::map::position::TilePosition;
 pub struct MapPlugin;

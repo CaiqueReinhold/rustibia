@@ -19,7 +19,8 @@ impl TilePosition {
         Vec3::new(
             (self.x as f32) * TILE_SIZE,
             -(self.y as f32) * TILE_SIZE,
-            self.floor as f32 * FLOOR_Z_MULTIPLIER,
+            (self.floor as f32 * FLOOR_Z_MULTIPLIER)
+                + ((self.x as f32) * 0.001 + (self.y as f32) * 0.001),
         )
     }
 

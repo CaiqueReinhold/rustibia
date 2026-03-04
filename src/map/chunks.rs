@@ -5,6 +5,7 @@ use crate::conf::map::{CHUNK_LOAD_RADIUS, CHUNK_SIZE, TILE_SIZE};
 use crate::core::{Appearances, SpriteConfig};
 use crate::map::material::TerrainMaterial;
 use crate::map::material::{ATTRIBUTE_FRAME_COUNT, ATTRIBUTE_LOOKUP_INDEX, ATTRIBUTE_PATTERNS};
+use crate::map::TileChanged;
 use crate::map::{
     map::Map,
     position::{ChunkPosition, TilePosition},
@@ -132,7 +133,12 @@ fn spawn_chunk(
                 }
                 if let Some(b) = &tile.border {
                     let border_sprite = appearances.sprite_configs.get(&b.sprite_id).unwrap();
-                    borders.push((tile_pos, border_sprite));
+                    borders.push((tile_pos.clone(), border_sprite));
+                }
+                if !tile.items.is_empty() {
+                    commands.trigger(TileChanged {
+                        position: tile_pos.clone(),
+                    });
                 }
             }
         }
