@@ -8,14 +8,16 @@ pub mod map {
 }
 
 pub mod z_order {
-    pub const FLOOR_Z_MULTIPLIER: f32 = 10.0;
-    pub const ACTOR_Z_OFFSET: f32 = 1.0;
+    pub const FLOOR_Z_MULTIPLIER: f32 = 100.0;
+    pub const POSITION_Z_MULTIPLIER: f32 = 0.02;
+    pub const ACTOR_Z_OFFSET: f32 = 0.1;
+    pub const TOP_Z_OFFSET: f32 = 0.015;
 }
 
 pub mod actor {
     // pub const ADDONS_NONE: u32 = 0;
-    // pub const ADDON_1_FLAG: u32 = 0b1;
-    // pub const ADDON_2_FLAG: u32 = 0b10;
+    pub const ADDON_1_FLAG: u32 = 0b1;
+    pub const ADDON_2_FLAG: u32 = 0b10;
     pub const SPEED_PARAM_A: f32 = 857.36;
     pub const SPEED_PARAM_B: f32 = 261.29;
     pub const SPEED_PARAM_C: f32 = -4795.009;

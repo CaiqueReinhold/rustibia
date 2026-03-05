@@ -137,6 +137,7 @@ pub fn spawn_actor(
     color_legs: u32,
     color_feet: u32,
     speed: u32,
+    addons: u32,
     position: TilePosition,
 ) -> Entity {
     let outfit = outfits.outfits.get(&outfit_id).unwrap();
@@ -175,6 +176,7 @@ pub fn spawn_actor(
 
     let actor = Actor {
         // outfit_id,
+        addons,
         color_head,
         color_body,
         color_feet,
@@ -308,21 +310,30 @@ pub fn update_actor_instances(
 }
 
 pub fn actor_rect(actors_q: Query<(&Transform, &Actor, Option<&Moving>)>, mut gizmos: Gizmos) {
-    for (pos, actor, moving) in &actors_q {
-        gizmos.circle_2d(pos.translation.truncate(), 2.0, Color::srgb(1.0, 0.0, 0.0));
+    // for (pos, actor, moving) in &actors_q {
+    //     gizmos.circle_2d(pos.translation.truncate(), 2.0, Color::srgb(1.0, 0.0, 0.0));
 
-        gizmos.rect_2d(
-            pos.translation.truncate(),
-            Vec2::splat(64.0),
-            Color::srgb(0.0, 0.5, 1.0),
-        );
+    //     let moving = if moving.is_some() { 1 } else { 0 } as usize;
+    //     gizmos.rect_2d(
+    //         pos.translation.truncate(),
+    //         Vec2::splat(64.0),
+    //         Color::srgb(0.0, 0.5, 1.0),
+    //     );
+    //     gizmos.rect_2d(
+    //         pos.translation.truncate()
+    //             + Vec2::new(
+    //                 (64.0 - actor.box_size[moving]) / 4.0,
+    //                 -((64.0 - actor.box_size[moving]) / 4.0),
+    //             ),
+    //         Vec2::splat(actor.box_size[moving]),
+    //         Color::srgb(0.8, 0.5, 1.0),
+    //     );
 
-        let mesh_start = pos.translation.truncate();
-        let moving = if moving.is_some() { 1 } else { 0 } as usize;
-        let iso =
-            mesh_start + (actor.boxes[moving][actor.direction as usize].min * Vec2::new(0.5, -0.5));
-        let bbox_size = actor.boxes[moving][actor.direction as usize].max;
+    //     let mesh_start = pos.translation.truncate();
+    //     let iso =
+    //         mesh_start + (actor.boxes[moving][actor.direction as usize].min * Vec2::new(0.5, -0.5));
+    //     let bbox_size = actor.boxes[moving][actor.direction as usize].max;
 
-        gizmos.rect_2d(iso, bbox_size, Color::srgb(1.0, 1.0, 0.0));
-    }
+    //     gizmos.rect_2d(iso, bbox_size, Color::srgb(1.0, 1.0, 0.0));
+    // }
 }

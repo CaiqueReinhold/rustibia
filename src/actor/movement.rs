@@ -5,6 +5,7 @@ use bevy::prelude::*;
 use crate::actor::actor::{Actor, FacingDirection};
 use crate::conf::actor::{SPEED_PARAM_A, SPEED_PARAM_B, SPEED_PARAM_C};
 use crate::conf::server::TICK_DURATION_MS;
+use crate::conf::z_order::ACTOR_Z_OFFSET;
 use crate::map::TilePosition;
 
 #[derive(Copy, Clone, Debug)]
@@ -115,7 +116,7 @@ pub fn move_actor(
         let start = moving.start.to_world();
         let end = moving.end.to_world();
         let mut interpolated = start.lerp(end, moving.timer.fraction());
-        interpolated.z = transform.translation.z;
+        interpolated.z = interpolated.z + ACTOR_Z_OFFSET;
         transform.translation = interpolated;
     }
 }

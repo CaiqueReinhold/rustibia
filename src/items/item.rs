@@ -1,4 +1,5 @@
 use crate::{
+    conf::z_order::TOP_Z_OFFSET,
     core::{Appearances, InstanceManager, SpriteAnimation, SpriteConfig},
     items::material::{ItemInstance, ItemMaterial},
     map::{Map, TileChanged, TilePosition},
@@ -10,14 +11,14 @@ use std::{collections::HashMap, sync::Arc};
 #[derive(Debug, Default)]
 pub struct ItemConfig {
     pub id: u32,
-    pub sprite_id: u32,
     pub ground_speed: u32,
-    pub minimap_color: u32,
+    pub minimap_color: Option<u32>,
     pub can_walk: bool,
     pub have_fullbank: bool,
     pub should_avoid: bool,
     pub is_container: bool,
     pub stackable: bool,
+    pub top: bool,
 }
 
 #[derive(Debug)]
@@ -112,11 +113,7 @@ pub fn on_tile_changed(
 
         let world_pos = event.position.to_world();
         let parent = commands
-            .spawn((Transform::from_xyz(
-                world_pos.x,
-                world_pos.y,
-                world_pos.z + 0.2,
-            ),))
+            .spawn((Transform::from_xyz(world_pos.x, world_pos.y, world_pos.z),))
             .id();
         for item in tile.items.iter() {
             let item_entity = spawn_item(
@@ -149,10 +146,7 @@ fn spawn_item(
     buffers: &mut Assets<ShaderStorageBuffer>,
     time: &Time,
 ) -> Entity {
-    let sprite = appearances
-        .sprite_configs
-        .get(&item.config.sprite_id)
-        .unwrap();
+    let sprite = appearances.sprite_configs.get(&item.config.id).unwrap();
 
     if !loaded_materials.materials.contains_key(&sprite.group) {
         init_material(
@@ -183,13 +177,21 @@ fn spawn_item(
         item.get_patterns(position, sprite),
     );
 
+    let mut translation = if sprite.box_size != 32.0 {
+        Vec3::new(0.0, 0.0, 0.0)
+    } else {
+        Vec3::new(16.0, -16.0, 0.0)
+    };
+    if item.config.top {
+        translation.z = TOP_Z_OFFSET;
+    }
     let entity = commands
         .spawn((
             SpawnedItem,
             Mesh2d(mesh.clone()),
             MeshMaterial2d(material.clone()),
             MeshTag(index),
-            Transform::default(),
+            Transform::from_translation(translation),
             GlobalTransform::default(),
         ))
         .id();
@@ -227,6 +229,7 @@ fn init_instance(
         instance.bbox_size = Vec2::new(32.0, 32.0);
     }
     instance.bounding_square = sprite.box_size;
+    instance.mesh_size = if sprite.box_size <= 32.0 { 32.0 } else { 64.0 };
 }
 
 fn init_material(

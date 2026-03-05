@@ -2,6 +2,8 @@ use std::collections::HashMap;
 use std::fs;
 use std::sync::Arc;
 
+use serde_json::Value;
+
 use crate::conf::map::STACK_MAX_VISIBLE_ITEMS;
 use crate::items::{Item, ItemConfig};
 use crate::map::{
@@ -20,25 +22,28 @@ pub fn read_map_config() -> Map {
 
     for cfg in map_json["tile_config"].as_array().unwrap().iter() {
         let id = cfg["id"].as_u64().unwrap() as u32;
-        let sprite_id = cfg["sprite_id"].as_u64().unwrap() as u32;
         let ground_speed = cfg["ground_speed"].as_u64().unwrap() as u32;
         let can_walk = cfg["can_walk"].as_bool().unwrap();
         let have_fullbank = cfg["fullbank"].as_bool().unwrap();
         let should_avoid = cfg["avoid"].as_bool().unwrap();
-        let minimap_color = cfg["minimap_color"].as_u64().unwrap() as u32;
+        let minimap_color = match &cfg["minimap_color"] {
+            Value::Number(n) => Some(n.as_u64().unwrap() as u32),
+            _ => None,
+        };
+        let top = cfg["top"].as_bool().unwrap();
         let is_container = false;
 
         configs.insert(
             id,
             Arc::new(ItemConfig {
                 id,
-                sprite_id,
                 ground_speed,
                 can_walk,
                 have_fullbank,
                 should_avoid,
                 minimap_color,
                 is_container,
+                top,
                 ..Default::default()
             }),
         );
@@ -59,12 +64,13 @@ pub fn read_map_config() -> Map {
         };
 
         let mut items = Vec::with_capacity(STACK_MAX_VISIBLE_ITEMS as usize);
-        for item_id in tile["items"].as_array().unwrap().iter() {
+        for item in tile["items"].as_array().unwrap().iter() {
             let config = configs
-                .get(&(item_id.as_u64().unwrap() as u32))
+                .get(&(item["id"].as_u64().unwrap() as u32))
                 .unwrap()
                 .clone();
-            items.push(Item { config, amount: 1 })
+            let amount = item["amount"].as_u64().unwrap() as u32;
+            items.push(Item { config, amount })
         }
 
         let pos = TilePosition::new(x, y, z);

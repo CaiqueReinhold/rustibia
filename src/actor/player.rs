@@ -8,6 +8,7 @@ use crate::actor::movement::WalkingDirection;
 use crate::actor::{actor::spawn_actor, hud::Health};
 use crate::actor::{Mana, Outfits};
 use crate::camera::GameCamera;
+use crate::conf::actor::{ADDON_1_FLAG, ADDON_2_FLAG};
 use crate::conf::map::TILE_SIZE;
 use crate::core::Appearances;
 use crate::map::TilePosition;
@@ -39,12 +40,13 @@ pub fn spawn_player(
         &appearances,
         &outfits,
         &time,
-        34,
+        1921,
         0,
         0,
         0,
         0,
         200,
+        0,
         TilePosition {
             x: 1028,
             y: 1028,

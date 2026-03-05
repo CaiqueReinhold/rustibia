@@ -128,11 +128,11 @@ fn spawn_chunk(
 
             if let Some(tile) = map.tiles.get(&tile_pos) {
                 if let Some(g) = &tile.ground {
-                    let ground_sprite = appearances.sprite_configs.get(&g.sprite_id).unwrap();
+                    let ground_sprite = appearances.sprite_configs.get(&g.id).unwrap();
                     ground.push((tile_pos.clone(), ground_sprite));
                 }
                 if let Some(b) = &tile.border {
-                    let border_sprite = appearances.sprite_configs.get(&b.sprite_id).unwrap();
+                    let border_sprite = appearances.sprite_configs.get(&b.id).unwrap();
                     borders.push((tile_pos.clone(), border_sprite));
                 }
                 if !tile.items.is_empty() {
@@ -330,24 +330,24 @@ fn init_material(
 
 pub fn draw_tile_grid(mut gizmos: Gizmos) {
     // Vertical lines
-    for x in -40000..=40000 {
-        let world_x = x as f32 * TILE_SIZE;
+    // for x in -40000..=40000 {
+    //     let world_x = x as f32 * TILE_SIZE;
 
-        gizmos.line_2d(
-            Vec2::new(world_x, -80000.0),
-            Vec2::new(world_x, 80000.0),
-            Color::srgb(1.0, 1., 1.),
-        );
-    }
+    //     gizmos.line_2d(
+    //         Vec2::new(world_x, -80000.0),
+    //         Vec2::new(world_x, 80000.0),
+    //         Color::srgb(1.0, 1., 1.),
+    //     );
+    // }
 
-    // Horizontal lines
-    for y in -40000..=40000 {
-        let world_y = y as f32 * TILE_SIZE;
+    // // Horizontal lines
+    // for y in -40000..=40000 {
+    //     let world_y = y as f32 * TILE_SIZE;
 
-        gizmos.line_2d(
-            Vec2::new(-80000.0, world_y),
-            Vec2::new(80000.0, world_y),
-            Color::srgb(1.0, 1., 1.),
-        );
-    }
+    //     gizmos.line_2d(
+    //         Vec2::new(-80000.0, world_y),
+    //         Vec2::new(80000.0, world_y),
+    //         Color::srgb(1.0, 1., 1.),
+    //     );
+    // }
 }

@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use crate::conf::map::{CHUNK_SIZE, TILE_SIZE};
-use crate::conf::z_order::FLOOR_Z_MULTIPLIER;
+use crate::conf::z_order::{FLOOR_Z_MULTIPLIER, POSITION_Z_MULTIPLIER};
 
 #[derive(Component, Hash, PartialEq, Eq, Clone, Debug)]
 pub struct TilePosition {
@@ -20,7 +20,7 @@ impl TilePosition {
             (self.x as f32) * TILE_SIZE,
             -(self.y as f32) * TILE_SIZE,
             (self.floor as f32 * FLOOR_Z_MULTIPLIER)
-                + ((self.x as f32) * 0.001 + (self.y as f32) * 0.001),
+                + ((self.x as f32) + (self.y as f32)) * POSITION_Z_MULTIPLIER,
         )
     }
 
