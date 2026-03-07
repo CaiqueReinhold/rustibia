@@ -67,17 +67,41 @@ fn calculate_world_pos(
     bbox_size: vec2<f32>,
     instance_index: u32
 ) -> vec4<f32> {
-    let local01 = (position.xy + mesh_size / 2.0) / mesh_size;
-    let logical_pos = (local01 - vec2<f32>(0.5)) * bbox_size;
-    let offset = (mesh_size - square) / 4.0;
-    let repositioned = logical_pos + vec2<f32>(offset, -offset);
+    let local01 = (position.xy + mesh_size * 0.5) / mesh_size;
+    let scaled = (local01 - vec2<f32>(0.5)) * bbox_size;
+    let bbox_center = vec2<f32>(
+        bbox_min.x - square + bbox_size.x - square,
+        -(bbox_min.y - square + bbox_size.y - square)
+    );
+    let final_local = scaled + vec2<f32>(7, -8);
 
-    var world_from_local = mesh_functions::get_world_from_local(instance_index);
+    var world_from_local =
+        mesh_functions::get_world_from_local(instance_index);
     return mesh_functions::mesh2d_position_local_to_world(
         world_from_local,
-        vec4<f32>(repositioned, position.z, 1.0)
+        vec4<f32>(final_local, position.z, 1.0)
     );
 }
+
+// fn calculate_world_pos(
+//     position: vec3<f32>,
+//     mesh_size: f32,
+//     square: f32,
+//     bbox_min: vec2<f32>,
+//     bbox_size: vec2<f32>,
+//     instance_index: u32
+// ) -> vec4<f32> {
+//     let local01 = (position.xy + mesh_size / 2.0) / mesh_size;
+//     let logical_pos = (local01 - vec2<f32>(0.5)) * bbox_size;
+//     let offset = (mesh_size - square) / 4.0;
+//     let repositioned = logical_pos + vec2<f32>(offset, -offset);
+
+//     var world_from_local = mesh_functions::get_world_from_local(instance_index);
+//     return mesh_functions::mesh2d_position_local_to_world(
+//         world_from_local,
+//         vec4<f32>(repositioned, position.z, 1.0)
+//     );
+// }
 
 fn adjust_uv_to_bbox(
     uv: vec2<f32>,

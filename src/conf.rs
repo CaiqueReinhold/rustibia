@@ -10,7 +10,7 @@ pub mod map {
 pub mod z_order {
     pub const FLOOR_Z_MULTIPLIER: f32 = 100.0;
     pub const POSITION_Z_MULTIPLIER: f32 = 0.02;
-    pub const ACTOR_Z_OFFSET: f32 = 0.1;
+    pub const ACTOR_Z_OFFSET: f32 = 0.01;
     pub const TOP_Z_OFFSET: f32 = 0.015;
 }
 

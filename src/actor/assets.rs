@@ -41,7 +41,7 @@ pub fn read_outfits_config() -> Outfits {
         );
     }
 
-    return Outfits {
+    Outfits {
         outfits: outfits_map,
-    };
+    }
 }

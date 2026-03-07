@@ -136,7 +136,7 @@ pub fn spawn_top_panel(
         experience,
     });
 
-    return top_panel;
+    top_panel
 }
 
 fn spawn_ui_bar(
@@ -216,7 +216,7 @@ fn spawn_ui_bar(
                     Text::new(""),
                     TextLayout::new(Justify::Center, LineBreak::NoWrap),
                     TextFont {
-                        font: font,
+                        font,
                         font_size: 8.0,
                         ..default()
                     },
@@ -232,7 +232,7 @@ pub fn update_ui_bars_fill(
     mut text_query: Query<&mut Text>,
 ) {
     for (bar, children) in changed_bars.iter() {
-        let Some(node_child) = children.get(0) else {
+        let Some(node_child) = children.first() else {
             continue;
         };
         let (mut fill_node, _) = node_query.get_mut(*node_child).unwrap();
@@ -246,7 +246,7 @@ pub fn update_ui_bars_fill(
             let Some(text_children) = text_children_opt else {
                 continue;
             };
-            let Some(text_entity) = text_children.get(0) else {
+            let Some(text_entity) = text_children.first() else {
                 continue;
             };
             let mut text = text_query.get_mut(*text_entity).unwrap();
@@ -263,7 +263,7 @@ pub fn update_health_fill_color(
     for (bar, children) in changed_bars.iter() {
         match &bar.health_state {
             Some(state) => {
-                let Some(child) = children.get(0) else {
+                let Some(child) = children.first() else {
                     continue;
                 };
                 let mut image_node = node_query.get_mut(*child).unwrap();

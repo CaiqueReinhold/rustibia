@@ -257,11 +257,9 @@ fn check_dock_hover(
                 commands.trigger(OverDock { dock_id: dock.id });
                 break;
             }
-        } else {
-            if current.dock == Some(dock.id) {
-                current.dock = None;
-                commands.trigger(LeftDock { dock_id: dock.id });
-            }
+        } else if current.dock == Some(dock.id) {
+            current.dock = None;
+            commands.trigger(LeftDock { dock_id: dock.id });
         }
     }
 }
@@ -444,7 +442,7 @@ fn find_available_container(
         }
     }
 
-    return default_container;
+    default_container
 }
 
 fn on_over_resize_handle(
@@ -493,7 +491,7 @@ fn on_resize_start(
 fn on_resize_change(mut event: On<Pointer<Drag>>, mut intent: Single<&mut ResizeIntent>) {
     event.propagate(false);
 
-    (*intent).new_height = intent.start_height + event.distance.y;
+    intent.new_height = intent.start_height + event.distance.y;
 }
 
 fn on_resize_end(
@@ -518,11 +516,7 @@ fn resize_window(
         return;
     }
 
-    let (_, dock_layout) = dock_q
-        .iter()
-        .filter(|(d, _)| d.id == window.dock_id)
-        .next()
-        .unwrap();
+    let (_, dock_layout) = dock_q.iter().find(|(d, _)| d.id == window.dock_id).unwrap();
     let dock_total_size = dock_layout.size().y;
     let other_windows_allocated_size: f32 = window_q
         .iter()
@@ -554,7 +548,7 @@ fn resize_window(
 
         need_to_reclaim = (other_windows_allocated_size + intent.new_height) - dock_total_size;
 
-        if windows_to_shrink.len() == 0 {
+        if windows_to_shrink.is_empty() {
             return;
         }
 
@@ -713,11 +707,9 @@ fn on_drag_window(
                 target_index = i;
                 break;
             }
-        } else {
-            if offseted_pointer_position.y < bottom {
-                target_index = i;
-                break;
-            }
+        } else if offseted_pointer_position.y < bottom {
+            target_index = i;
+            break;
         }
 
         top += node.size().y;
@@ -886,10 +878,8 @@ fn update_preview_order(
             if idx.0 > drag.prev_index && idx.0 <= drag.current_index {
                 idx.0 -= 1;
             }
-        } else {
-            if idx.0 < drag.prev_index && idx.0 >= drag.current_index {
-                idx.0 += 1;
-            }
+        } else if idx.0 < drag.prev_index && idx.0 >= drag.current_index {
+            idx.0 += 1;
         }
     });
 }
@@ -956,7 +946,7 @@ fn on_window_scroll(
     hovered_window_q: Query<(&Hovered, &Children), With<UIScrollableView>>,
     mut scroll_pos_q: Query<(&mut ScrollPosition, &ComputedNode)>,
 ) {
-    let Some((hovered, children)) = hovered_window_q.iter().filter(|(h, _)| h.get()).next() else {
+    let Some((hovered, children)) = hovered_window_q.iter().find(|(h, _)| h.get()) else {
         return;
     };
 
@@ -1000,11 +990,7 @@ fn get_window_by_id<'a>(
     window_id: WindowId,
     window_q: &'a Query<(Entity, &UIWindow)>,
 ) -> (Entity, &'a UIWindow) {
-    window_q
-        .iter()
-        .filter(|(_, w)| w.id == window_id)
-        .next()
-        .unwrap()
+    window_q.iter().find(|(_, w)| w.id == window_id).unwrap()
 }
 
 fn inner_apply_order<T: Ord + Component + Copy + std::fmt::Debug>(

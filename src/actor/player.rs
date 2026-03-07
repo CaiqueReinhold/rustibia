@@ -1,16 +1,18 @@
 use bevy::prelude::*;
 use bevy::render::storage::ShaderStorageBuffer;
 
-use crate::actor::actions::{PlayerChangeDirection, PlayerMove};
-use crate::actor::actor::{ActorInstances, FacingDirection, LoadedMaterials};
-use crate::actor::material::ActorMaterial;
-use crate::actor::movement::WalkingDirection;
-use crate::actor::{actor::spawn_actor, hud::Health};
-use crate::actor::{Mana, Outfits};
+use crate::actor::{
+    actions::{PlayerChangeDirection, PlayerMove},
+    hud::Health,
+    material::{ActorInstance, ActorMaterial},
+    movement::WalkingDirection,
+    FacingDirection, Mana, Outfits,
+    {spawning::spawn_actor, spawning::LoadedMaterials},
+};
 use crate::camera::GameCamera;
 use crate::conf::actor::{ADDON_1_FLAG, ADDON_2_FLAG};
 use crate::conf::map::TILE_SIZE;
-use crate::core::Appearances;
+use crate::core::{Appearances, InstanceManager};
 use crate::map::TilePosition;
 
 #[derive(Component)]
@@ -25,7 +27,7 @@ pub fn spawn_player(
     mut materials: ResMut<Assets<ActorMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut buffers: ResMut<Assets<ShaderStorageBuffer>>,
-    mut instances: ResMut<ActorInstances>,
+    mut instances: ResMut<InstanceManager<ActorInstance>>,
     appearances: Res<Appearances>,
     outfits: Res<Outfits>,
     time: Res<Time>,
@@ -40,13 +42,13 @@ pub fn spawn_player(
         &appearances,
         &outfits,
         &time,
-        1921,
+        133,
         0,
         0,
         0,
         0,
         200,
-        0,
+        ADDON_1_FLAG | ADDON_2_FLAG,
         TilePosition {
             x: 1028,
             y: 1028,
@@ -54,7 +56,6 @@ pub fn spawn_player(
         },
     );
 
-    use bevy::sprite::Text2dShadow;
     commands.entity(entity).insert((
         Player {
             max_experience: 100,
@@ -68,22 +69,6 @@ pub fn spawn_player(
             current: 100,
             max: 120,
         },
-        children![(
-            Text2d::new("1028, 1028"),
-            TextFont {
-                font_size: 12.0,
-                ..default()
-            },
-            Transform::from_translation(Vec3 {
-                x: 0.0,
-                y: 44.0,
-                z: 0.0
-            }),
-            Text2dShadow {
-                offset: Vec2::new(1.2, 1.2),
-                color: Color::BLACK
-            }
-        )],
     ));
 }
 
@@ -148,14 +133,4 @@ pub fn read_player_input(keyboard: Res<ButtonInput<KeyCode>>, mut commands: Comm
             direction: WalkingDirection::SouthEast,
         });
     }
-}
-
-pub fn show_pos(
-    pos_q: Single<&TilePosition, (With<Player>, Changed<TilePosition>)>,
-    mut text_q: Single<&mut Text2d>,
-) {
-    let posx = pos_q.x;
-    let posy = pos_q.y;
-
-    text_q.0 = format!("{}, {}", posx, posy);
 }

@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use bevy::prelude::*;
 
-use crate::actor::actor::{Actor, FacingDirection};
+use crate::actor::{Actor, FacingDirection};
 use crate::conf::actor::{SPEED_PARAM_A, SPEED_PARAM_B, SPEED_PARAM_C};
 use crate::conf::server::TICK_DURATION_MS;
 use crate::conf::z_order::ACTOR_Z_OFFSET;
@@ -54,12 +54,12 @@ impl Actor {
 
         let mut tile_speed = (1000.0 * (tile_modifier as f32) / move_speed).floor();
         if is_diagonal {
-            tile_speed = tile_speed / 2.0;
+            tile_speed /= 2.0;
         }
         let tile_speed_tick =
             (tile_speed / (TICK_DURATION_MS as f32)).ceil() * (TICK_DURATION_MS as f32);
 
-        return tile_speed_tick as u32;
+        tile_speed_tick as u32
     }
 }
 
@@ -96,27 +96,24 @@ pub fn move_actor(
                 .insert(moving.end.clone())
                 .remove::<Moving>();
 
-            match &moving.queued {
-                Some(q) => {
-                    commands.entity(entity).insert(Moving {
-                        start: q.start.clone(),
-                        end: q.end.clone(),
-                        timer: Timer::new(
-                            Duration::from_millis(q.step_time_ms as u64),
-                            TimerMode::Once,
-                        ),
-                        queued: None,
-                    });
-                    actor.direction = q.facing;
-                }
-                None => (),
+            if let Some(q) = &moving.queued {
+                commands.entity(entity).insert(Moving {
+                    start: q.start.clone(),
+                    end: q.end.clone(),
+                    timer: Timer::new(
+                        Duration::from_millis(q.step_time_ms as u64),
+                        TimerMode::Once,
+                    ),
+                    queued: None,
+                });
+                actor.direction = q.facing;
             };
         }
 
         let start = moving.start.to_world();
         let end = moving.end.to_world();
         let mut interpolated = start.lerp(end, moving.timer.fraction());
-        interpolated.z = interpolated.z + ACTOR_Z_OFFSET;
+        interpolated.z += ACTOR_Z_OFFSET;
         transform.translation = interpolated;
     }
 }

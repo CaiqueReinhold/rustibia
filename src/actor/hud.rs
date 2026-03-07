@@ -19,16 +19,16 @@ impl Health {
         let ratio = self.ratio();
 
         if ratio >= 0.90 {
-            return HealthState::Full;
+            HealthState::Full
         } else if ratio >= 0.6 {
-            return HealthState::AmostFull;
+            HealthState::AmostFull
         } else if ratio >= 0.3 {
-            return HealthState::Half;
+            HealthState::Half
         } else if ratio >= 0.5 {
-            return HealthState::Low;
+            HealthState::Low
+        } else {
+            HealthState::Lowest
         }
-
-        return HealthState::Lowest;
     }
 
     fn ratio(&self) -> f32 {

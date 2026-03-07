@@ -12,10 +12,10 @@ use std::{collections::HashMap, sync::Arc};
 pub struct ItemConfig {
     pub id: u32,
     pub ground_speed: u32,
-    pub minimap_color: Option<u32>,
+    // pub minimap_color: Option<u32>,
     pub can_walk: bool,
-    pub have_fullbank: bool,
-    pub should_avoid: bool,
+    // pub have_fullbank: bool,
+    // pub should_avoid: bool,
     pub is_container: bool,
     pub stackable: bool,
     pub top: bool,
@@ -151,7 +151,6 @@ fn spawn_item(
     if !loaded_materials.materials.contains_key(&sprite.group) {
         init_material(
             &sprite.group,
-            if sprite.box_size <= 32.0 { 32.0 } else { 64.0 },
             materials,
             meshes,
             buffers,
@@ -177,11 +176,7 @@ fn spawn_item(
         item.get_patterns(position, sprite),
     );
 
-    let mut translation = if sprite.box_size != 32.0 {
-        Vec3::new(0.0, 0.0, 0.0)
-    } else {
-        Vec3::new(16.0, -16.0, 0.0)
-    };
+    let mut translation = Vec3::ZERO;
     if item.config.top {
         translation.z = TOP_Z_OFFSET;
     }
@@ -229,12 +224,10 @@ fn init_instance(
         instance.bbox_size = Vec2::new(32.0, 32.0);
     }
     instance.bounding_square = sprite.box_size;
-    instance.mesh_size = if sprite.box_size <= 32.0 { 32.0 } else { 64.0 };
 }
 
 fn init_material(
     group: &String,
-    box_size: f32,
     materials: &mut Assets<ItemMaterial>,
     meshes: &mut Assets<Mesh>,
     buffers: &mut Assets<ShaderStorageBuffer>,
@@ -259,7 +252,7 @@ fn init_material(
         instances: loaded_materials.buffer.clone(),
     });
 
-    let mesh = Mesh::from(Rectangle::new(box_size, box_size));
+    let mesh = Mesh::from(Rectangle::new(64.0, 64.0));
     let mesh_handle = meshes.add(mesh);
     loaded_materials
         .materials

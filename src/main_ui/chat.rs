@@ -15,7 +15,7 @@ pub fn spawn_chat(commands: &mut Commands, asset_server: &Res<AssetServer>) -> E
         max_corner_scale: 1.0,
     };
 
-    return commands
+    commands
         .spawn((
             Node {
                 position_type: PositionType::Relative,
@@ -60,5 +60,5 @@ pub fn spawn_chat(commands: &mut Commands, asset_server: &Res<AssetServer>) -> E
                 InheritedVisibility::default(),
             ));
         })
-        .id();
+        .id()
 }

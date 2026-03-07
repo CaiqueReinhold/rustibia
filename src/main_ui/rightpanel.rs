@@ -19,7 +19,7 @@ pub fn spawn_right_panel(commands: &mut Commands, asset_server: &Res<AssetServer
         max_corner_scale: 1.0,
     };
 
-    return commands
+    commands
         .spawn((
             RightPanel,
             Node {
@@ -57,5 +57,5 @@ pub fn spawn_right_panel(commands: &mut Commands, asset_server: &Res<AssetServer
                 Index(0),
             ));
         })
-        .id();
+        .id()
 }

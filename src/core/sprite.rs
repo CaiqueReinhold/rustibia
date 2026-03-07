@@ -16,7 +16,6 @@ impl Appearances {
         self.sprite_configs
             .values()
             .filter(|i| &i.group == group)
-            .map(|i| i)
             .collect::<Vec<&SpriteConfig>>()
             .into_iter()
     }
@@ -28,22 +27,22 @@ pub struct SpriteSheet {
     pub grid_size: Vec2,
 }
 
-#[derive(Debug)]
-pub enum AnimationLoopType {
-    Infinite,
-    PingPong,
-}
+// #[derive(Debug)]
+// pub enum AnimationLoopType {
+//     Infinite,
+//     PingPong,
+// }
 
 #[derive(Debug)]
 pub enum SpriteAnimation {
     Static,
     Uniform {
-        loop_type: AnimationLoopType,
+        // loop_type: AnimationLoopType,
         phase_count: u32,
         phase_duration: Duration,
     },
     NonUniform {
-        loop_type: AnimationLoopType,
+        // loop_type: AnimationLoopType,
         phases: Vec<UVec2>,
     },
 }
@@ -124,20 +123,19 @@ pub fn read_sprites_config() -> HashMap<u32, SpriteConfig> {
         config_map.insert(id, spr_conf);
     }
 
-    return config_map;
+    config_map
 }
 
 fn read_animation(value: &Value) -> SpriteAnimation {
     match value {
         Value::Null => SpriteAnimation::Static,
         Value::Object(anim) => {
-            let loop_type = if anim.get("loop_type").unwrap().as_str().unwrap() == "INFINITE" {
-                AnimationLoopType::Infinite
-            } else {
-                AnimationLoopType::PingPong
-            };
-            let animation: SpriteAnimation;
-            match &anim["phases"] {
+            // let loop_type = if anim.get("loop_type").unwrap().as_str().unwrap() == "INFINITE" {
+            //     AnimationLoopType::Infinite
+            // } else {
+            //     AnimationLoopType::PingPong
+            // };
+            let animation = match &anim["phases"] {
                 Value::Array(anim_phases) => {
                     let mut phases: Vec<UVec2> = Vec::new();
                     for phase in anim_phases.iter() {
@@ -146,17 +144,16 @@ fn read_animation(value: &Value) -> SpriteAnimation {
                             phase[1].as_u64().unwrap() as u32,
                         ));
                     }
-                    animation = SpriteAnimation::NonUniform { loop_type, phases };
+                    SpriteAnimation::NonUniform { phases }
                 }
                 _ => {
                     let phase_count = anim["phase_count"].as_u64().unwrap() as u32;
                     let phase_duration =
                         Duration::from_millis(anim["phase_duration"].as_u64().unwrap());
-                    animation = SpriteAnimation::Uniform {
-                        loop_type,
+                    SpriteAnimation::Uniform {
                         phase_count,
                         phase_duration,
-                    };
+                    }
                 }
             };
             animation
@@ -192,5 +189,5 @@ pub fn read_sprite_sheets(a_server: &AssetServer) -> HashMap<String, SpriteSheet
         );
     }
 
-    return sheets_map;
+    sheets_map
 }

@@ -15,8 +15,8 @@ pub struct MapTile {
 
 #[derive(Resource)]
 pub struct Map {
-    pub width: u32,
-    pub height: u32,
+    // pub width: u32,
+    // pub height: u32,
     pub floors: u32,
     pub tiles: HashMap<TilePosition, MapTile>,
 }

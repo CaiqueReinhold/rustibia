@@ -4,9 +4,9 @@ use bevy::prelude::*;
 
 use crate::{
     actor::{
-        actor::{Actor, FacingDirection},
         movement::{Moving, QueuedMove, WalkingDirection},
         player::Player,
+        {Actor, FacingDirection},
     },
     map::{Map, TilePosition},
 };

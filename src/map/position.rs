@@ -15,6 +15,14 @@ impl TilePosition {
         TilePosition { x, y, floor }
     }
 
+    pub fn from_world(world_pos: Vec2, floor: u32) -> Self {
+        TilePosition {
+            x: (world_pos.x / TILE_SIZE).floor() as u32,
+            y: (world_pos.y.abs() / TILE_SIZE).floor() as u32,
+            floor,
+        }
+    }
+
     pub fn to_world(&self) -> Vec3 {
         Vec3::new(
             (self.x as f32) * TILE_SIZE,

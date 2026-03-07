@@ -4,12 +4,40 @@ use bevy::prelude::*;
 use crate::camera::GameCamera;
 use crate::conf::ui::{SIDE_PANEL_WIDTH, TOP_BAR_HEIGHT};
 use crate::conf::viewport::ASPECT_RATIO;
+use crate::map::TilePosition;
 
 #[derive(Component)]
 pub struct GameViewport;
 
 // #[derive(Component)]
 // pub struct GameFrame;
+
+fn on_drag(
+    event: On<Pointer<DragStart>>,
+    camera: Single<(&Camera, &GlobalTransform), With<GameCamera>>,
+) {
+    let (camera, camera_transform) = *camera;
+    let click_postion = event.pointer_location.position;
+    let Some(viewport) = &camera.viewport else {
+        return;
+    };
+    let viewport_rect = Rect::from_corners(
+        viewport.physical_position.as_vec2(),
+        (viewport.physical_position + viewport.physical_size).as_vec2(),
+    );
+
+    if viewport_rect.contains(click_postion) {
+        let Ok(world_pos) = camera.viewport_to_world_2d(camera_transform, click_postion) else {
+            return;
+        };
+
+        info!(
+            "world pos: {:?} tile pos: {:?}",
+            world_pos,
+            TilePosition::from_world(world_pos, 7)
+        );
+    }
+}
 
 pub fn spawn_gameviewport(commands: &mut Commands) -> Entity {
     // let bg_box = asset_server.load("ui/frame.png");
@@ -31,6 +59,7 @@ pub fn spawn_gameviewport(commands: &mut Commands) -> Entity {
             GameViewport,
             Name::new("Game Viewport"),
         ))
+        .observe(on_drag)
         .id();
 
     // let frame = commands
@@ -53,7 +82,7 @@ pub fn spawn_gameviewport(commands: &mut Commands) -> Entity {
     //     .id();
     // commands.entity(viewport).add_child(frame);
 
-    return viewport;
+    viewport
 }
 
 pub fn set_game_camera_to_viewport(

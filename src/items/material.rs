@@ -18,7 +18,7 @@ pub struct ItemInstance {
     pub value_y: u32,
     pub value_z: u32,
     pub bounding_square: f32,
-    pub mesh_size: f32,
+    _pad: f32,
     pub bbox_min: Vec2,
     pub bbox_size: Vec2,
 }

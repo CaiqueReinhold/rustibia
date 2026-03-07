@@ -7,8 +7,8 @@ use crate::map::material::TerrainMaterial;
 use crate::map::material::{ATTRIBUTE_FRAME_COUNT, ATTRIBUTE_LOOKUP_INDEX, ATTRIBUTE_PATTERNS};
 use crate::map::TileChanged;
 use crate::map::{
-    map::Map,
     position::{ChunkPosition, TilePosition},
+    storage::Map,
 };
 use bevy::asset::RenderAssetUsages;
 use bevy::mesh::{Indices, Mesh, PrimitiveTopology};
@@ -96,9 +96,9 @@ pub fn update_visible_chunks(
     }
 
     for (entity, chunk) in &existing {
-        if !wanted.contains(&chunk) {
+        if !wanted.contains(chunk) {
             commands.entity(entity).despawn();
-            loaded.chunks.remove(&chunk);
+            loaded.chunks.remove(chunk);
         }
     }
 
@@ -144,7 +144,7 @@ fn spawn_chunk(
         }
     }
 
-    if ground.len() == 0 && borders.len() == 0 {
+    if ground.is_empty() && borders.is_empty() {
         return;
     }
 
@@ -157,7 +157,7 @@ fn spawn_chunk(
         ))
         .id();
 
-    if ground.len() > 0 {
+    if !ground.is_empty() {
         let group = &ground.first().unwrap().1.group;
 
         if !loaded_materials.materials.contains_key(group) {
@@ -184,7 +184,7 @@ fn spawn_chunk(
         ));
     }
 
-    if borders.len() > 0 {
+    if !borders.is_empty() {
         let group = &borders.first().unwrap().1.group;
 
         if !loaded_materials.materials.contains_key(group) {
@@ -234,12 +234,12 @@ fn build_chunk_mesh(
             &mut indices,
             &mut quad_index,
             pos,
-            *tile,
+            tile,
             lookup_map,
         );
     }
 
-    let mesh = Mesh::new(
+    Mesh::new(
         PrimitiveTopology::TriangleList,
         RenderAssetUsages::RENDER_WORLD,
     )
@@ -248,9 +248,7 @@ fn build_chunk_mesh(
     .with_inserted_attribute(ATTRIBUTE_LOOKUP_INDEX, lookup_index)
     .with_inserted_attribute(ATTRIBUTE_FRAME_COUNT, frame_counts)
     .with_inserted_attribute(ATTRIBUTE_PATTERNS, patterns)
-    .with_inserted_indices(Indices::U32(indices));
-
-    mesh
+    .with_inserted_indices(Indices::U32(indices))
 }
 
 fn push_quad(
@@ -328,26 +326,27 @@ fn init_material(
     loaded_materials.lookups.insert(group.clone(), lookup_map);
 }
 
+#[cfg(feature = "debug")]
 pub fn draw_tile_grid(mut gizmos: Gizmos) {
     // Vertical lines
-    // for x in -40000..=40000 {
-    //     let world_x = x as f32 * TILE_SIZE;
+    for x in -40000..=40000 {
+        let world_x = x as f32 * TILE_SIZE;
 
-    //     gizmos.line_2d(
-    //         Vec2::new(world_x, -80000.0),
-    //         Vec2::new(world_x, 80000.0),
-    //         Color::srgb(1.0, 1., 1.),
-    //     );
-    // }
+        gizmos.line_2d(
+            Vec2::new(world_x, -80000.0),
+            Vec2::new(world_x, 80000.0),
+            Color::srgb(1.0, 1., 1.),
+        );
+    }
 
-    // // Horizontal lines
-    // for y in -40000..=40000 {
-    //     let world_y = y as f32 * TILE_SIZE;
+    // Horizontal lines
+    for y in -40000..=40000 {
+        let world_y = y as f32 * TILE_SIZE;
 
-    //     gizmos.line_2d(
-    //         Vec2::new(-80000.0, world_y),
-    //         Vec2::new(80000.0, world_y),
-    //         Color::srgb(1.0, 1., 1.),
-    //     );
-    // }
+        gizmos.line_2d(
+            Vec2::new(-80000.0, world_y),
+            Vec2::new(80000.0, world_y),
+            Color::srgb(1.0, 1., 1.),
+        );
+    }
 }

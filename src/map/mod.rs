@@ -6,14 +6,14 @@ use crate::core::State;
 mod assets;
 mod chunks;
 mod events;
-mod map;
 mod material;
 mod position;
+mod storage;
 
 pub use crate::map::assets::read_map_config;
 pub use crate::map::events::TileChanged;
-pub use crate::map::map::Map;
 pub use crate::map::position::TilePosition;
+pub use crate::map::storage::Map;
 pub struct MapPlugin;
 
 impl Plugin for MapPlugin {
@@ -25,7 +25,8 @@ impl Plugin for MapPlugin {
             .add_systems(
                 FixedUpdate,
                 (chunks::player_chunk_changed).run_if(in_state(State::InGame)),
-            )
-            .add_systems(Update, chunks::draw_tile_grid);
+            );
+        #[cfg(feature = "debug")]
+        app.add_systems(Update, chunks::draw_tile_grid);
     }
 }
