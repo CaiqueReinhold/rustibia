@@ -37,13 +37,6 @@ pub fn spawn_chat(commands: &mut Commands, asset_server: &Res<AssetServer>) -> E
                 ..default()
             })
             .with_mode(NodeImageMode::Sliced(slicer)),
-            BoxShadow(vec![ShadowStyle {
-                color: Color::BLACK.with_alpha(0.8),
-                x_offset: px(-2),
-                y_offset: px(0),
-                spread_radius: px(1),
-                blur_radius: px(5),
-            }]),
             BackgroundColor(Color::srgba(0.05, 0.05, 0.1, 0.0)),
             Name::new("Chat"),
         ))

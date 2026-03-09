@@ -13,9 +13,11 @@ pub fn spawn_ui_camera(mut commands: Commands) {
         Camera {
             order: 1,
             clear_color: ClearColorConfig::None,
+            // msaa_writeback: MsaaWriteback::Off,
             ..default()
         },
         RenderLayers::layer(1),
+        Msaa::Off,
         IsDefaultUiCamera,
     ));
 }
@@ -36,5 +38,6 @@ pub fn spawn_game_camera(mut commands: Commands) {
         GameCamera,
         Transform::default(),
         GlobalTransform::default(),
+        Msaa::Off,
     ));
 }

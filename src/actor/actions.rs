@@ -47,7 +47,7 @@ pub fn on_player_move(
         WalkingDirection::SouthWest => start_position.delta(-1, -1),
     };
 
-    if map.can_move(&end_postion) {
+    if map.can_walk(&end_postion) {
         let tile_modifier = map.get_tile_speed_modifier(&end_postion);
         let step_time_ms = actor.get_tile_speed(tile_modifier, event.direction.is_diagonal());
         match moving {

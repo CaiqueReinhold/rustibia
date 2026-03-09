@@ -83,13 +83,6 @@ pub fn spawn_top_panel(
                 ..default()
             })
             .with_mode(NodeImageMode::Sliced(slicer)),
-            BoxShadow(vec![ShadowStyle {
-                color: Color::BLACK.with_alpha(0.8),
-                x_offset: px(2),
-                y_offset: px(0),
-                spread_radius: px(1),
-                blur_radius: px(5),
-            }]),
             ZIndex(5),
         ))
         .id();

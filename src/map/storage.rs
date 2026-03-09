@@ -2,9 +2,18 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use bevy::prelude::*;
+use thiserror::Error;
 
 use crate::items::{Item, ItemConfig};
 use crate::map::position::TilePosition;
+
+#[derive(Error, Debug)]
+pub enum MapOperationError {
+    #[error("Item cannot be moved")]
+    CannotMoveItem,
+    #[error("Item not found in tile")]
+    NotFound,
+}
 
 #[derive(Debug)]
 pub struct MapTile {
@@ -22,7 +31,7 @@ pub struct Map {
 }
 
 impl Map {
-    pub fn can_move(&self, pos: &TilePosition) -> bool {
+    pub fn can_walk(&self, pos: &TilePosition) -> bool {
         let tile = match self.tiles.get(pos) {
             Some(t) => t,
             None => return false,
@@ -47,6 +56,77 @@ impl Map {
         }
 
         true
+    }
+
+    fn can_move(&self, pos: &TilePosition) -> bool {
+        let tile = match self.tiles.get(pos) {
+            Some(t) => t,
+            None => return false,
+        };
+
+        if let Some(ground) = &tile.ground {
+            if ground.have_fullbank {
+                return false;
+            }
+        }
+
+        if let Some(border) = &tile.border {
+            if border.have_fullbank {
+                return false;
+            }
+        }
+
+        true
+    }
+
+    pub fn add_item(
+        &mut self,
+        item: Item,
+        position: &TilePosition,
+    ) -> Result<(), MapOperationError> {
+        if !self.can_move(position) {
+            return Err(MapOperationError::CannotMoveItem);
+        }
+
+        if !item.config.can_move {
+            return Err(MapOperationError::CannotMoveItem);
+        }
+
+        let Some(tile) = self.tiles.get_mut(position) else {
+            return Err(MapOperationError::CannotMoveItem);
+        };
+        tile.items.push(item);
+        Ok(())
+    }
+
+    pub fn remove_item(
+        &mut self,
+        item: &Item,
+        position: &TilePosition,
+    ) -> Result<(), MapOperationError> {
+        let Some(tile) = self.tiles.get_mut(position) else {
+            return Err(MapOperationError::CannotMoveItem);
+        };
+        let Some((index, item)) = tile
+            .items
+            .iter()
+            .enumerate()
+            .rev()
+            .find(|(_, i)| *i == item)
+        else {
+            return Err(MapOperationError::NotFound);
+        };
+        if !item.config.can_move {
+            return Err(MapOperationError::CannotMoveItem);
+        }
+        tile.items.remove(index);
+        Result::Ok(())
+    }
+
+    pub fn peek_item(&self, position: &TilePosition) -> Option<&Item> {
+        let tile = self.tiles.get(position)?;
+        let item = tile.items.last()?;
+        Some(item)
     }
 
     pub fn get_tile_speed_modifier(&self, pos: &TilePosition) -> u32 {

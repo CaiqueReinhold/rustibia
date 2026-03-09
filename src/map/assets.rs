@@ -30,6 +30,7 @@ pub fn read_map_config() -> Map {
         // };
         let top = cfg["top"].as_bool().unwrap();
         let is_container = false;
+        let can_move = true;
 
         configs.insert(
             id,
@@ -40,6 +41,7 @@ pub fn read_map_config() -> Map {
                 // have_fullbank,
                 // should_avoid,
                 // minimap_color,
+                can_move,
                 is_container,
                 top,
                 ..Default::default()

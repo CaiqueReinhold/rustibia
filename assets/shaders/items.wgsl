@@ -72,30 +72,6 @@ fn calculate_world_pos(
     );
 }
 
-// fn calculate_world_pos_2(
-//     position: vec3<f32>,
-//     mesh_size: f32,
-//     square: f32,
-//     bbox_min: vec2<f32>,
-//     bbox_size: vec2<f32>,
-//     instance_index: u32
-// ) -> vec4<f32> {
-//     let local01 = (position.xy + mesh_size / 2.0) / mesh_size;
-//     let logical_pos = (local01 - vec2<f32>(0.5)) * square;
-//     let bbox_center = vec2<f32>(
-//         bbox_min.x + bbox_size.x * 0.5 - square * 0.5,
-//         square * 0.5 - (bbox_min.y + bbox_size.y * 0.5)
-//     );
-//     let cropped_local =
-//         logical_pos * (bbox_size / mesh_size) + bbox_center;
-
-//     var world_from_local = mesh_functions::get_world_from_local(instance_index);
-//     return mesh_functions::mesh2d_position_local_to_world(
-//         world_from_local,
-//         vec4<f32>(cropped_local, position.z, 1.0)
-//     );
-// }
-
 fn adjust_uv_to_bbox(
     uv: vec2<f32>,
     square: f32,

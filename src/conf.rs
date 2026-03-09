@@ -34,6 +34,7 @@ pub mod ui {
     pub const TOP_BAR_HEIGHT: f32 = 80.0;
     pub const SIDE_PANEL_WIDTH: f32 = 220.0;
     pub const CHAT_BOX_HEIGHT: f32 = 220.0;
+    pub const DRAGGED_ITEM_UI_Z: f32 = 100.0;
 }
 
 pub mod server {

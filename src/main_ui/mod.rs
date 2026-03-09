@@ -4,11 +4,13 @@ use bevy::prelude::*;
 use crate::main_ui::window::UIWindowDock;
 
 mod chat;
-mod gameview;
+mod game_overlay;
 mod leftpanel;
 mod rightpanel;
 mod toppanel;
 mod window;
+
+pub use game_overlay::{GameScaleFactor, GameViewport};
 
 #[derive(Resource)]
 pub struct UiFonts {
@@ -26,8 +28,9 @@ pub struct UiPlugin;
 impl Plugin for UiPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(window::UIWindowPlugin)
+            .init_resource::<GameScaleFactor>()
             .add_systems(Startup, spawn_main_ui)
-            .add_systems(PostUpdate, gameview::set_game_camera_to_viewport)
+            .add_systems(PostUpdate, game_overlay::set_game_camera_to_viewport)
             .add_systems(
                 Update,
                 (
@@ -69,7 +72,6 @@ fn spawn_main_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
                 ..default()
             },
             RenderLayers::layer(1),
-            Name::new("Main UI"),
         ))
         .id();
 
@@ -87,7 +89,7 @@ fn spawn_main_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
         .add_children(&[left_panel, middle_container, right_panel]);
 
     let top_panel = toppanel::spawn_top_panel(&mut commands, &asset_server, &fonts);
-    let gameview = gameview::spawn_gameviewport(&mut commands);
+    let gameview = game_overlay::spawn_gameviewport(&mut commands);
     let chat = chat::spawn_chat(&mut commands, &asset_server);
     commands
         .entity(middle_container)
@@ -129,51 +131,10 @@ fn trigger_window(_: On<Add, UIWindowDock>, mut commands: Commands) {
             )),
         ))
         .id();
-    let entity2 = commands
-        .spawn((
-            Node {
-                width: Val::Percent(100.0),
-                height: Val::Px(200.0),
-                ..default()
-            },
-            BackgroundColor(Color::BLACK),
-            Children::spawn(Spawn((
-                Node {
-                    width: Val::Percent(100.0),
-                    height: Val::Px(150.0),
-                    ..default()
-                },
-                BackgroundColor(Srgba::new(0.224, 0.224, 0.243, 1.0).into()),
-            ))),
-        ))
-        .id();
-    let entity3 = commands
-        .spawn((
-            Node {
-                width: Val::Percent(100.0),
-                height: Val::Px(180.0),
-                ..default()
-            },
-            Outline {
-                width: Val::Px(5.0),
-                offset: Val::ZERO,
-                color: Color::WHITE,
-            }, // BackgroundColor(Color::BLACK),
-        ))
-        .id();
+
     commands.trigger(window::AddUIWindow {
         content: entity,
         default_height: 100,
         title: "test window 1".to_string(),
-    });
-    commands.trigger(window::AddUIWindow {
-        content: entity2,
-        default_height: 100,
-        title: "test window 2".to_string(),
-    });
-    commands.trigger(window::AddUIWindow {
-        content: entity3,
-        default_height: 100,
-        title: "test window 3".to_string(),
     });
 }

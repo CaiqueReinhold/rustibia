@@ -36,13 +36,6 @@ pub fn spawn_left_panel(commands: &mut Commands, asset_server: &Res<AssetServer>
                 ..default()
             })
             .with_mode(NodeImageMode::Sliced(slicer)),
-            BoxShadow(vec![ShadowStyle {
-                color: Color::BLACK.with_alpha(0.8),
-                x_offset: px(0),
-                y_offset: px(2),
-                spread_radius: px(1),
-                blur_radius: px(5),
-            }]),
             ZIndex(1),
             Name::new("Left Panel"),
         ))
