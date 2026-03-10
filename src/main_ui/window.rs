@@ -276,8 +276,8 @@ fn on_add_window(
     )>,
     c_node_q: Query<&ComputedNode>,
 ) {
-    let container_entity =
-        find_available_container(&container_q, &c_node_q, event.default_height as f32);
+    let total_height = (event.default_height as f32) + WINDOW_TITLE_HEIGHT;
+    let container_entity = find_available_container(&container_q, &c_node_q, total_height);
     let (_, dock, _, _, container_children) = container_q.get(container_entity).unwrap();
     let window_index = match container_children {
         Some(c) => c.len(),
@@ -288,7 +288,7 @@ fn on_add_window(
         .spawn((
             Node {
                 width: Val::Percent(100.0),
-                height: Val::Px(event.default_height as f32),
+                height: Val::Px(total_height),
                 min_height: Val::Px(WINDOW_MIN_HEIGHT),
                 flex_direction: FlexDirection::Column,
                 overflow: Overflow::hidden(),
@@ -329,6 +329,7 @@ fn on_add_window(
                         ..default()
                     },
                     Hovered::default(),
+                    BackgroundColor(Color::BLACK),
                     UIScrollableView,
                 ))
                 .with_children(|scroll_view| {
@@ -379,17 +380,14 @@ fn on_add_window(
                 });
 
             window
-                .spawn((
-                    Node {
-                        width: Val::Percent(100.0),
-                        height: Val::Px(10.0),
-                        position_type: PositionType::Absolute,
-                        bottom: Val::Px(0.0),
-                        left: Val::Px(0.0),
-                        ..default()
-                    },
-                    BackgroundColor(Srgba::new(1.0, 1.0, 1.0, 0.2).into()),
-                ))
+                .spawn((Node {
+                    width: Val::Percent(100.0),
+                    height: Val::Px(8.0),
+                    position_type: PositionType::Absolute,
+                    bottom: Val::Px(0.0),
+                    left: Val::Px(0.0),
+                    ..default()
+                },))
                 .observe(on_over_resize_handle)
                 .observe(on_out_resize_handle)
                 .observe(on_resize_start)

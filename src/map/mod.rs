@@ -6,14 +6,12 @@ use crate::core::State;
 mod assets;
 mod chunks;
 mod events;
-mod interaction;
 mod material;
 mod position;
 mod storage;
 
 pub use crate::map::assets::read_map_config;
 pub use crate::map::events::TileChanged;
-pub use crate::map::interaction::MouseHoverState;
 pub use crate::map::position::TilePosition;
 pub use crate::map::storage::Map;
 pub struct MapPlugin;
@@ -23,10 +21,7 @@ impl Plugin for MapPlugin {
         app.add_plugins(Material2dPlugin::<material::TerrainMaterial>::default())
             .init_resource::<chunks::LoadedChunks>()
             .init_resource::<chunks::LoadedMaterials>()
-            .init_resource::<interaction::MouseHoverState>()
             .add_observer(chunks::update_visible_chunks)
-            .add_systems(OnEnter(State::InGame), interaction::attach_observers)
-            .add_systems(PreUpdate, interaction::update_hover_state)
             .add_systems(
                 FixedUpdate,
                 (chunks::player_chunk_changed).run_if(in_state(State::InGame)),

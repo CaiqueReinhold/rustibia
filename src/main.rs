@@ -12,6 +12,7 @@ mod core;
 mod items;
 mod main_ui;
 mod map;
+mod player;
 
 use crate::core::{GameAssetsLoaded, State};
 
@@ -44,6 +45,7 @@ fn main() {
             map::MapPlugin,
             main_ui::UiPlugin,
             items::ItemsPlugin,
+            player::PlayerPlugin,
         ))
         .init_state::<State>()
         .init_resource::<GameAssetsLoaded>()

@@ -11,15 +11,13 @@ use crate::map::position::TilePosition;
 pub enum MapOperationError {
     #[error("Item cannot be moved")]
     CannotMoveItem,
-    #[error("Item not found in tile")]
-    NotFound,
 }
 
 #[derive(Debug)]
 pub struct MapTile {
     pub ground: Option<Arc<ItemConfig>>,
     pub border: Option<Arc<ItemConfig>>,
-    pub items: Vec<Item>,
+    pub items: Vec<Arc<Item>>,
 }
 
 #[derive(Resource)]
@@ -81,7 +79,7 @@ impl Map {
 
     pub fn add_item(
         &mut self,
-        item: Item,
+        item: Arc<Item>,
         position: &TilePosition,
     ) -> Result<(), MapOperationError> {
         if !self.can_move(position) {
@@ -101,32 +99,21 @@ impl Map {
 
     pub fn remove_item(
         &mut self,
-        item: &Item,
+        index: usize,
         position: &TilePosition,
     ) -> Result<(), MapOperationError> {
         let Some(tile) = self.tiles.get_mut(position) else {
             return Err(MapOperationError::CannotMoveItem);
         };
-        let Some((index, item)) = tile
-            .items
-            .iter()
-            .enumerate()
-            .rev()
-            .find(|(_, i)| *i == item)
-        else {
-            return Err(MapOperationError::NotFound);
-        };
-        if !item.config.can_move {
-            return Err(MapOperationError::CannotMoveItem);
-        }
         tile.items.remove(index);
         Result::Ok(())
     }
 
-    pub fn peek_item(&self, position: &TilePosition) -> Option<&Item> {
+    pub fn peek_item(&self, position: &TilePosition) -> Option<(&Arc<Item>, usize)> {
         let tile = self.tiles.get(position)?;
         let item = tile.items.last()?;
-        Some(item)
+        let index = tile.items.len() - 1;
+        Some((item, index))
     }
 
     pub fn get_tile_speed_modifier(&self, pos: &TilePosition) -> u32 {

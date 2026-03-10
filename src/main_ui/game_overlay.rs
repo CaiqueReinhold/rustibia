@@ -2,10 +2,7 @@ use bevy::camera::{Camera, Viewport};
 use bevy::prelude::*;
 
 use crate::camera::GameCamera;
-use crate::conf::viewport::{ASPECT_RATIO, GAME_VIEW_HEIGHT, GAME_VIEW_WIDTH};
-
-#[derive(Resource, Debug, Default)]
-pub struct GameScaleFactor(pub f32);
+use crate::conf::viewport::ASPECT_RATIO;
 
 #[derive(Component)]
 pub struct GameViewport;
@@ -29,7 +26,6 @@ pub fn set_game_camera_to_viewport(
     windows: Query<&Window>,
     game_node: Query<(&ComputedNode, &UiGlobalTransform), With<GameViewport>>,
     mut camera: Query<&mut Camera, With<GameCamera>>,
-    mut game_scale: ResMut<GameScaleFactor>,
 ) {
     let Ok((node, transform)) = game_node.single() else {
         return;
@@ -68,11 +64,6 @@ pub fn set_game_camera_to_viewport(
     if physical_width == 0.0 || physical_height == 0.0 {
         return;
     }
-
-    game_scale.0 = f32::min(
-        physical_height / (GAME_VIEW_HEIGHT * scale_factor),
-        physical_width / (GAME_VIEW_WIDTH * scale_factor),
-    );
 
     camera.viewport = Some(Viewport {
         physical_position: UVec2::new(physical_x as u32, physical_y as u32),

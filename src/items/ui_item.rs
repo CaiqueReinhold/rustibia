@@ -1,21 +1,17 @@
+use std::sync::Arc;
+
 use bevy::{camera::visibility::RenderLayers, prelude::*};
 
 use crate::{
-    conf::ui::DRAGGED_ITEM_UI_Z,
+    conf::ui::{z_index::DRAGGED_ITEM_UI_Z, UI_ITEM_SIZE},
     core::Appearances,
     items::{map_stack::ItemStacks, Item},
-    main_ui::GameScaleFactor,
-    map::{MouseHoverState, TilePosition},
+    player::{ItemDragOrigin, MouseHoverState},
 };
-
-pub enum ItemDragOrigin {
-    Map { position: TilePosition },
-    Container,
-}
 
 #[derive(Event)]
 pub struct ItemDragStarted {
-    pub item: Item,
+    pub item: Arc<Item>,
     pub origin: ItemDragOrigin,
 }
 
@@ -25,31 +21,27 @@ pub struct ItemDragEnded {
 }
 
 #[derive(Component, Debug)]
+#[allow(dead_code)]
 pub struct UiItem {
-    pub item: Item,
+    pub item: Arc<Item>,
 }
 
 #[derive(Component)]
 pub struct UiItemDragging {
-    offset: Vec2,
     origin: ItemDragOrigin,
 }
 
-fn spawn_ui_item(
-    item: &Item,
-    origin: ItemDragOrigin,
-    commands: &mut Commands,
+pub fn spawn_ui_item(
+    item: &Arc<Item>,
     appearances: &Appearances,
     texture_atlases: &mut Assets<TextureAtlasLayout>,
-    offset: &Vec2,
     position: &Vec2,
-    scale: f32,
-) {
+) -> impl Bundle {
     let Some(config) = appearances.sprite_configs.get(&item.config.id) else {
-        return;
+        panic!();
     };
     let Some(sheet) = appearances.sheets.get(&config.group) else {
-        return;
+        panic!();
     };
     let texture_atlas = TextureAtlasLayout::from_grid(
         UVec2::splat(if config.box_size > 32.0 { 64 } else { 32 }),
@@ -61,25 +53,18 @@ fn spawn_ui_item(
     let texture_atlas_handle = texture_atlases.add(texture_atlas);
     let mut atlas = TextureAtlas::from(texture_atlas_handle);
     atlas.index = (*config.sprite_ids.first().unwrap()) as usize;
-    commands.spawn((
+
+    (
         UiItem { item: item.clone() },
-        UiItemDragging {
-            offset: *offset,
-            origin,
-        },
         Node {
-            width: Val::Px(32.0 * scale),
-            height: Val::Px(32.0 * scale),
+            width: Val::Px(UI_ITEM_SIZE),
+            height: Val::Px(UI_ITEM_SIZE),
             ..default()
         },
         ImageNode::from_atlas_image(sheet.texture.clone(), atlas),
-        Transform::from_xyz(
-            position.x + offset.x,
-            position.y + offset.y,
-            DRAGGED_ITEM_UI_Z,
-        ),
+        Transform::from_xyz(position.x, position.y, 0.0),
         RenderLayers::layer(1),
-    ));
+    )
 }
 
 pub fn item_drag_started(
@@ -90,41 +75,34 @@ pub fn item_drag_started(
     hover_state: Res<MouseHoverState>,
     stacks: Res<ItemStacks>,
     stack_item_q: Query<&Children>,
-    scale: Res<GameScaleFactor>,
 ) {
-    info!("Item drag started");
-    let mut offset = Vec2::ZERO;
-    let mut origin = ItemDragOrigin::Container;
-    if let ItemDragOrigin::Map { position } = &event.origin {
+    if let ItemDragOrigin::Map { position, index } = &event.origin {
         let Some(stack_entity) = stacks.occupied_tiles.get(position) else {
             return;
         };
         let Ok(stack_items) = stack_item_q.get(*stack_entity) else {
             return;
         };
-        let Some(item_entity) = stack_items.last() else {
+        let Some(item_entity) = stack_items.get(*index) else {
             return;
         };
 
         commands.entity(*item_entity).insert(Visibility::Hidden);
-
-        offset = hover_state.world_position.unwrap() % 32.0;
-        origin = ItemDragOrigin::Map {
-            position: position.clone(),
-        };
     }
 
-    let offseted_position = hover_state.screen_position + offset;
-    spawn_ui_item(
-        &event.item,
-        origin,
-        &mut commands,
-        &appearances,
-        &mut texture_atlases,
-        &offset,
-        &offseted_position,
-        scale.0,
-    );
+    commands
+        .spawn(spawn_ui_item(
+            &event.item,
+            &appearances,
+            &mut texture_atlases,
+            &hover_state.screen_position,
+        ))
+        .insert((
+            UiItemDragging {
+                origin: event.origin.clone(),
+            },
+            ZIndex(DRAGGED_ITEM_UI_Z),
+        ));
 }
 
 pub fn item_drag_ended(
@@ -135,20 +113,24 @@ pub fn item_drag_ended(
     stack_item_q: Query<&Children>,
 ) {
     let Ok((entity, drag_item)) = drag_item_q.single() else {
+        for (e, _) in drag_item_q {
+            commands.entity(e).despawn();
+        }
         return;
     };
 
     if event.canceled {
-        if let ItemDragOrigin::Map { position } = &drag_item.origin {
+        if let ItemDragOrigin::Map { position, index } = &drag_item.origin {
             let Some(stack_entity) = stacks.occupied_tiles.get(position) else {
                 return;
             };
             let Ok(stack_items) = stack_item_q.get(*stack_entity) else {
                 return;
             };
-            for item in stack_items {
-                commands.entity(*item).insert(Visibility::Visible);
-            }
+            let Some(item) = stack_items.get(*index) else {
+                return;
+            };
+            commands.entity(*item).insert(Visibility::Visible);
         }
     }
 
@@ -156,13 +138,13 @@ pub fn item_drag_ended(
 }
 
 pub fn move_dragged_item(
-    ui_item_q: Query<(&mut UiTransform, &UiItemDragging)>,
+    ui_item_q: Query<&mut UiTransform, With<UiItemDragging>>,
     hover_state: Res<MouseHoverState>,
 ) {
-    for (mut item_transform, dragging) in ui_item_q {
+    for mut item_transform in ui_item_q {
         item_transform.translation = Val2::new(
-            Val::Px(hover_state.screen_position.x - dragging.offset.x),
-            Val::Px(hover_state.screen_position.y + dragging.offset.y),
+            Val::Px(hover_state.screen_position.x),
+            Val::Px(hover_state.screen_position.y),
         );
     }
 }

@@ -148,7 +148,6 @@ fn spawn_item(
             MeshMaterial2d(material.clone()),
             MeshTag(index),
             Transform::from_translation(translation),
-            GlobalTransform::default(),
         ))
         .id();
     entity

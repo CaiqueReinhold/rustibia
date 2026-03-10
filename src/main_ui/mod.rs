@@ -1,8 +1,6 @@
 use bevy::camera::visibility::RenderLayers;
 use bevy::prelude::*;
 
-use crate::main_ui::window::UIWindowDock;
-
 mod chat;
 mod game_overlay;
 mod leftpanel;
@@ -10,13 +8,16 @@ mod rightpanel;
 mod toppanel;
 mod window;
 
-pub use game_overlay::{GameScaleFactor, GameViewport};
+pub use window::AddUIWindow;
 
 #[derive(Resource)]
 pub struct UiFonts {
     // pub main_font: Handle<Font>,
     pub content_font: Handle<Font>,
 }
+
+#[derive(Component)]
+pub struct MainUI;
 
 // #[derive(Resource)]
 // pub struct UiAssets {
@@ -28,7 +29,6 @@ pub struct UiPlugin;
 impl Plugin for UiPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(window::UIWindowPlugin)
-            .init_resource::<GameScaleFactor>()
             .add_systems(Startup, spawn_main_ui)
             .add_systems(PostUpdate, game_overlay::set_game_camera_to_viewport)
             .add_systems(
@@ -45,8 +45,7 @@ impl Plugin for UiPlugin {
                     toppanel::update_mana,
                     toppanel::update_experience,
                 ),
-            )
-            .add_observer(trigger_window);
+            );
     }
 }
 
@@ -64,6 +63,7 @@ fn spawn_main_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
 
     let main_ui = commands
         .spawn((
+            MainUI,
             Node {
                 position_type: PositionType::Absolute,
                 width: Val::Percent(100.0),
@@ -96,45 +96,4 @@ fn spawn_main_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
         .add_children(&[top_panel, gameview, chat]);
 
     commands.insert_resource(fonts);
-}
-
-fn trigger_window(_: On<Add, UIWindowDock>, mut commands: Commands) {
-    let entity = commands
-        .spawn((
-            Node {
-                width: Val::Percent(100.0),
-                height: Val::Px(180.0),
-                flex_direction: FlexDirection::Column,
-                overflow: Overflow::clip(),
-                ..default()
-            },
-            BackgroundColor(Color::BLACK),
-            Children::spawn((
-                Spawn((Text::new("1"), TextColor(Color::WHITE))),
-                Spawn((Text::new("2"), TextColor(Color::WHITE))),
-                Spawn((Text::new("3"), TextColor(Color::WHITE))),
-                Spawn((Text::new("4"), TextColor(Color::WHITE))),
-                Spawn((Text::new("5"), TextColor(Color::WHITE))),
-                Spawn((Text::new("6"), TextColor(Color::WHITE))),
-                Spawn((Text::new("7"), TextColor(Color::WHITE))),
-                Spawn((Text::new("8"), TextColor(Color::WHITE))),
-                Spawn((Text::new("9"), TextColor(Color::WHITE))),
-                Spawn((Text::new("10"), TextColor(Color::WHITE))),
-                (
-                    Spawn((Text::new("11"), TextColor(Color::WHITE))),
-                    Spawn((Text::new("12"), TextColor(Color::WHITE))),
-                    Spawn((Text::new("13"), TextColor(Color::WHITE))),
-                    Spawn((Text::new("14"), TextColor(Color::WHITE))),
-                    Spawn((Text::new("15"), TextColor(Color::WHITE))),
-                    Spawn((Text::new("16"), TextColor(Color::WHITE))),
-                ),
-            )),
-        ))
-        .id();
-
-    commands.trigger(window::AddUIWindow {
-        content: entity,
-        default_height: 100,
-        title: "test window 1".to_string(),
-    });
 }

@@ -32,9 +32,20 @@ pub mod viewport {
 
 pub mod ui {
     pub const TOP_BAR_HEIGHT: f32 = 80.0;
-    pub const SIDE_PANEL_WIDTH: f32 = 220.0;
+    pub const SIDE_PANEL_WIDTH: f32 = 180.0;
     pub const CHAT_BOX_HEIGHT: f32 = 220.0;
-    pub const DRAGGED_ITEM_UI_Z: f32 = 100.0;
+    pub const UI_ITEM_SIZE: f32 = 32.0;
+
+    pub mod z_index {
+        pub const DRAGGED_ITEM_UI_Z: i32 = 100;
+    }
+
+    pub mod ui_colors {
+        use bevy::color::Srgba;
+
+        pub const ITEM_SLOT_OUTLINE: Srgba = Srgba::new(0.35, 0.35, 0.35, 1.0);
+        pub const ITEM_SLOT_OUTLINE_HOVERED: Srgba = Srgba::new(0.8, 0.8, 0.8, 1.0);
+    }
 }
 
 pub mod server {
