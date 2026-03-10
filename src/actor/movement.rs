@@ -96,6 +96,7 @@ pub fn move_actor(
                 .insert(moving.end.clone())
                 .remove::<Moving>();
 
+            transform.translation = moving.end.to_world() + Vec3::new(0.0, 0.0, ACTOR_Z_OFFSET);
             if let Some(q) = &moving.queued {
                 commands.entity(entity).insert(Moving {
                     start: q.start.clone(),
@@ -108,12 +109,16 @@ pub fn move_actor(
                 });
                 actor.direction = q.facing;
             };
+            return;
         }
 
         let start = moving.start.to_world();
         let end = moving.end.to_world();
-        let mut interpolated = start.lerp(end, moving.timer.fraction());
-        interpolated.z += ACTOR_Z_OFFSET;
-        transform.translation = interpolated;
+        let interpolated = start.lerp(end, moving.timer.fraction());
+        transform.translation = Vec3::new(
+            interpolated.x,
+            interpolated.y,
+            f32::max(end.z, start.z) + ACTOR_Z_OFFSET,
+        );
     }
 }

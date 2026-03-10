@@ -1,5 +1,6 @@
 use bevy::camera::visibility::RenderLayers;
 use bevy::camera::{Camera, ClearColorConfig, OrthographicProjection, ScalingMode};
+use bevy::core_pipeline::tonemapping::Tonemapping;
 use bevy::prelude::*;
 
 use crate::conf::viewport::{GAME_VIEW_HEIGHT, GAME_VIEW_WIDTH};
@@ -16,6 +17,7 @@ pub fn spawn_ui_camera(mut commands: Commands) {
             // msaa_writeback: MsaaWriteback::Off,
             ..default()
         },
+        Tonemapping::None,
         RenderLayers::layer(1),
         Msaa::Off,
         IsDefaultUiCamera,
@@ -34,6 +36,7 @@ pub fn spawn_game_camera(mut commands: Commands) {
             order: 0,
             ..default()
         },
+        Tonemapping::None,
         Projection::Orthographic(projection),
         GameCamera,
         Transform::default(),
