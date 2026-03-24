@@ -46,6 +46,11 @@ pub struct TileChanged {
     pub items: Box<ItemStack>,
 }
 
+#[derive(Event, Debug)]
+pub struct MoveItemResult {
+    pub success: bool,
+}
+
 pub fn route_event(msg: ServerMessage, commands: &mut Commands) {
     match msg {
         ServerMessage::Pong => {
@@ -70,7 +75,6 @@ pub fn route_event(msg: ServerMessage, commands: &mut Commands) {
             });
         }
         ServerMessage::DescribeMap { tiles } => {
-            info!("trigger desc map");
             commands.trigger(DescribeMap { tiles });
         }
         ServerMessage::PlayerWalkAck { position, tiles } => {
@@ -82,7 +86,11 @@ pub fn route_event(msg: ServerMessage, commands: &mut Commands) {
         ServerMessage::PlayerPosition { position } => {
             commands.trigger(PlayerPosition { position });
         }
-        ServerMessage::MoveItemAck => {}
-        ServerMessage::MoveItemDenied => {}
+        ServerMessage::MoveItemAck => {
+            commands.trigger(MoveItemResult { success: true });
+        }
+        ServerMessage::MoveItemDenied => {
+            commands.trigger(MoveItemResult { success: false });
+        }
     }
 }

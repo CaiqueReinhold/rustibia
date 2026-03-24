@@ -15,6 +15,7 @@ pub enum ItemFlag {
     Unmove,
     Take,
     FullBank,
+    Bottom,
 }
 
 #[derive(Debug, Eq)]

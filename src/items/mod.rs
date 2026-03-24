@@ -14,7 +14,7 @@ mod ui_item;
 pub use container::{LootContainerUI, OpenContainer};
 pub use instancing::ChangedTileQueue;
 pub use item::{Item, ItemConfig, ItemFlag, ItemId};
-pub use ui_item::{ItemDragEnded, ItemDragStarted};
+pub use ui_item::{ItemDragEnded, ItemDragStarted, ItemMoveCanceled, ItemMoveConfirmed};
 
 pub struct ItemsPlugin;
 
@@ -41,6 +41,8 @@ impl Plugin for ItemsPlugin {
             .add_observer(instancing::on_remove_item)
             .add_observer(ui_item::item_drag_started)
             .add_observer(ui_item::item_drag_ended)
+            .add_observer(ui_item::item_move_confirmed)
+            .add_observer(ui_item::item_move_canceled)
             .add_observer(container::on_open_container);
     }
 }

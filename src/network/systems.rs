@@ -40,7 +40,6 @@ pub fn connect(mut commands: Commands) {
 }
 
 pub(super) fn on_connect(event: On<Connect>, mut commands: Commands) {
-    info!("On connect");
     let (cli_send, cli_recv) = bounded(5);
     let (srv_send, srv_recv) = bounded(5);
 
@@ -62,7 +61,7 @@ pub(super) fn on_connect(event: On<Connect>, mut commands: Commands) {
         })
         .is_err()
     {
-        warn!("Connection failed");
+        error!("Connection failed");
     };
 
     commands.insert_resource(ConnectionState {
@@ -99,7 +98,7 @@ pub(super) fn on_send_message(event: On<SendMessage>, connection: Option<Res<Con
 
     let connection = connection.unwrap();
     if let Err(e) = connection.sender.send_blocking(event.msg.clone()) {
-        warn!("Error sending client message: {e}");
+        error!("Error sending client message: {e}");
     };
 }
 
@@ -126,7 +125,6 @@ impl PersistentConnection {
 
     pub async fn run(mut self) -> Result<(), io::Error> {
         loop {
-            info!("starting agent loop");
             futures::select! {
                 msg = self.receiver.recv().fuse() => {
                     if let Ok(msg) = msg {

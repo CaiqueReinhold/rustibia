@@ -48,10 +48,13 @@ impl Map {
             None => return false,
         };
 
-        !tile
-            .items
+        tile.items
             .iter()
             .any(|i| i.config.has_flag(ItemFlag::FullBank))
+            && !tile
+                .items
+                .iter()
+                .any(|i| i.config.has_flag(ItemFlag::Bottom))
     }
 
     pub fn peek_item(&self, position: &TilePosition) -> Option<(&Arc<Item>, usize)> {

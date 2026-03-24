@@ -8,6 +8,12 @@ use crate::core::{Appearances, GameState, InstanceManager};
 use crate::network::events::SpawnPlayer;
 use crate::player::components::Player;
 
+pub fn check_game_ready(mut commands: Commands, player_q: Query<&Player>) {
+    if !player_q.is_empty() {
+        commands.set_state(GameState::InGame);
+    }
+}
+
 pub fn spawn_player(
     event: On<SpawnPlayer>,
     mut commands: Commands,
@@ -41,10 +47,4 @@ pub fn spawn_player(
     commands
         .entity(entity)
         .insert((Player, event.health.clone(), event.mana.clone()));
-}
-
-pub fn check_game_ready(mut commands: Commands, player_q: Query<&Player>) {
-    if !player_q.is_empty() {
-        commands.set_state(GameState::InGame);
-    }
 }

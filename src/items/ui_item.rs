@@ -16,9 +16,13 @@ pub struct ItemDragStarted {
 }
 
 #[derive(Event)]
-pub struct ItemDragEnded {
-    pub canceled: bool,
-}
+pub struct ItemDragEnded;
+
+#[derive(Event)]
+pub struct ItemMoveCanceled;
+
+#[derive(Event)]
+pub struct ItemMoveConfirmed;
 
 #[derive(Component, Debug)]
 #[allow(dead_code)]
@@ -71,7 +75,12 @@ pub fn item_drag_started(
     hover_state: Res<MouseHoverState>,
     stacks: Res<ItemStacks>,
     stack_item_q: Query<&Children>,
+    drag_item_q: Query<Entity, With<UiItemDragging>>,
 ) {
+    for e in drag_item_q {
+        commands.entity(e).despawn();
+    }
+
     if let ItemDragOrigin::Map { position, index } = &event.origin {
         let Some(stack_entity) = stacks.occupied_tiles.get(position) else {
             return;
@@ -102,34 +111,50 @@ pub fn item_drag_started(
 }
 
 pub fn item_drag_ended(
-    event: On<ItemDragEnded>,
+    _: On<ItemDragEnded>,
     mut commands: Commands,
-    drag_item_q: Query<(Entity, &UiItemDragging)>,
-    stacks: Res<ItemStacks>,
-    stack_item_q: Query<&Children>,
+    drag_item_q: Query<Entity, With<UiItemDragging>>,
 ) {
-    let Ok((entity, drag_item)) = drag_item_q.single() else {
-        for (e, _) in drag_item_q {
-            commands.entity(e).despawn();
-        }
+    let Ok(entity) = drag_item_q.single() else {
         return;
     };
 
-    if event.canceled {
-        if let ItemDragOrigin::Map { position, index } = &drag_item.origin {
-            let Some(stack_entity) = stacks.occupied_tiles.get(position) else {
-                return;
-            };
-            let Ok(stack_items) = stack_item_q.get(*stack_entity) else {
-                return;
-            };
-            let Some(item) = stack_items.get(*index) else {
-                return;
-            };
-            commands.entity(*item).insert(Visibility::Visible);
-        }
-    }
+    commands.entity(entity).insert(Visibility::Hidden);
+}
 
+pub fn item_move_canceled(
+    _: On<ItemMoveCanceled>,
+    drag_item_q: Query<(Entity, &UiItemDragging)>,
+    stacks: Res<ItemStacks>,
+    stack_item_q: Query<&Children>,
+    mut commands: Commands,
+) {
+    let Ok((entity, drag_item)) = drag_item_q.single() else {
+        return;
+    };
+    if let ItemDragOrigin::Map { position, index } = &drag_item.origin {
+        let Some(stack_entity) = stacks.occupied_tiles.get(position) else {
+            return;
+        };
+        let Ok(stack_items) = stack_item_q.get(*stack_entity) else {
+            return;
+        };
+        let Some(item) = stack_items.get(*index) else {
+            return;
+        };
+        commands.entity(*item).insert(Visibility::Visible);
+    };
+    commands.entity(entity).despawn();
+}
+
+pub fn item_move_confirmed(
+    _: On<ItemMoveConfirmed>,
+    drag_item_q: Query<Entity, With<UiItemDragging>>,
+    mut commands: Commands,
+) {
+    let Ok(entity) = drag_item_q.single() else {
+        return;
+    };
     commands.entity(entity).despawn();
 }
 

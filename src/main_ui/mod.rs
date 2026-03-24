@@ -10,6 +10,7 @@ mod rightpanel;
 mod toppanel;
 mod window;
 
+pub use game_overlay::GameViewport;
 pub use window::AddUIWindow;
 
 use crate::core::{GameState, PingState};

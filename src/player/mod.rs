@@ -35,9 +35,10 @@ impl Plugin for PlayerPlugin {
                 events::check_game_ready.run_if(in_state(GameState::Connecting)),
             )
             .add_observer(interaction::attach_observers)
-            .add_observer(events::spawn_player)
+            .add_observer(interaction::on_move_item_result)
             .add_observer(movement::on_player_walk)
             .add_observer(movement::on_ack_walk)
-            .add_observer(movement::on_player_position);
+            .add_observer(movement::on_player_position)
+            .add_observer(events::spawn_player);
     }
 }

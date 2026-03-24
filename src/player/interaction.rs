@@ -4,10 +4,14 @@ use bevy::prelude::*;
 
 use crate::{
     camera::GameCamera,
-    items::{Item, ItemDragEnded, ItemDragStarted, ItemFlag, LootContainerUI, OpenContainer},
-    main_ui::MainUI,
+    conf::viewport::{GAME_VIEW_HEIGHT, GAME_VIEW_WIDTH},
+    items::{
+        Item, ItemDragEnded, ItemDragStarted, ItemFlag, ItemMoveCanceled, ItemMoveConfirmed,
+        LootContainerUI, OpenContainer,
+    },
+    main_ui::{GameViewport, MainUI},
     map::{Map, TilePosition},
-    network::{ClientMessage, SendMessage},
+    network::{events::MoveItemResult, ClientMessage, SendMessage},
     player::components::Player,
 };
 
@@ -40,30 +44,37 @@ pub struct MouseHoverState {
 
 pub fn update_hover_state(
     window: Single<&Window>,
-    camera: Single<(&Camera, &GlobalTransform), With<GameCamera>>,
+    camera_transform: Single<&GlobalTransform, With<GameCamera>>,
     player_position: Single<&TilePosition, With<Player>>,
     mut hover_state: ResMut<MouseHoverState>,
+    viewport_q: Query<&Children, With<GameViewport>>,
+    node_q: Query<(&ComputedNode, &UiGlobalTransform), With<ImageNode>>,
 ) {
     let Some(mouse_position) = window.cursor_position() else {
         return;
     };
     hover_state.screen_position = mouse_position;
 
-    let (camera, camera_transform) = *camera;
-    let Some(viewport) = &camera.viewport else {
+    let Ok(children) = viewport_q.single() else {
+        return;
+    };
+    let Some((computed, ui_transform)) = children.iter().find_map(|child| node_q.get(child).ok())
+    else {
         return;
     };
 
-    let viewport_rect = Rect::from_corners(
-        viewport.physical_position.as_vec2(),
-        (viewport.physical_position + viewport.physical_size).as_vec2(),
-    );
+    let size = computed.size();
+    let top_left = ui_transform.translation - size * 0.5;
+    let image_rect = Rect::from_corners(top_left, top_left + size);
 
-    if viewport_rect.contains(mouse_position) {
-        let Ok(world_pos) = camera.viewport_to_world_2d(camera_transform, mouse_position) else {
-            return;
-        };
-        // hover_state.world_position = Some(world_pos);
+    if image_rect.contains(mouse_position) {
+        let uv = (mouse_position - top_left) / size;
+        let cam_pos = camera_transform.translation().truncate();
+        let world_pos = cam_pos
+            + Vec2::new(
+                (uv.x - 0.5) * GAME_VIEW_WIDTH,
+                (0.5 - uv.y) * GAME_VIEW_HEIGHT,
+            );
         hover_state.tile_position = Some(TilePosition::from_world(world_pos, player_position.z));
         hover_state.container_slot = None;
     } else {
@@ -151,8 +162,6 @@ fn on_drag_end(
     map: Res<Map>,
     mut container_q: Query<&mut LootContainerUI>,
 ) {
-    info!("map drag ended");
-
     let Some(drag_state) = drag_state else {
         return;
     };
@@ -183,7 +192,6 @@ fn on_drag_end(
             canceled = true;
         }
     }
-
     // target container
     if let Some(container) = hover_state.container {
         let Ok(mut container_ui) = container_q.get_mut(container) else {
@@ -192,7 +200,21 @@ fn on_drag_end(
         container_ui.items.insert(0, drag_state.item.clone());
     }
 
-    commands.trigger(ItemDragEnded { canceled });
+    if canceled {
+        commands.remove_resource::<ItemDragState>();
+        commands.trigger(ItemMoveCanceled);
+    } else {
+        commands.trigger(ItemDragEnded);
+    }
+}
+
+pub fn on_move_item_result(event: On<MoveItemResult>, mut commands: Commands) {
+    commands.remove_resource::<ItemDragState>();
+    if event.success {
+        commands.trigger(ItemMoveConfirmed);
+    } else {
+        commands.trigger(ItemMoveCanceled);
+    }
 }
 
 fn on_tile_click(

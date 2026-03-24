@@ -65,6 +65,9 @@ fn read_item_config(config: &Value) -> Option<Arc<ItemConfig>> {
     if config["can_take"].as_bool()? {
         flags.push(ItemFlag::Take);
     }
+    if config["bottom"].as_bool()? {
+        flags.push(ItemFlag::Bottom);
+    }
     Some(Arc::new(ItemConfig {
         id,
         name,
