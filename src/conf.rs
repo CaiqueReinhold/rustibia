@@ -2,9 +2,9 @@ pub mod map {
     pub const TILE_SIZE: f32 = 32.0;
     pub const VIEW_TILES_X: f32 = 15.0;
     pub const VIEW_TILES_Y: f32 = 11.0;
-    pub const CHUNK_SIZE: u32 = 32;
-    pub const CHUNK_LOAD_RADIUS: u32 = 2;
-    pub const STACK_MAX_VISIBLE_ITEMS: u32 = 8;
+    pub const TILES_X: usize = 19;
+    pub const TILES_Y: usize = 15;
+    pub const STACK_MAX_VISIBLE_ITEMS: usize = 8;
 }
 
 pub mod z_order {
@@ -50,4 +50,5 @@ pub mod ui {
 
 pub mod server {
     pub const TICK_DURATION_MS: u32 = 50;
+    pub const SERVER_ADDRESS: &str = "127.0.0.1:5555";
 }

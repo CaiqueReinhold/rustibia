@@ -4,7 +4,7 @@ use std::sync::Arc;
 use bevy::prelude::*;
 use thiserror::Error;
 
-use crate::items::{Item, ItemConfig};
+use crate::items::{Item, ItemFlag};
 use crate::map::position::TilePosition;
 
 #[derive(Error, Debug)]
@@ -15,45 +15,38 @@ pub enum MapOperationError {
 
 #[derive(Debug)]
 pub struct MapTile {
-    pub ground: Option<Arc<ItemConfig>>,
-    pub border: Option<Arc<ItemConfig>>,
     pub items: Vec<Arc<Item>>,
 }
 
-#[derive(Resource)]
+#[derive(Resource, Default)]
 pub struct Map {
-    // pub width: u32,
-    // pub height: u32,
-    pub floors: u32,
-    pub tiles: HashMap<TilePosition, MapTile>,
+    tiles: HashMap<TilePosition, MapTile>,
 }
 
 impl Map {
+    pub fn replace_tile(&mut self, items: Vec<Arc<Item>>, pos: &TilePosition) {
+        self.tiles.insert(pos.clone(), MapTile { items });
+    }
+
     pub fn can_walk(&self, pos: &TilePosition) -> bool {
         let tile = match self.tiles.get(pos) {
             Some(t) => t,
             None => return false,
         };
 
-        if let Some(ground) = &tile.ground {
-            if !ground.can_walk {
-                return false;
-            }
+        let has_ground = tile
+            .items
+            .iter()
+            .any(|i| i.config.has_flag(ItemFlag::Ground));
+        if !has_ground {
+            return false;
         }
 
-        if let Some(border) = &tile.border {
-            if !border.can_walk {
-                return false;
-            }
-        }
-
-        for item in tile.items.iter() {
-            if !item.config.can_walk {
-                return false;
-            }
-        }
-
-        true
+        let blocked = tile
+            .items
+            .iter()
+            .any(|i| i.config.has_flag(ItemFlag::Unpass));
+        !blocked
     }
 
     fn can_move(&self, pos: &TilePosition) -> bool {
@@ -62,19 +55,10 @@ impl Map {
             None => return false,
         };
 
-        if let Some(ground) = &tile.ground {
-            if ground.have_fullbank {
-                return false;
-            }
-        }
-
-        if let Some(border) = &tile.border {
-            if border.have_fullbank {
-                return false;
-            }
-        }
-
-        true
+        !tile
+            .items
+            .iter()
+            .any(|i| i.config.has_flag(ItemFlag::FullBank))
     }
 
     pub fn add_item(
@@ -86,7 +70,7 @@ impl Map {
             return Err(MapOperationError::CannotMoveItem);
         }
 
-        if !item.config.can_move {
+        if item.config.has_flag(ItemFlag::Unmove) {
             return Err(MapOperationError::CannotMoveItem);
         }
 
@@ -116,19 +100,25 @@ impl Map {
         Some((item, index))
     }
 
-    pub fn get_tile_speed_modifier(&self, pos: &TilePosition) -> u32 {
+    pub fn get_tile_friction(&self, pos: &TilePosition) -> u8 {
         let tile = match self.tiles.get(pos) {
             Some(t) => t,
             None => return 100,
         };
 
-        let ground_speed = tile
-            .ground
-            .as_ref()
-            .map(|g| g.ground_speed)
-            .filter(|s| *s > 0)
-            .unwrap_or(100);
-
-        ground_speed
+        tile.items
+            .iter()
+            .find(|i| i.config.has_flag(ItemFlag::Ground))
+            .and_then(|i| i.config.friction)
+            .unwrap_or_default()
     }
+
+    pub fn get_items(&self, pos: &TilePosition) -> Option<impl Iterator<Item = &Item>> {
+        let tile = self.tiles.get(pos)?;
+        Some(tile.items.iter().map(|i| i.as_ref()))
+    }
+}
+
+pub(super) fn init_map(mut commands: Commands) {
+    commands.init_resource::<Map>();
 }

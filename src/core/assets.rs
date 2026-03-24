@@ -1,27 +1,29 @@
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use bevy::prelude::*;
+use bevy::tasks::futures_lite::future;
 use bevy::tasks::{IoTaskPool, Task};
-use futures_lite::future;
 
-use crate::actor::{read_outfits_config, Outfits};
+use crate::core::items::{read_item_configs, ItemConfigs};
 use crate::core::sprite::{read_sprite_sheets, read_sprites_config, Appearances};
-use crate::core::{SpriteConfig, SpriteSheet, State};
-use crate::map::{read_map_config, Map};
+use crate::core::{GameState, OutfitId, OutfitSprite, SpriteConfig, SpriteSheet};
+use crate::items::{ItemConfig, ItemId};
 
 #[derive(Resource)]
 pub struct LoadTasks {
-    sprite_conf_task: Task<HashMap<u32, SpriteConfig>>,
+    sprite_conf_task: Task<(
+        HashMap<ItemId, SpriteConfig>,
+        HashMap<OutfitId, OutfitSprite>,
+    )>,
     sprite_sheet_task: Task<HashMap<String, SpriteSheet>>,
-    outfits_task: Task<Outfits>,
-    map_task: Task<Map>,
+    items_task: Task<HashMap<ItemId, Arc<ItemConfig>>>,
 }
 
 #[derive(Resource, Debug, Default)]
 pub struct GameAssetsLoaded {
-    pub map_loaded: bool,
+    pub items_loaded: bool,
     pub sheets_loaded: bool,
-    pub outfits_loaded: bool,
 }
 
 pub fn start_load_tasks(mut commands: Commands, assets_server: Res<AssetServer>) {
@@ -29,14 +31,12 @@ pub fn start_load_tasks(mut commands: Commands, assets_server: Res<AssetServer>)
     let pool = IoTaskPool::get();
     let sprite_conf_task = pool.spawn(async { read_sprites_config() });
     let sprite_sheet_task = pool.spawn(async move { read_sprite_sheets(&server_clone) });
-    let outfits_task = pool.spawn(async { read_outfits_config() });
-    let map_task = pool.spawn(async { read_map_config() });
+    let items_task = pool.spawn(async { read_item_configs() });
 
     commands.insert_resource(LoadTasks {
         sprite_conf_task,
         sprite_sheet_task,
-        outfits_task,
-        map_task,
+        items_task,
     });
 }
 
@@ -55,11 +55,8 @@ pub fn pool_load_task(
             future::block_on(future::poll_once(&mut tasks.sprite_sheet_task)),
         );
         match results {
-            (Some(sprite_conf), Some(sprite_sheet)) => {
-                commands.insert_resource(Appearances {
-                    sheets: sprite_sheet,
-                    sprite_configs: sprite_conf,
-                });
+            (Some((items, outfits)), Some(sprite_sheet)) => {
+                commands.insert_resource(Appearances::new(sprite_sheet, items, outfits));
                 game_assets.sheets_loaded = true;
                 info!("Sprites loaded");
             }
@@ -67,38 +64,24 @@ pub fn pool_load_task(
         }
     }
 
-    if tasks.map_task.is_finished() && !game_assets.map_loaded {
-        let result = future::block_on(future::poll_once(&mut tasks.map_task));
+    if tasks.items_task.is_finished() && !game_assets.items_loaded {
+        let result = future::block_on(future::poll_once(&mut tasks.items_task));
         match result {
-            Some(map) => {
-                commands.insert_resource(map);
-                game_assets.map_loaded = true;
-                info!("Map loaded");
+            Some(items) => {
+                commands.insert_resource(ItemConfigs { items });
+                game_assets.items_loaded = true;
+                info!("Items loaded");
             }
             None => {
                 panic!("Failed to load map");
             }
         }
     }
-
-    if tasks.outfits_task.is_finished() && !game_assets.outfits_loaded {
-        let result = future::block_on(future::poll_once(&mut tasks.outfits_task));
-        match result {
-            Some(outfits) => {
-                commands.insert_resource(outfits);
-                game_assets.outfits_loaded = true;
-                info!("Outfits loaded");
-            }
-            None => {
-                panic!("Failed to load outfits config");
-            }
-        }
-    }
 }
 
 pub fn pool_all_assets_loaded(mut commands: Commands, game_assets: Res<GameAssetsLoaded>) {
-    if game_assets.map_loaded && game_assets.outfits_loaded && game_assets.sheets_loaded {
-        commands.set_state(State::InGame);
+    if game_assets.items_loaded && game_assets.sheets_loaded {
+        commands.set_state(GameState::Connecting);
         commands.remove_resource::<GameAssetsLoaded>();
         commands.remove_resource::<LoadTasks>();
     }

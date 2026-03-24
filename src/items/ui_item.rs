@@ -5,7 +5,7 @@ use bevy::{camera::visibility::RenderLayers, prelude::*};
 use crate::{
     conf::ui::{z_index::DRAGGED_ITEM_UI_Z, UI_ITEM_SIZE},
     core::Appearances,
-    items::{map_stack::ItemStacks, Item},
+    items::{instancing::ItemStacks, Item},
     player::{ItemDragOrigin, MouseHoverState},
 };
 
@@ -37,12 +37,8 @@ pub fn spawn_ui_item(
     texture_atlases: &mut Assets<TextureAtlasLayout>,
     position: &Vec2,
 ) -> impl Bundle {
-    let Some(config) = appearances.sprite_configs.get(&item.config.id) else {
-        panic!();
-    };
-    let Some(sheet) = appearances.sheets.get(&config.group) else {
-        panic!();
-    };
+    let config = appearances.get_item(item.config.id);
+    let sheet = appearances.get_sheet(&config.group);
     let texture_atlas = TextureAtlasLayout::from_grid(
         UVec2::splat(if config.box_size > 32.0 { 64 } else { 32 }),
         sheet.grid_size.x as u32,

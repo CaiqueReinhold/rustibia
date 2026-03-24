@@ -12,9 +12,10 @@ mod core;
 mod items;
 mod main_ui;
 mod map;
+mod network;
 mod player;
 
-use crate::core::{GameAssetsLoaded, State};
+use crate::core::{GameAssetsLoaded, GameState};
 
 fn main() {
     App::new()
@@ -46,8 +47,9 @@ fn main() {
             main_ui::UiPlugin,
             items::ItemsPlugin,
             player::PlayerPlugin,
+            network::NetworkPlugin,
         ))
-        .init_state::<State>()
+        .init_state::<GameState>()
         .init_resource::<GameAssetsLoaded>()
         .run();
 }

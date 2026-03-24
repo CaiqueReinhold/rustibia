@@ -1,15 +1,43 @@
 use bevy::prelude::*;
 
+pub mod components;
+mod events;
 mod interaction;
+mod keyboard;
+mod movement;
 
 pub use interaction::{ItemDragOrigin, MouseHoverState};
+
+use crate::core::GameState;
 
 pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<interaction::MouseHoverState>()
-            .add_systems(PreUpdate, interaction::update_hover_state)
-            .add_observer(interaction::attach_observers);
+            .init_resource::<keyboard::Keybinds>()
+            .init_resource::<movement::MovementQueue>()
+            .add_systems(Startup, keyboard::init_repeat_state)
+            .add_systems(
+                PreUpdate,
+                (
+                    interaction::update_hover_state,
+                    keyboard::read_player_input.run_if(in_state(GameState::InGame)),
+                ),
+            )
+            .add_systems(
+                Update,
+                (movement::center_on_player, movement::process_move_queue)
+                    .run_if(in_state(GameState::InGame)),
+            )
+            .add_systems(
+                Update,
+                events::check_game_ready.run_if(in_state(GameState::Connecting)),
+            )
+            .add_observer(interaction::attach_observers)
+            .add_observer(events::spawn_player)
+            .add_observer(movement::on_player_walk)
+            .add_observer(movement::on_ack_walk)
+            .add_observer(movement::on_player_position);
     }
 }

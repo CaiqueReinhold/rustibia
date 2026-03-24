@@ -93,7 +93,7 @@ fn get_animation_phase(instance: ItemInstance) -> u32 {
     return phase;
 }
 
-fn atlas_uv(base_uv: vec2<f32>, index: u32) -> vec2<f32> {
+fn atlas_uv(base_uv: vec2<f32>, index: u32, mesh_size: f32) -> vec2<f32> {
     let cols = u32(atlas_grid.x);
     let rows = u32(atlas_grid.y);
 
@@ -110,7 +110,10 @@ fn atlas_uv(base_uv: vec2<f32>, index: u32) -> vec2<f32> {
         f32(row) * tile_size.y
     );
 
-    return offset + base_uv * tile_size;
+    let inset = (tile_size / mesh_size) * 0.2;
+    let usable = tile_size - inset * 2.0;
+
+    return offset + inset + base_uv * usable;
 }
 
 fn compute_index(
@@ -166,7 +169,7 @@ fn vertex(vertex: Vertex) -> VertexOutput {
         inst.pattern_z,
     ) + inst.lookup_offset;
     let atlas_index = sprite_lookup[lookup_index];
-    out.uv = atlas_uv(base_uv, atlas_index);
+    out.uv = atlas_uv(base_uv, atlas_index, mesh_size);
     
     return out;
 }

@@ -8,7 +8,7 @@ pub enum HealthState {
     Full,
 }
 
-#[derive(Component)]
+#[derive(Component, Debug, Clone)]
 pub struct Health {
     pub current: u32,
     pub max: u32,
@@ -36,7 +36,7 @@ impl Health {
     }
 }
 
-#[derive(Component)]
+#[derive(Component, Debug, Clone)]
 pub struct Mana {
     pub current: u32,
     pub max: u32,

@@ -1,8 +1,9 @@
 use bevy::prelude::*;
 
-use crate::actor::{Health, HealthState, Mana, Player};
+use crate::actor::{Health, HealthState, Mana};
 use crate::conf::ui::TOP_BAR_HEIGHT;
 use crate::main_ui::UiFonts;
+use crate::player::components::Player;
 
 #[derive(Component)]
 pub struct TopPanel;
@@ -305,17 +306,17 @@ pub fn update_health(
     bar.health_state = Some(health.state());
 }
 
-pub fn update_experience(
-    mut bar_query: Query<&mut BarUI>,
-    player_query: Query<&Player, Changed<Player>>,
-    bar_entities: Res<BarEntities>,
-) {
-    let Ok(player) = player_query.single() else {
-        return;
-    };
-    let Ok(mut bar) = bar_query.get_mut(bar_entities.experience) else {
-        return;
-    };
-    bar.current = player.max_experience;
-    bar.max = player.experience;
-}
+// pub fn update_experience(
+//     mut bar_query: Query<&mut BarUI>,
+//     player_query: Query<&Player, Changed<Player>>,
+//     bar_entities: Res<BarEntities>,
+// ) {
+// let Ok(player) = player_query.single() else {
+//     return;
+// };
+// let Ok(mut bar) = bar_query.get_mut(bar_entities.experience) else {
+//     return;
+// };
+// bar.current = player.max_experience;
+// bar.max = player.experience;
+// }

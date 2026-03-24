@@ -3,11 +3,11 @@ use std::sync::Arc;
 use bevy::prelude::*;
 
 use crate::{
-    actor::Player,
     camera::GameCamera,
-    items::{Item, ItemDragEnded, ItemDragStarted, LootContainerUI, OpenContainer},
+    items::{Item, ItemDragEnded, ItemDragStarted, ItemFlag, LootContainerUI, OpenContainer},
     main_ui::MainUI,
-    map::{Map, TileChanged, TilePosition},
+    map::{Map, TilePosition},
+    player::components::Player,
 };
 
 #[derive(Clone, Debug)]
@@ -63,8 +63,7 @@ pub fn update_hover_state(
             return;
         };
         // hover_state.world_position = Some(world_pos);
-        hover_state.tile_position =
-            Some(TilePosition::from_world(world_pos, player_position.floor));
+        hover_state.tile_position = Some(TilePosition::from_world(world_pos, player_position.z));
         hover_state.container_slot = None;
     } else {
         hover_state.tile_position = None;
@@ -100,7 +99,7 @@ fn on_drag_start(
             return;
         };
 
-        if !item.config.can_move {
+        if item.config.has_flag(ItemFlag::Unmove) {
             return;
         }
 
@@ -168,9 +167,9 @@ fn on_drag_end(
         canceled = map
             .add_item(drag_state.item.clone(), target_position)
             .is_err();
-        commands.trigger(TileChanged {
-            position: target_position.clone(),
-        });
+        // commands.trigger(TileChanged {
+        //     position: target_position.clone(),
+        // });
     }
 
     // target container
@@ -189,9 +188,9 @@ fn on_drag_end(
         } = drag_state.origin
         {
             map.remove_item(index, position).unwrap();
-            commands.trigger(TileChanged {
-                position: position.clone(),
-            });
+            // commands.trigger(TileChanged {
+            //     position: position.clone(),
+            // });
         }
         if let ItemDragOrigin::Container { container, slot } = drag_state.origin {
             let Ok(mut container_ui) = container_q.get_mut(container) else {
@@ -219,9 +218,7 @@ fn on_tile_click(
     if drag_state.is_some() {
         return;
     }
-    info!("on click");
     if event.button == PointerButton::Secondary {
-        info!("secondary");
         let Some(position) = &hover_state.tile_position else {
             return;
         };
@@ -229,8 +226,12 @@ fn on_tile_click(
             return;
         };
 
-        if item.config.is_container {
-            commands.trigger(OpenContainer { item: item.clone() });
+        if item.config.has_flag(ItemFlag::Container) {
+            commands.trigger(OpenContainer {
+                item: item.clone(),
+                capacity: 0,
+                content: Vec::new(),
+            });
         }
     }
 }

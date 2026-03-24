@@ -10,6 +10,8 @@ mod window;
 
 pub use window::AddUIWindow;
 
+use crate::core::GameState;
+
 #[derive(Resource)]
 pub struct UiFonts {
     // pub main_font: Handle<Font>,
@@ -29,22 +31,21 @@ pub struct UiPlugin;
 impl Plugin for UiPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(window::UIWindowPlugin)
-            .add_systems(Startup, spawn_main_ui)
-            .add_systems(PostUpdate, game_overlay::set_game_camera_to_viewport)
+            .add_systems(OnEnter(GameState::InGame), spawn_main_ui)
             .add_systems(
-                Update,
-                (
-                    toppanel::update_ui_bars_fill,
-                    toppanel::update_health_fill_color,
-                ),
+                PostUpdate,
+                game_overlay::set_game_camera_to_viewport.run_if(in_state(GameState::InGame)),
             )
             .add_systems(
                 Update,
                 (
                     toppanel::update_health,
                     toppanel::update_mana,
-                    toppanel::update_experience,
-                ),
+                    toppanel::update_ui_bars_fill,
+                    toppanel::update_health_fill_color,
+                )
+                    .chain()
+                    .run_if(in_state(GameState::InGame)),
             );
     }
 }

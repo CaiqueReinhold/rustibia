@@ -2,66 +2,11 @@ use std::time::Duration;
 
 use bevy::prelude::*;
 
-use crate::actor::{Actor, FacingDirection};
-use crate::conf::actor::{SPEED_PARAM_A, SPEED_PARAM_B, SPEED_PARAM_C};
-use crate::conf::server::TICK_DURATION_MS;
+use crate::actor::components::{Actor, FacingDirection};
+use crate::actor::WalkingDirection;
 use crate::conf::z_order::ACTOR_Z_OFFSET;
-use crate::map::TilePosition;
-
-#[derive(Copy, Clone, Debug)]
-pub enum WalkingDirection {
-    North,
-    South,
-    East,
-    West,
-    NorthEast,
-    NorthWest,
-    SouthEast,
-    SouthWest,
-}
-
-impl WalkingDirection {
-    pub fn is_diagonal(self) -> bool {
-        matches!(
-            self,
-            WalkingDirection::NorthEast
-                | WalkingDirection::NorthWest
-                | WalkingDirection::SouthEast
-                | WalkingDirection::SouthWest
-        )
-    }
-
-    pub fn facing(&self) -> FacingDirection {
-        match self {
-            WalkingDirection::North => FacingDirection::North,
-            WalkingDirection::East => FacingDirection::East,
-            WalkingDirection::South => FacingDirection::South,
-            WalkingDirection::West => FacingDirection::West,
-            WalkingDirection::NorthEast => FacingDirection::East,
-            WalkingDirection::SouthEast => FacingDirection::East,
-            WalkingDirection::NorthWest => FacingDirection::West,
-            WalkingDirection::SouthWest => FacingDirection::West,
-        }
-    }
-}
-
-impl Actor {
-    pub fn get_tile_speed(&self, tile_modifier: u32, is_diagonal: bool) -> u32 {
-        let move_speed = (SPEED_PARAM_A * ((self.speed as f32) + SPEED_PARAM_B).ln()
-            + SPEED_PARAM_C)
-            .round()
-            .max(1.0);
-
-        let mut tile_speed = (1000.0 * (tile_modifier as f32) / move_speed).floor();
-        if is_diagonal {
-            tile_speed /= 2.0;
-        }
-        let tile_speed_tick =
-            (tile_speed / (TICK_DURATION_MS as f32)).ceil() * (TICK_DURATION_MS as f32);
-
-        tile_speed_tick as u32
-    }
-}
+use crate::map::{Map, TilePosition};
+use crate::player::components::Player;
 
 #[derive(Component, Debug)]
 pub struct QueuedMove {
@@ -77,6 +22,64 @@ pub struct Moving {
     pub end: TilePosition,
     pub timer: Timer,
     pub queued: Option<QueuedMove>,
+}
+
+#[derive(Event, Debug)]
+pub struct MoveActor {
+    pub direction: WalkingDirection,
+}
+
+#[derive(Event, Debug)]
+pub struct ActorChangeDirection {
+    pub direction: FacingDirection,
+}
+
+pub fn on_actor_move(
+    event: On<MoveActor>,
+    mut commands: Commands,
+    mut player_q: Query<(Entity, &mut Actor, Option<&mut Moving>, &TilePosition), With<Player>>,
+    map: Res<Map>,
+) {
+    let Ok((entity, mut actor, moving, position)) = player_q.single_mut() else {
+        return;
+    };
+
+    let start_position = match &moving {
+        Some(m) => m.end.clone(),
+        None => position.clone(),
+    };
+    let facing = event.direction.facing();
+    let end_postion = start_position.clone() + event.direction;
+    let tile_modifier = map.get_tile_friction(&end_postion);
+    let step_time_ms = actor.get_step_duration(tile_modifier, event.direction.is_diagonal());
+    match moving {
+        Some(mut m) => {
+            m.queued = Some(QueuedMove {
+                start: start_position.clone(),
+                end: end_postion,
+                step_time_ms,
+                facing,
+            })
+        }
+        None => {
+            actor.direction = facing;
+            commands.entity(entity).insert(Moving {
+                start: start_position.clone(),
+                end: end_postion,
+                timer: Timer::new(Duration::from_millis(step_time_ms as u64), TimerMode::Once),
+                queued: None,
+            });
+        }
+    }
+}
+
+pub fn on_actor_change_direction(
+    event: On<ActorChangeDirection>,
+    mut player: Single<&mut Actor, With<Player>>,
+) {
+    if player.direction != event.direction {
+        player.direction = event.direction;
+    }
 }
 
 pub fn move_actor(

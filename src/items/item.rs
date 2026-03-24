@@ -2,19 +2,34 @@ use std::sync::Arc;
 
 use crate::{core::SpriteConfig, map::TilePosition};
 
-#[derive(Debug, Default, Eq)]
+pub type ItemId = u16;
+
+#[derive(Debug, PartialEq, Eq)]
+pub enum ItemFlag {
+    Ground,
+    Border,
+    Container,
+    Cumulative,
+    Top,
+    Unpass,
+    Unmove,
+    Take,
+    FullBank,
+}
+
+#[derive(Debug, Eq)]
 pub struct ItemConfig {
-    pub id: u32,
+    pub id: ItemId,
     pub name: Option<String>,
-    pub ground_speed: u32,
-    // pub minimap_color: Option<u32>,
-    pub can_walk: bool,
-    pub can_move: bool,
-    pub have_fullbank: bool,
-    // pub should_avoid: bool,
-    pub is_container: bool,
-    pub is_cumulative: bool,
-    pub top: bool,
+    pub flags: Vec<ItemFlag>,
+    pub friction: Option<u8>,
+    // pub minimap_color: Option<u8>,
+}
+
+impl ItemConfig {
+    pub fn has_flag(&self, flag: ItemFlag) -> bool {
+        self.flags.contains(&flag)
+    }
 }
 
 impl PartialEq for ItemConfig {
@@ -27,26 +42,18 @@ impl PartialEq for ItemConfig {
 pub struct Item {
     pub config: Arc<ItemConfig>,
     pub amount: u32,
-    pub content: Vec<Arc<Item>>,
-    pub capacity: usize,
 }
 
 impl Item {
-    pub fn new(config: Arc<ItemConfig>, amount: u32, capacity: usize) -> Self {
-        Item {
-            config,
-            amount,
-            content: Vec::with_capacity(capacity),
-            capacity,
-        }
-    }
-
-    pub fn capacity(&self) -> usize {
-        self.capacity
+    pub fn new(config: Arc<ItemConfig>, amount: u32) -> Self {
+        Item { config, amount }
     }
 
     pub fn get_patterns(&self, pos: &TilePosition, sprite: &SpriteConfig) -> (u32, u32, u32) {
-        if self.config.is_cumulative && sprite.pattern_x == 4 && sprite.pattern_y == 2 {
+        if self.config.has_flag(ItemFlag::Cumulative)
+            && sprite.pattern_x == 4
+            && sprite.pattern_y == 2
+        {
             if self.amount < 5 {
                 return (self.amount - 1, 0, 0);
             } else if self.amount < 10 {
@@ -62,7 +69,7 @@ impl Item {
 
         let x = pos.x % sprite.pattern_x;
         let y = pos.y % sprite.pattern_y;
-        let z = pos.floor % sprite.pattern_z;
+        let z = pos.z % sprite.pattern_z;
         (x, y, z)
     }
 }

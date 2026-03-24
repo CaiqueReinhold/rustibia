@@ -1,0 +1,264 @@
+use asynchronous_codec::{Decoder, Encoder};
+use bytes::{Buf, BufMut, BytesMut};
+use thiserror::Error;
+
+use crate::{
+    actor::{Health, Mana, WalkingDirection},
+    conf::map::{STACK_MAX_VISIBLE_ITEMS, TILES_X, TILES_Y},
+    core::OutfitId,
+    items::ItemId,
+    map::TilePosition,
+};
+
+pub type ItemStack = [Option<(ItemId, u8)>; STACK_MAX_VISIBLE_ITEMS];
+
+// client
+const MSG_LOGIN: u8 = 0x01;
+const MSG_MOVE_PLAYER: u8 = 0x02;
+const MSG_GET_PLAYER_POS: u8 = 0x03;
+const MSG_MOVE_ITEM: u8 = 0x04;
+
+#[derive(Clone, Debug)]
+pub enum ClientMessage {
+    Login {
+        character_id: u32,
+        auth_token: String,
+    },
+    MovePlayer {
+        direction: WalkingDirection,
+    },
+    GetPlayerPosition,
+    MoveItem {
+        from: TilePosition,
+        item_id: ItemId,
+        amount: u8,
+        stack_index: u16,
+        to: TilePosition,
+    },
+}
+
+// server
+const MSG_DESCRIBE_MAP: u8 = 0x01;
+const MSG_TILE_CHANGED: u8 = 0x02;
+const MSG_PLAYER_WALK: u8 = 0x03;
+const MSG_PLAYER_POS: u8 = 0x04;
+const MSG_DESCRIBE_PLAYER: u8 = 0x05;
+
+#[derive(Clone, Debug)]
+pub enum ServerMessage {
+    DescribePlayer {
+        position: TilePosition,
+        name: String,
+        level: u32,
+        health: Health,
+        mana: Mana,
+        outfit: OutfitId,
+    },
+    DescribeMap {
+        tiles: Box<[ItemStack; TILES_X * TILES_Y]>,
+    },
+    TileChanged {
+        position: TilePosition,
+        items: Box<ItemStack>,
+    },
+    PlayerWalk {
+        position: TilePosition,
+        tiles: Box<[ItemStack]>,
+    },
+    PlayerPosition {
+        position: TilePosition,
+    },
+}
+
+#[derive(Error, Debug)]
+pub enum MessageDecodeError {
+    #[error("Read error")]
+    ReadError(#[from] std::io::Error),
+    #[error("Wrong sequence")]
+    WrongSequence,
+}
+
+pub struct GameMessageCodec {}
+
+impl Decoder for GameMessageCodec {
+    type Item = ServerMessage;
+    type Error = MessageDecodeError;
+
+    fn decode(&mut self, buf: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
+        if buf.len() < 2 {
+            return Ok(None);
+        }
+
+        let payload_len = u16::from_le_bytes([buf[0], buf[1]]) as usize;
+
+        if buf.len() < 2 + payload_len {
+            return Ok(None);
+        }
+
+        buf.advance(2);
+
+        match buf.get_u8() {
+            MSG_DESCRIBE_PLAYER => {
+                let position = decode_position(buf);
+                let name_len = buf.get_u16_le() as usize;
+                let name = String::from_utf8_lossy(&buf[..name_len]).into_owned();
+                buf.advance(name_len);
+                let level = buf.get_u32_le();
+                let health = Health {
+                    current: buf.get_u32_le(),
+                    max: buf.get_u32_le(),
+                };
+                let mana = Mana {
+                    current: buf.get_u32_le(),
+                    max: buf.get_u32_le(),
+                };
+                let outfit = buf.get_u16_le();
+                Ok(Some(ServerMessage::DescribePlayer {
+                    position,
+                    name,
+                    level,
+                    health,
+                    mana,
+                    outfit,
+                }))
+            }
+            MSG_DESCRIBE_MAP => {
+                let mut tiles = Box::new([[None; STACK_MAX_VISIBLE_ITEMS]; TILES_X * TILES_Y]);
+                for tile in tiles.iter_mut() {
+                    *tile = decode_tile(buf);
+                }
+                Ok(Some(ServerMessage::DescribeMap { tiles }))
+            }
+            MSG_TILE_CHANGED => {
+                let position = decode_position(buf);
+                let items = Box::new(decode_tile(buf));
+                Ok(Some(ServerMessage::TileChanged { position, items }))
+            }
+            MSG_PLAYER_WALK => {
+                let position = decode_position(buf);
+                // payload_len - 1 (msg type) - 12 (position) = bytes remaining for tiles
+                let tiles_bytes = payload_len - 13;
+                let start_remaining = buf.remaining();
+                let mut tiles: Vec<ItemStack> = Vec::new();
+                while start_remaining - buf.remaining() < tiles_bytes {
+                    tiles.push(decode_tile(buf));
+                }
+                Ok(Some(ServerMessage::PlayerWalk {
+                    position,
+                    tiles: tiles.into_boxed_slice(),
+                }))
+            }
+            MSG_PLAYER_POS => {
+                let position = decode_position(buf);
+                Ok(Some(ServerMessage::PlayerPosition { position }))
+            }
+            _ => Err(MessageDecodeError::WrongSequence),
+        }
+    }
+}
+
+fn decode_tile(buf: &mut BytesMut) -> ItemStack {
+    let mut tile = [None; STACK_MAX_VISIBLE_ITEMS];
+    let mut i = 0;
+    loop {
+        let id = buf.get_u16_le();
+        if id == 0xFFFF {
+            break;
+        }
+        let amount = buf.get_u8();
+        if i < STACK_MAX_VISIBLE_ITEMS {
+            tile[i] = Some((id, amount));
+            i += 1;
+        }
+    }
+    tile
+}
+
+fn decode_position(buf: &mut BytesMut) -> TilePosition {
+    TilePosition {
+        x: buf.get_u32_le(),
+        y: buf.get_u32_le(),
+        z: buf.get_u32_le(),
+    }
+}
+
+// fn decode_direction(b: u8) -> Result<WalkingDirection, MessageDecodeError> {
+//     match b {
+//         0x00 => Ok(WalkingDirection::North),
+//         0x01 => Ok(WalkingDirection::East),
+//         0x02 => Ok(WalkingDirection::West),
+//         0x03 => Ok(WalkingDirection::South),
+//         0x04 => Ok(WalkingDirection::NorthEast),
+//         0x05 => Ok(WalkingDirection::NorthWest),
+//         0x06 => Ok(WalkingDirection::SouthEast),
+//         0x07 => Ok(WalkingDirection::SouthWest),
+//         _ => Err(MessageDecodeError::WrongSequence),
+//     }
+// }
+
+impl Encoder for GameMessageCodec {
+    type Item<'a> = ClientMessage;
+    type Error = std::io::Error;
+
+    fn encode(&mut self, item: ClientMessage, dst: &mut BytesMut) -> Result<(), Self::Error> {
+        let len_offset = dst.len();
+        dst.put_u16_le(0); // placeholder for payload length
+
+        match item {
+            ClientMessage::Login {
+                character_id,
+                auth_token,
+            } => {
+                dst.put_u8(MSG_LOGIN);
+                dst.put_u32_le(character_id);
+                dst.put_slice(auth_token.as_bytes());
+            }
+            ClientMessage::MovePlayer { direction } => {
+                dst.put_u8(MSG_MOVE_PLAYER);
+                encode_direction(&direction, dst);
+            }
+            ClientMessage::MoveItem {
+                from,
+                item_id,
+                amount,
+                stack_index,
+                to,
+            } => {
+                dst.put_u8(MSG_MOVE_ITEM);
+                encode_position(from, dst);
+                dst.put_u16_le(item_id);
+                dst.put_u8(amount);
+                dst.put_u16_le(stack_index);
+                encode_position(to, dst);
+            }
+            ClientMessage::GetPlayerPosition => {
+                dst.put_u8(MSG_GET_PLAYER_POS);
+            }
+        }
+
+        let payload_len = (dst.len() - len_offset - 2) as u16;
+        dst[len_offset..len_offset + 2].copy_from_slice(&payload_len.to_le_bytes());
+
+        Ok(())
+    }
+}
+
+fn encode_position(pos: TilePosition, dst: &mut BytesMut) {
+    dst.put_u32_le(pos.x);
+    dst.put_u32_le(pos.y);
+    dst.put_u32_le(pos.z);
+}
+
+fn encode_direction(d: &WalkingDirection, dst: &mut BytesMut) {
+    let value = match d {
+        WalkingDirection::North => 0x00,
+        WalkingDirection::East => 0x01,
+        WalkingDirection::West => 0x02,
+        WalkingDirection::South => 0x03,
+        WalkingDirection::NorthEast => 0x04,
+        WalkingDirection::NorthWest => 0x05,
+        WalkingDirection::SouthEast => 0x06,
+        WalkingDirection::SouthWest => 0x07,
+    };
+    dst.put_u8(value);
+}

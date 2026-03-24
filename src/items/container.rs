@@ -16,6 +16,8 @@ const SLOT_MARGIN: f32 = 1.0;
 #[derive(Event)]
 pub struct OpenContainer {
     pub item: Arc<Item>,
+    pub capacity: usize,
+    pub content: Vec<Arc<Item>>,
 }
 
 #[derive(Component)]
@@ -31,7 +33,7 @@ pub struct ContainerSlot {
 
 pub fn on_open_container(event: On<OpenContainer>, mut commands: Commands) {
     let item = &event.item;
-    let capacity = item.capacity();
+    let capacity = event.capacity;
     if capacity == 0 {
         return;
     }
@@ -54,7 +56,7 @@ pub fn on_open_container(event: On<OpenContainer>, mut commands: Commands) {
         .id();
 
     for i in 0..capacity {
-        let slot_item = item.content.get(i).cloned();
+        let slot_item = event.content.get(i).cloned();
         let mut slot_cmds = commands.spawn((
             ContainerSlot { index: i },
             Node {
