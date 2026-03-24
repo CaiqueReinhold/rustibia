@@ -10,7 +10,7 @@ use crate::{
         LootContainerUI, OpenContainer,
     },
     main_ui::{GameViewport, MainUI},
-    map::{Map, TilePosition},
+    map::{Map, Position},
     network::{events::MoveItemResult, ClientMessage, SendMessage},
     player::components::Player,
 };
@@ -18,7 +18,7 @@ use crate::{
 #[derive(Clone, Debug)]
 pub enum ItemDragOrigin {
     Map {
-        position: TilePosition,
+        position: Position,
         index: usize,
     },
     Container {
@@ -37,7 +37,7 @@ pub struct ItemDragState {
 pub struct MouseHoverState {
     pub screen_position: Vec2,
     // pub world_position: Option<Vec2>,
-    pub tile_position: Option<TilePosition>,
+    pub tile_position: Option<Position>,
     pub container: Option<Entity>,
     pub container_slot: Option<usize>,
 }
@@ -45,7 +45,7 @@ pub struct MouseHoverState {
 pub fn update_hover_state(
     window: Single<&Window>,
     camera_transform: Single<&GlobalTransform, With<GameCamera>>,
-    player_position: Single<&TilePosition, With<Player>>,
+    player_position: Single<&Position, With<Player>>,
     mut hover_state: ResMut<MouseHoverState>,
     viewport_q: Query<&Children, With<GameViewport>>,
     node_q: Query<(&ComputedNode, &UiGlobalTransform), With<ImageNode>>,
@@ -75,7 +75,7 @@ pub fn update_hover_state(
                 (uv.x - 0.5) * GAME_VIEW_WIDTH,
                 (0.5 - uv.y) * GAME_VIEW_HEIGHT,
             );
-        hover_state.tile_position = Some(TilePosition::from_world(world_pos, player_position.z));
+        hover_state.tile_position = Some(Position::from_world(world_pos, player_position.z));
         hover_state.container_slot = None;
     } else {
         hover_state.tile_position = None;

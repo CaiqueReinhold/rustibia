@@ -4,7 +4,7 @@ use std::sync::Arc;
 use bevy::prelude::*;
 
 use crate::items::{Item, ItemFlag};
-use crate::map::position::TilePosition;
+use crate::map::position::Position;
 
 #[derive(Debug)]
 pub struct MapTile {
@@ -13,15 +13,15 @@ pub struct MapTile {
 
 #[derive(Resource, Default)]
 pub struct Map {
-    tiles: HashMap<TilePosition, MapTile>,
+    tiles: HashMap<Position, MapTile>,
 }
 
 impl Map {
-    pub fn replace_tile(&mut self, items: Vec<Arc<Item>>, pos: &TilePosition) {
+    pub fn replace_tile(&mut self, items: Vec<Arc<Item>>, pos: &Position) {
         self.tiles.insert(pos.clone(), MapTile { items });
     }
 
-    pub fn can_walk(&self, pos: &TilePosition) -> bool {
+    pub fn can_walk(&self, pos: &Position) -> bool {
         let tile = match self.tiles.get(pos) {
             Some(t) => t,
             None => return false,
@@ -42,7 +42,7 @@ impl Map {
         !blocked
     }
 
-    pub fn can_drop_item(&self, pos: &TilePosition) -> bool {
+    pub fn can_drop_item(&self, pos: &Position) -> bool {
         let tile = match self.tiles.get(pos) {
             Some(t) => t,
             None => return false,
@@ -57,14 +57,14 @@ impl Map {
                 .any(|i| i.config.has_flag(ItemFlag::Bottom))
     }
 
-    pub fn peek_item(&self, position: &TilePosition) -> Option<(&Arc<Item>, usize)> {
+    pub fn peek_item(&self, position: &Position) -> Option<(&Arc<Item>, usize)> {
         let tile = self.tiles.get(position)?;
         let item = tile.items.last()?;
         let index = tile.items.len() - 1;
         Some((item, index))
     }
 
-    pub fn get_tile_friction(&self, pos: &TilePosition) -> u8 {
+    pub fn get_tile_friction(&self, pos: &Position) -> u8 {
         let tile = match self.tiles.get(pos) {
             Some(t) => t,
             None => return 100,
@@ -77,7 +77,7 @@ impl Map {
             .unwrap_or_default()
     }
 
-    pub fn get_items(&self, pos: &TilePosition) -> Option<impl Iterator<Item = &Item>> {
+    pub fn get_items(&self, pos: &Position) -> Option<impl Iterator<Item = &Item>> {
         let tile = self.tiles.get(pos)?;
         Some(tile.items.iter().map(|i| i.as_ref()))
     }

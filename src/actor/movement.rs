@@ -5,21 +5,21 @@ use bevy::prelude::*;
 use crate::actor::components::{Actor, FacingDirection};
 use crate::actor::WalkingDirection;
 use crate::conf::z_order::ACTOR_Z_OFFSET;
-use crate::map::{Map, TilePosition};
+use crate::map::{Map, Position};
 use crate::player::components::Player;
 
 #[derive(Component, Debug)]
 pub struct QueuedMove {
-    pub start: TilePosition,
-    pub end: TilePosition,
+    pub start: Position,
+    pub end: Position,
     pub step_time_ms: u32,
     pub facing: FacingDirection,
 }
 
 #[derive(Component, Debug)]
 pub struct Moving {
-    pub start: TilePosition,
-    pub end: TilePosition,
+    pub start: Position,
+    pub end: Position,
     pub timer: Timer,
     pub queued: Option<QueuedMove>,
 }
@@ -37,7 +37,7 @@ pub struct ActorChangeDirection {
 pub fn on_actor_move(
     event: On<MoveActor>,
     mut commands: Commands,
-    mut player_q: Query<(Entity, &mut Actor, Option<&mut Moving>, &TilePosition), With<Player>>,
+    mut player_q: Query<(Entity, &mut Actor, Option<&mut Moving>, &Position), With<Player>>,
     map: Res<Map>,
 ) {
     let Ok((entity, mut actor, moving, position)) = player_q.single_mut() else {

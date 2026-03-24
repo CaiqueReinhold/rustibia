@@ -8,7 +8,7 @@ use crate::{
     conf::map::TILE_SIZE,
     core::ItemConfigs,
     items::ChangedTileQueue,
-    map::{self, Map, TilePosition},
+    map::{self, Map, Position},
     network::{
         events::{PlayerPosition, PlayerWalk},
         ClientMessage, SendMessage,
@@ -20,7 +20,7 @@ use crate::{
 pub struct MovementQueue {
     moves: VecDeque<WalkingDirection>,
     pending_ack: Option<WalkingDirection>,
-    predicted_pos: Option<TilePosition>,
+    predicted_pos: Option<Position>,
 }
 
 #[derive(Event, Debug)]
@@ -39,7 +39,7 @@ pub fn process_move_queue(
     mut commands: Commands,
     mut queue: ResMut<MovementQueue>,
     map: Res<Map>,
-    player: Single<(&TilePosition, Option<&Moving>), With<Player>>,
+    player: Single<(&Position, Option<&Moving>), With<Player>>,
 ) {
     let (player_pos, moving) = *player;
 
@@ -97,7 +97,7 @@ pub fn on_player_position(
     event: On<PlayerPosition>,
     mut commands: Commands,
     mut queue: ResMut<MovementQueue>,
-    player: Single<(Entity, &TilePosition), With<Player>>,
+    player: Single<(Entity, &Position), With<Player>>,
 ) {
     // receiving player position message means walk was denied by server
     // or client requested position because was out of sync

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{core::SpriteConfig, map::TilePosition};
+use crate::{core::SpriteConfig, map::Position};
 
 pub type ItemId = u16;
 
@@ -50,7 +50,7 @@ impl Item {
         Item { config, amount }
     }
 
-    pub fn get_patterns(&self, pos: &TilePosition, sprite: &SpriteConfig) -> (u32, u32, u32) {
+    pub fn get_patterns(&self, pos: &Position, sprite: &SpriteConfig) -> (u32, u32, u32) {
         if self.config.has_flag(ItemFlag::Cumulative)
             && sprite.pattern_x == 4
             && sprite.pattern_y == 2

@@ -14,7 +14,7 @@ use crate::actor::{
     material::{ActorInstance, ActorMaterial, ActorParams},
     movement::Moving,
 };
-use crate::map::TilePosition;
+use crate::map::Position;
 
 #[derive(Resource, Default, Debug)]
 pub struct LoadedMaterials {
@@ -54,7 +54,7 @@ pub fn spawn_actor(
     color_feet: u32,
     speed: u32,
     addons: u32,
-    position: TilePosition,
+    position: Position,
 ) -> Entity {
     let outfit = appearances.get_outfit(outfit_id);
     let sheet = appearances.get_sheet(&outfit.still_sprite.group);

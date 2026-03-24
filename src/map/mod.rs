@@ -6,7 +6,7 @@ pub mod events;
 mod position;
 mod storage;
 
-pub use crate::map::position::TilePosition;
+pub use crate::map::position::Position;
 pub use crate::map::storage::Map;
 pub struct MapPlugin;
 

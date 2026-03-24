@@ -6,7 +6,7 @@ use crate::{
         material::{ItemInstance, ItemMaterial},
         Item, ItemId,
     },
-    map::{Map, TilePosition},
+    map::{Map, Position},
 };
 use bevy::{asset::RenderAssetUsages, render::storage::ShaderStorageBuffer};
 use bevy::{mesh::MeshTag, prelude::*};
@@ -17,7 +17,7 @@ pub struct SpawnedItem;
 
 #[derive(Resource, Debug, Default)]
 pub struct ItemStacks {
-    pub occupied_tiles: HashMap<TilePosition, Entity>,
+    pub occupied_tiles: HashMap<Position, Entity>,
 }
 
 #[derive(Resource, Debug, Default)]
@@ -29,7 +29,7 @@ pub struct LoadedMaterials {
 
 #[derive(Resource, Debug, Default)]
 pub struct ChangedTileQueue {
-    pub changed_positions: VecDeque<TilePosition>,
+    pub changed_positions: VecDeque<Position>,
 }
 
 pub fn init_material_buffer(
@@ -102,7 +102,7 @@ pub fn process_tile_changed(
 
 fn spawn_item(
     item: &Item,
-    position: &TilePosition,
+    position: &Position,
     stack_index: usize,
     commands: &mut Commands,
     instances: &mut InstanceManager<ItemInstance>,

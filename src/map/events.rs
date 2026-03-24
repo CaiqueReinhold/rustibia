@@ -7,7 +7,7 @@ use crate::{
     conf::map::{TILES_X, TILES_Y},
     core::ItemConfigs,
     items::{ChangedTileQueue, Item},
-    map::{Map, TilePosition},
+    map::{Map, Position},
     network::{
         events::{DescribeMap, TileChanged},
         ItemStack,
@@ -15,7 +15,7 @@ use crate::{
     player::components::Player,
 };
 
-fn iter_viewport(pos: &TilePosition) -> impl Iterator<Item = TilePosition> {
+fn iter_viewport(pos: &Position) -> impl Iterator<Item = Position> {
     let half_w = (TILES_X / 2) as u32;
     let half_h = (TILES_Y / 2) as u32;
 
@@ -25,13 +25,13 @@ fn iter_viewport(pos: &TilePosition) -> impl Iterator<Item = TilePosition> {
     let y_end = pos.y + half_h;
     let z = pos.z;
 
-    (y_start..=y_end).flat_map(move |y| (x_start..=x_end).map(move |x| TilePosition { x, y, z }))
+    (y_start..=y_end).flat_map(move |y| (x_start..=x_end).map(move |x| Position { x, y, z }))
 }
 
 fn iter_expansion(
-    pos: &TilePosition,
+    pos: &Position,
     direction: &WalkingDirection,
-) -> Box<dyn Iterator<Item = TilePosition>> {
+) -> Box<dyn Iterator<Item = Position>> {
     let half_w = (TILES_X / 2) as u32;
     let half_h = (TILES_Y / 2) as u32;
     let x = pos.x;
@@ -44,21 +44,21 @@ fn iter_expansion(
     let y_end = y + half_h;
 
     let top_row = {
-        (x_start..=x_end).map(move |xi| TilePosition {
+        (x_start..=x_end).map(move |xi| Position {
             x: xi,
             y: y_start,
             z,
         })
     };
-    let bottom_row = (x_start..=x_end).map(move |xi| TilePosition { x: xi, y: y_end, z });
+    let bottom_row = (x_start..=x_end).map(move |xi| Position { x: xi, y: y_end, z });
     let left_col = {
-        (y_start..=y_end).map(move |yi| TilePosition {
+        (y_start..=y_end).map(move |yi| Position {
             x: x_start,
             y: yi,
             z,
         })
     };
-    let right_col = (y_start..=y_end).map(move |yi| TilePosition { x: x_end, y: yi, z });
+    let right_col = (y_start..=y_end).map(move |yi| Position { x: x_end, y: yi, z });
 
     match *direction {
         WalkingDirection::North => Box::new(top_row),
@@ -77,7 +77,7 @@ fn iter_expansion(
     }
 }
 
-fn update_tile(tile: &ItemStack, position: &TilePosition, map: &mut Map, config: &ItemConfigs) {
+fn update_tile(tile: &ItemStack, position: &Position, map: &mut Map, config: &ItemConfigs) {
     let mut items = Vec::with_capacity(8);
     for item in tile {
         if item.is_none() {
@@ -93,7 +93,7 @@ fn update_tile(tile: &ItemStack, position: &TilePosition, map: &mut Map, config:
 pub(super) fn on_describe_map(
     event: On<DescribeMap>,
     config: Res<ItemConfigs>,
-    player_pos: Single<&TilePosition, With<Player>>,
+    player_pos: Single<&Position, With<Player>>,
     mut map: ResMut<Map>,
     mut queue: ResMut<ChangedTileQueue>,
 ) {
@@ -108,7 +108,7 @@ pub fn on_player_walk_ack(
     queue: &mut ChangedTileQueue,
     map: &mut Map,
     config: &ItemConfigs,
-    player_pos: &TilePosition,
+    player_pos: &Position,
     direction: WalkingDirection,
     tiles: &[ItemStack],
 ) {

@@ -7,19 +7,19 @@ use crate::conf::map::TILE_SIZE;
 use crate::conf::z_order::{FLOOR_Z_MULTIPLIER, POSITION_Z_MULTIPLIER};
 
 #[derive(Component, Hash, PartialEq, Eq, Clone, Debug)]
-pub struct TilePosition {
+pub struct Position {
     pub x: u32,
     pub y: u32,
     pub z: u32,
 }
 
-impl TilePosition {
+impl Position {
     // pub fn new(x: u32, y: u32, z: u32) -> Self {
-    //     TilePosition { x, y, z }
+    //     Position { x, y, z }
     // }
 
     pub fn from_world(world_pos: Vec2, z: u32) -> Self {
-        TilePosition {
+        Position {
             x: (world_pos.x / TILE_SIZE).floor() as u32,
             y: (world_pos.y.abs() / TILE_SIZE).floor() as u32,
             z,
@@ -36,7 +36,7 @@ impl TilePosition {
     }
 
     pub fn delta(&self, x: i32, y: i32) -> Self {
-        TilePosition {
+        Position {
             x: ((self.x as i32) + x) as u32,
             y: ((self.y as i32) + y) as u32,
             z: self.z,
@@ -44,8 +44,8 @@ impl TilePosition {
     }
 }
 
-impl Add<WalkingDirection> for TilePosition {
-    type Output = TilePosition;
+impl Add<WalkingDirection> for Position {
+    type Output = Position;
 
     fn add(self, rhs: WalkingDirection) -> Self::Output {
         match rhs {
@@ -61,8 +61,8 @@ impl Add<WalkingDirection> for TilePosition {
     }
 }
 
-impl Sub<WalkingDirection> for TilePosition {
-    type Output = TilePosition;
+impl Sub<WalkingDirection> for Position {
+    type Output = Position;
 
     fn sub(self, rhs: WalkingDirection) -> Self::Output {
         match rhs {
@@ -90,7 +90,7 @@ impl Sub<WalkingDirection> for TilePosition {
 //         ChunkPosition { cx, cy, z }
 //     }
 
-//     pub fn from_tile(tile_pos: &TilePosition) -> Self {
+//     pub fn from_tile(tile_pos: &Position) -> Self {
 //         Self {
 //             cx: tile_pos.x / CHUNK_SIZE,
 //             cy: tile_pos.y / CHUNK_SIZE,
@@ -98,8 +98,8 @@ impl Sub<WalkingDirection> for TilePosition {
 //         }
 //     }
 
-//     pub fn start_position(&self) -> TilePosition {
-//         TilePosition {
+//     pub fn start_position(&self) -> Position {
+//         Position {
 //             x: self.cx * CHUNK_SIZE,
 //             y: self.cy * CHUNK_SIZE,
 //             z: self.z,

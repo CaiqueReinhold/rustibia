@@ -4,7 +4,7 @@ use crate::{
     actor::{Health, Mana},
     conf::map::{TILES_X, TILES_Y},
     core::OutfitId,
-    map::TilePosition,
+    map::Position,
     network::{messages::ItemStack, ServerMessage},
 };
 
@@ -16,7 +16,7 @@ pub struct LoginError;
 
 #[derive(Event, Debug)]
 pub struct SpawnPlayer {
-    pub position: TilePosition,
+    pub position: Position,
     pub _name: String,
     pub _level: u32,
     pub health: Health,
@@ -31,18 +31,18 @@ pub struct DescribeMap {
 
 #[derive(Event, Debug)]
 pub struct PlayerWalk {
-    pub position: TilePosition,
+    pub position: Position,
     pub tiles: Box<[ItemStack]>,
 }
 
 #[derive(Event, Debug)]
 pub struct PlayerPosition {
-    pub position: TilePosition,
+    pub position: Position,
 }
 
 #[derive(Event, Debug)]
 pub struct TileChanged {
-    pub position: TilePosition,
+    pub position: Position,
     pub items: Box<ItemStack>,
 }
 

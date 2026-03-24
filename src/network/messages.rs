@@ -7,7 +7,7 @@ use crate::{
     conf::map::{STACK_MAX_VISIBLE_ITEMS, TILES_X, TILES_Y},
     core::OutfitId,
     items::ItemId,
-    map::TilePosition,
+    map::Position,
 };
 
 pub type ItemStack = [Option<(ItemId, u8)>; STACK_MAX_VISIBLE_ITEMS];
@@ -31,11 +31,11 @@ pub enum ClientMessage {
     },
     GetPlayerPosition,
     MoveItem {
-        from: TilePosition,
+        from: Position,
         item_id: ItemId,
         amount: u8,
         stack_index: u16,
-        to: TilePosition,
+        to: Position,
     },
 }
 
@@ -55,7 +55,7 @@ pub enum ServerMessage {
     Pong,
     LoginError,
     DescribePlayer {
-        position: TilePosition,
+        position: Position,
         name: String,
         level: u32,
         health: Health,
@@ -66,15 +66,15 @@ pub enum ServerMessage {
         tiles: Box<[ItemStack; TILES_X * TILES_Y]>,
     },
     TileChanged {
-        position: TilePosition,
+        position: Position,
         items: Box<ItemStack>,
     },
     PlayerWalkAck {
-        position: TilePosition,
+        position: Position,
         tiles: Box<[ItemStack]>,
     },
     PlayerPosition {
-        position: TilePosition,
+        position: Position,
     },
     MoveItemAck,
     MoveItemDenied,
@@ -188,8 +188,8 @@ fn decode_tile(buf: &mut BytesMut) -> ItemStack {
     tile
 }
 
-fn decode_position(buf: &mut BytesMut) -> TilePosition {
-    TilePosition {
+fn decode_position(buf: &mut BytesMut) -> Position {
+    Position {
         x: buf.get_u32_le(),
         y: buf.get_u32_le(),
         z: buf.get_u32_le(),
@@ -260,7 +260,7 @@ impl Encoder for GameMessageCodec {
     }
 }
 
-fn encode_position(pos: TilePosition, dst: &mut BytesMut) {
+fn encode_position(pos: Position, dst: &mut BytesMut) {
     dst.put_u32_le(pos.x);
     dst.put_u32_le(pos.y);
     dst.put_u32_le(pos.z);
