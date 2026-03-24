@@ -102,12 +102,13 @@ pub fn on_player_position(
     // receiving player position message means walk was denied by server
     // or client requested position because was out of sync
     // in any case there's a pending ack
+    let predicted = queue.predicted_pos.clone();
     queue.pending_ack = None;
     queue.predicted_pos = None;
 
     let (entity, pos) = *player;
 
-    if event.position == *pos {
+    if Some(&event.position) == predicted.as_ref() {
         // walk was denied but there's no unsynchronized state
         return;
     }

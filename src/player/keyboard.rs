@@ -159,7 +159,11 @@ pub fn read_player_input(
         return;
     }
 
-    key_repeat.pressed_key = pressed;
+    if key_repeat.pressed_key != pressed {
+        key_repeat.pressed_key = pressed;
+        key_repeat.timer.reset();
+    }
+
     if let Some(key) = pressed {
         let modifiers: Vec<&KeyCode> = keyboard.get_pressed().filter(is_modifier).collect();
         for (combo, action) in &keybinds.binds {
