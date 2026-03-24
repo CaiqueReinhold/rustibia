@@ -1,5 +1,7 @@
-use bevy::camera::visibility::RenderLayers;
+use std::time::Duration;
+
 use bevy::prelude::*;
+use bevy::{camera::visibility::RenderLayers, time::common_conditions::on_timer};
 
 mod chat;
 mod game_overlay;
@@ -10,7 +12,7 @@ mod window;
 
 pub use window::AddUIWindow;
 
-use crate::core::GameState;
+use crate::core::{GameState, PingState};
 
 #[derive(Resource)]
 pub struct UiFonts {
@@ -20,6 +22,9 @@ pub struct UiFonts {
 
 #[derive(Component)]
 pub struct MainUI;
+
+#[derive(Component)]
+pub struct PingView;
 
 // #[derive(Resource)]
 // pub struct UiAssets {
@@ -33,10 +38,6 @@ impl Plugin for UiPlugin {
         app.add_plugins(window::UIWindowPlugin)
             .add_systems(OnEnter(GameState::InGame), spawn_main_ui)
             .add_systems(
-                PostUpdate,
-                game_overlay::set_game_camera_to_viewport.run_if(in_state(GameState::InGame)),
-            )
-            .add_systems(
                 Update,
                 (
                     toppanel::update_health,
@@ -46,7 +47,8 @@ impl Plugin for UiPlugin {
                 )
                     .chain()
                     .run_if(in_state(GameState::InGame)),
-            );
+            )
+            .add_systems(Update, update_ping.run_if(on_timer(Duration::from_secs(1))));
     }
 }
 
@@ -56,7 +58,11 @@ impl Plugin for UiPlugin {
 // });
 // }
 
-fn spawn_main_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn spawn_main_ui(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    render_texture: Res<crate::camera::GameRenderTexture>,
+) {
     let fonts = UiFonts {
         // main_font: asset_server.load("fonts/Aldrich-Regular.ttf"),
         content_font: asset_server.load("fonts/RubikMonoOne-Regular.ttf"),
@@ -90,11 +96,38 @@ fn spawn_main_ui(mut commands: Commands, asset_server: Res<AssetServer>) {
         .add_children(&[left_panel, middle_container, right_panel]);
 
     let top_panel = toppanel::spawn_top_panel(&mut commands, &asset_server, &fonts);
-    let gameview = game_overlay::spawn_gameviewport(&mut commands);
+    let gameview = game_overlay::spawn_gameviewport(&mut commands, &render_texture);
     let chat = chat::spawn_chat(&mut commands, &asset_server);
     commands
         .entity(middle_container)
         .add_children(&[top_panel, gameview, chat]);
 
+    let ping_view = commands
+        .spawn((
+            Node {
+                position_type: PositionType::Absolute,
+                top: Val::Px(10.0),
+                left: Val::Px(15.0),
+                ..default()
+            },
+            Children::spawn(Spawn((
+                PingView,
+                Text::new(""),
+                TextFont {
+                    font: fonts.content_font.clone(),
+                    font_size: 11.0,
+                    ..default()
+                },
+                TextColor(Color::WHITE),
+            ))),
+        ))
+        .id();
+    commands.entity(gameview).add_child(ping_view);
+
     commands.insert_resource(fonts);
+}
+
+pub fn update_ping(mut ping_text: Single<&mut Text, With<PingView>>, ping_state: Res<PingState>) {
+    let text = format!("Ping: {}ms", ping_state.current_ping.as_millis());
+    ping_text.0 = text;
 }

@@ -28,6 +28,7 @@ pub struct BarAssets {
     pub fill_small_green: Handle<Image>,
 }
 
+#[allow(dead_code)]
 #[derive(Resource)]
 pub struct BarEntities {
     pub health: Entity,

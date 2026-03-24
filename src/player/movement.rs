@@ -128,6 +128,6 @@ pub fn center_on_player(
     let player_transform = *player_q;
     let mut camera_transform = camera_q;
 
-    camera_transform.translation =
-        player_transform.translation + Vec3::new(TILE_SIZE / 2.0, -(TILE_SIZE / 2.0), 0.0);
+    let target = player_transform.translation + Vec3::new(TILE_SIZE / 2.0, -(TILE_SIZE / 2.0), 0.0);
+    camera_transform.translation = Vec3::new(target.x.round(), target.y.round(), target.z);
 }

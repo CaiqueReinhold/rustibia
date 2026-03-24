@@ -7,6 +7,7 @@ use crate::{
     items::{Item, ItemDragEnded, ItemDragStarted, ItemFlag, LootContainerUI, OpenContainer},
     main_ui::MainUI,
     map::{Map, TilePosition},
+    network::{ClientMessage, SendMessage},
     player::components::Player,
 };
 
@@ -147,7 +148,7 @@ fn on_drag_end(
     mut commands: Commands,
     hover_state: Res<MouseHoverState>,
     drag_state: Option<Res<ItemDragState>>,
-    mut map: ResMut<Map>,
+    map: Res<Map>,
     mut container_q: Query<&mut LootContainerUI>,
 ) {
     info!("map drag ended");
@@ -156,20 +157,31 @@ fn on_drag_end(
         return;
     };
 
+    let (from_position, stack_index) = match &drag_state.origin {
+        ItemDragOrigin::Map { position, index } => (position, index),
+        ItemDragOrigin::Container { .. } => todo!(),
+    };
+
     let mut canceled = false;
     // target map
     if let Some(target_position) = &hover_state.tile_position {
-        if let ItemDragOrigin::Map { position, .. } = &drag_state.origin {
-            if target_position == position {
-                return;
-            }
+        if target_position == from_position {
+            return;
         }
-        canceled = map
-            .add_item(drag_state.item.clone(), target_position)
-            .is_err();
-        // commands.trigger(TileChanged {
-        //     position: target_position.clone(),
-        // });
+
+        if map.can_drop_item(target_position) {
+            commands.trigger(SendMessage {
+                msg: ClientMessage::MoveItem {
+                    from: from_position.clone(),
+                    item_id: drag_state.item.config.id,
+                    amount: drag_state.item.amount as u8,
+                    stack_index: *stack_index as u16,
+                    to: target_position.clone(),
+                },
+            });
+        } else {
+            canceled = true;
+        }
     }
 
     // target container
@@ -180,32 +192,7 @@ fn on_drag_end(
         container_ui.items.insert(0, drag_state.item.clone());
     }
 
-    // clean up origin
-    if !canceled {
-        if let ItemDragOrigin::Map {
-            ref position,
-            index,
-        } = drag_state.origin
-        {
-            map.remove_item(index, position).unwrap();
-            // commands.trigger(TileChanged {
-            //     position: position.clone(),
-            // });
-        }
-        if let ItemDragOrigin::Container { container, slot } = drag_state.origin {
-            let Ok(mut container_ui) = container_q.get_mut(container) else {
-                return;
-            };
-            if Some(container) == hover_state.container {
-                container_ui.items.remove(slot + 1);
-            } else {
-                container_ui.items.remove(slot);
-            }
-        }
-    }
-
     commands.trigger(ItemDragEnded { canceled });
-    commands.remove_resource::<ItemDragState>();
 }
 
 fn on_tile_click(

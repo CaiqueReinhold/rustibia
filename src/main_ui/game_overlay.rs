@@ -1,73 +1,38 @@
-use bevy::camera::{Camera, Viewport};
 use bevy::prelude::*;
 
-use crate::camera::GameCamera;
-use crate::conf::viewport::ASPECT_RATIO;
+use crate::camera::GameRenderTexture;
+use crate::conf::viewport::{GAME_VIEW_HEIGHT, GAME_VIEW_WIDTH};
 
 #[derive(Component)]
 pub struct GameViewport;
 
-pub fn spawn_gameviewport(commands: &mut Commands) -> Entity {
-    let viewport = commands
+/// Spawn the game viewport node. The game camera renders into an offscreen
+/// texture which is displayed here as an ImageNode, scaled to fill the
+/// available space while preserving the game's aspect ratio.
+pub fn spawn_gameviewport(commands: &mut Commands, render_texture: &GameRenderTexture) -> Entity {
+    commands
         .spawn((
+            GameViewport,
             Node {
                 width: Val::Percent(100.0),
-                height: Val::Percent(100.0),
+                flex_grow: 1.0,
+                min_height: Val::Px(0.0),
+                align_items: AlignItems::Center,
+                justify_content: JustifyContent::Center,
+                overflow: Overflow::clip(),
                 ..default()
             },
-            GameViewport,
         ))
-        .id();
-
-    viewport
-}
-
-pub fn set_game_camera_to_viewport(
-    windows: Query<&Window>,
-    game_node: Query<(&ComputedNode, &UiGlobalTransform), With<GameViewport>>,
-    mut camera: Query<&mut Camera, With<GameCamera>>,
-) {
-    let Ok((node, transform)) = game_node.single() else {
-        return;
-    };
-
-    let Ok(window) = windows.single() else {
-        return;
-    };
-    let Ok(mut camera) = camera.single_mut() else {
-        return;
-    };
-    let size = node.size();
-
-    let scale_factor = window.resolution.scale_factor();
-
-    let physical_width_ratio = size.y * ASPECT_RATIO;
-    let physical_height_ratio = size.x / ASPECT_RATIO;
-
-    let physical_width;
-    let physical_height;
-    let physical_x;
-    let physical_y;
-
-    if size.x / size.y >= ASPECT_RATIO {
-        physical_width = (physical_width_ratio * scale_factor).round();
-        physical_height = (size.y * scale_factor).round();
-        physical_x = (transform.translation.x - physical_width / 2.0).round();
-        physical_y = (transform.translation.y - size.y / 2.0).round();
-    } else {
-        physical_width = (size.x * scale_factor).round();
-        physical_height = (physical_height_ratio * scale_factor).round();
-        physical_x = (transform.translation.x - size.x / 2.0).round();
-        physical_y = (transform.translation.y - physical_height / 2.0).round();
-    }
-
-    if physical_width == 0.0 || physical_height == 0.0 {
-        return;
-    }
-
-    camera.viewport = Some(Viewport {
-        physical_position: UVec2::new(physical_x as u32, physical_y as u32),
-        physical_size: UVec2::new(physical_width as u32, physical_height as u32),
-        ..default()
-    });
+        .with_child((
+            Node {
+                // Fill available space while maintaining the game's aspect ratio.
+                // CSS-style: height drives the size; width is clamped to 100%.
+                height: Val::Percent(100.0),
+                max_width: Val::Percent(100.0),
+                aspect_ratio: Some(GAME_VIEW_WIDTH / GAME_VIEW_HEIGHT),
+                ..default()
+            },
+            ImageNode::new(render_texture.0.clone()),
+        ))
+        .id()
 }

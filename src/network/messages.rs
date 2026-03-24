@@ -13,6 +13,7 @@ use crate::{
 pub type ItemStack = [Option<(ItemId, u8)>; STACK_MAX_VISIBLE_ITEMS];
 
 // client
+const MSG_PING: u8 = 0x00;
 const MSG_LOGIN: u8 = 0x01;
 const MSG_MOVE_PLAYER: u8 = 0x02;
 const MSG_GET_PLAYER_POS: u8 = 0x03;
@@ -20,6 +21,7 @@ const MSG_MOVE_ITEM: u8 = 0x04;
 
 #[derive(Clone, Debug)]
 pub enum ClientMessage {
+    Ping,
     Login {
         character_id: u32,
         auth_token: String,
@@ -38,14 +40,20 @@ pub enum ClientMessage {
 }
 
 // server
-const MSG_DESCRIBE_MAP: u8 = 0x01;
-const MSG_TILE_CHANGED: u8 = 0x02;
-const MSG_PLAYER_WALK: u8 = 0x03;
-const MSG_PLAYER_POS: u8 = 0x04;
-const MSG_DESCRIBE_PLAYER: u8 = 0x05;
+const MSG_PONG: u8 = 0x00;
+const MSG_LOGIN_ERROR: u8 = 0x01;
+const MSG_DESCRIBE_MAP: u8 = 0x02;
+const MSG_TILE_CHANGED: u8 = 0x03;
+const MSG_PLAYER_WALK_ACK: u8 = 0x04;
+const MSG_PLAYER_POS: u8 = 0x05;
+const MSG_DESCRIBE_PLAYER: u8 = 0x06;
+const MSG_MOVE_ITEM_ACK: u8 = 0x07;
+const MSG_MOVE_ITEM_DENIED: u8 = 0x08;
 
 #[derive(Clone, Debug)]
 pub enum ServerMessage {
+    Pong,
+    LoginError,
     DescribePlayer {
         position: TilePosition,
         name: String,
@@ -61,13 +69,15 @@ pub enum ServerMessage {
         position: TilePosition,
         items: Box<ItemStack>,
     },
-    PlayerWalk {
+    PlayerWalkAck {
         position: TilePosition,
         tiles: Box<[ItemStack]>,
     },
     PlayerPosition {
         position: TilePosition,
     },
+    MoveItemAck,
+    MoveItemDenied,
 }
 
 #[derive(Error, Debug)]
@@ -98,6 +108,8 @@ impl Decoder for GameMessageCodec {
         buf.advance(2);
 
         match buf.get_u8() {
+            MSG_PONG => Ok(Some(ServerMessage::Pong)),
+            MSG_LOGIN_ERROR => Ok(Some(ServerMessage::LoginError)),
             MSG_DESCRIBE_PLAYER => {
                 let position = decode_position(buf);
                 let name_len = buf.get_u16_le() as usize;
@@ -134,7 +146,7 @@ impl Decoder for GameMessageCodec {
                 let items = Box::new(decode_tile(buf));
                 Ok(Some(ServerMessage::TileChanged { position, items }))
             }
-            MSG_PLAYER_WALK => {
+            MSG_PLAYER_WALK_ACK => {
                 let position = decode_position(buf);
                 // payload_len - 1 (msg type) - 12 (position) = bytes remaining for tiles
                 let tiles_bytes = payload_len - 13;
@@ -143,7 +155,7 @@ impl Decoder for GameMessageCodec {
                 while start_remaining - buf.remaining() < tiles_bytes {
                     tiles.push(decode_tile(buf));
                 }
-                Ok(Some(ServerMessage::PlayerWalk {
+                Ok(Some(ServerMessage::PlayerWalkAck {
                     position,
                     tiles: tiles.into_boxed_slice(),
                 }))
@@ -152,6 +164,8 @@ impl Decoder for GameMessageCodec {
                 let position = decode_position(buf);
                 Ok(Some(ServerMessage::PlayerPosition { position }))
             }
+            MSG_MOVE_ITEM_ACK => Ok(Some(ServerMessage::MoveItemAck)),
+            MSG_MOVE_ITEM_DENIED => Ok(Some(ServerMessage::MoveItemDenied)),
             _ => Err(MessageDecodeError::WrongSequence),
         }
     }
@@ -205,6 +219,9 @@ impl Encoder for GameMessageCodec {
         dst.put_u16_le(0); // placeholder for payload length
 
         match item {
+            ClientMessage::Ping => {
+                dst.put_u8(MSG_PING);
+            }
             ClientMessage::Login {
                 character_id,
                 auth_token,

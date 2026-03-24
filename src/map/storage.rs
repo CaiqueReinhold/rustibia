@@ -2,16 +2,9 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use bevy::prelude::*;
-use thiserror::Error;
 
 use crate::items::{Item, ItemFlag};
 use crate::map::position::TilePosition;
-
-#[derive(Error, Debug)]
-pub enum MapOperationError {
-    #[error("Item cannot be moved")]
-    CannotMoveItem,
-}
 
 #[derive(Debug)]
 pub struct MapTile {
@@ -49,7 +42,7 @@ impl Map {
         !blocked
     }
 
-    fn can_move(&self, pos: &TilePosition) -> bool {
+    pub fn can_drop_item(&self, pos: &TilePosition) -> bool {
         let tile = match self.tiles.get(pos) {
             Some(t) => t,
             None => return false,
@@ -59,38 +52,6 @@ impl Map {
             .items
             .iter()
             .any(|i| i.config.has_flag(ItemFlag::FullBank))
-    }
-
-    pub fn add_item(
-        &mut self,
-        item: Arc<Item>,
-        position: &TilePosition,
-    ) -> Result<(), MapOperationError> {
-        if !self.can_move(position) {
-            return Err(MapOperationError::CannotMoveItem);
-        }
-
-        if item.config.has_flag(ItemFlag::Unmove) {
-            return Err(MapOperationError::CannotMoveItem);
-        }
-
-        let Some(tile) = self.tiles.get_mut(position) else {
-            return Err(MapOperationError::CannotMoveItem);
-        };
-        tile.items.push(item);
-        Ok(())
-    }
-
-    pub fn remove_item(
-        &mut self,
-        index: usize,
-        position: &TilePosition,
-    ) -> Result<(), MapOperationError> {
-        let Some(tile) = self.tiles.get_mut(position) else {
-            return Err(MapOperationError::CannotMoveItem);
-        };
-        tile.items.remove(index);
-        Result::Ok(())
     }
 
     pub fn peek_item(&self, position: &TilePosition) -> Option<(&Arc<Item>, usize)> {

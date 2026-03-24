@@ -119,8 +119,8 @@ pub fn move_actor(
         let end = moving.end.to_world();
         let interpolated = start.lerp(end, moving.timer.fraction());
         transform.translation = Vec3::new(
-            interpolated.x,
-            interpolated.y,
+            interpolated.x.round(),
+            interpolated.y.round(),
             f32::max(end.z, start.z) + ACTOR_Z_OFFSET,
         );
     }

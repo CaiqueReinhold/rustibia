@@ -9,6 +9,12 @@ use crate::{
 };
 
 #[derive(Event, Debug)]
+pub struct ServerPong;
+
+#[derive(Event, Debug)]
+pub struct LoginError;
+
+#[derive(Event, Debug)]
 pub struct SpawnPlayer {
     pub position: TilePosition,
     pub _name: String,
@@ -42,6 +48,10 @@ pub struct TileChanged {
 
 pub fn route_event(msg: ServerMessage, commands: &mut Commands) {
     match msg {
+        ServerMessage::Pong => {
+            commands.trigger(ServerPong);
+        }
+        ServerMessage::LoginError => commands.trigger(LoginError),
         ServerMessage::DescribePlayer {
             position,
             name,
@@ -63,7 +73,7 @@ pub fn route_event(msg: ServerMessage, commands: &mut Commands) {
             info!("trigger desc map");
             commands.trigger(DescribeMap { tiles });
         }
-        ServerMessage::PlayerWalk { position, tiles } => {
+        ServerMessage::PlayerWalkAck { position, tiles } => {
             commands.trigger(PlayerWalk { position, tiles });
         }
         ServerMessage::TileChanged { position, items } => {
@@ -72,5 +82,7 @@ pub fn route_event(msg: ServerMessage, commands: &mut Commands) {
         ServerMessage::PlayerPosition { position } => {
             commands.trigger(PlayerPosition { position });
         }
+        ServerMessage::MoveItemAck => {}
+        ServerMessage::MoveItemDenied => {}
     }
 }
