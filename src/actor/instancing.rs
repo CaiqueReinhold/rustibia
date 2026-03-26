@@ -52,7 +52,7 @@ pub fn spawn_actor(
     color_body: u32,
     color_legs: u32,
     color_feet: u32,
-    speed: u32,
+    speed: u16,
     addons: u32,
     position: Position,
 ) -> Entity {

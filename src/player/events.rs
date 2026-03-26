@@ -39,7 +39,7 @@ pub fn spawn_player(
         0,
         0,
         0,
-        272,
+        event.speed,
         ADDON_1_FLAG | ADDON_2_FLAG,
         event.position.clone(),
     );

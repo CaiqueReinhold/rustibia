@@ -28,20 +28,20 @@ pub struct Actor {
     pub color_body: u32,
     pub color_legs: u32,
     pub color_feet: u32,
-    pub speed: u32,
+    pub speed: u16,
     pub box_size: [f32; 2],
     pub boxes: [[Rect; 4]; 2],
     pub phase_counts: [u32; 2],
 }
 
 impl Actor {
-    pub fn get_step_duration(&self, tile_modifier: u8, is_diagonal: bool) -> u32 {
+    pub fn get_step_duration(&self, tile_friction: u8, is_diagonal: bool) -> u32 {
         let move_speed = (SPEED_PARAM_A * ((self.speed as f32) + SPEED_PARAM_B).ln()
             + SPEED_PARAM_C)
             .round()
             .max(1.0);
 
-        let mut tile_speed = (1000.0 * (tile_modifier as f32) / move_speed).floor();
+        let mut tile_speed = (1000.0 * (tile_friction as f32) / move_speed).floor();
         if is_diagonal {
             tile_speed /= 2.0;
         }

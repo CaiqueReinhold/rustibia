@@ -57,10 +57,11 @@ pub enum ServerMessage {
     DescribePlayer {
         position: Position,
         name: String,
-        level: u32,
+        level: u16,
         health: Health,
         mana: Mana,
         outfit: OutfitId,
+        speed: u16,
     },
     DescribeMap {
         tiles: Box<[ItemStack; TILES_X * TILES_Y]>,
@@ -115,7 +116,7 @@ impl Decoder for GameMessageCodec {
                 let name_len = buf.get_u16_le() as usize;
                 let name = String::from_utf8_lossy(&buf[..name_len]).into_owned();
                 buf.advance(name_len);
-                let level = buf.get_u32_le();
+                let level = buf.get_u16_le();
                 let health = Health {
                     current: buf.get_u32_le(),
                     max: buf.get_u32_le(),
@@ -125,6 +126,7 @@ impl Decoder for GameMessageCodec {
                     max: buf.get_u32_le(),
                 };
                 let outfit = buf.get_u16_le();
+                let speed = buf.get_u16_le();
                 Ok(Some(ServerMessage::DescribePlayer {
                     position,
                     name,
@@ -132,6 +134,7 @@ impl Decoder for GameMessageCodec {
                     health,
                     mana,
                     outfit,
+                    speed,
                 }))
             }
             MSG_DESCRIBE_MAP => {

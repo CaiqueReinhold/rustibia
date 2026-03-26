@@ -17,14 +17,8 @@ use crate::{
 
 #[derive(Clone, Debug)]
 pub enum ItemDragOrigin {
-    Map {
-        position: Position,
-        index: usize,
-    },
-    Container {
-        container: Entity,
-        slot: usize,
-    },
+    Map { position: Position, index: usize },
+    Container { container: Entity, slot: usize },
 }
 
 #[derive(Resource, Debug)]

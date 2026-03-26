@@ -18,10 +18,11 @@ pub struct LoginError;
 pub struct SpawnPlayer {
     pub position: Position,
     pub _name: String,
-    pub _level: u32,
+    pub _level: u16,
     pub health: Health,
     pub mana: Mana,
     pub outfit: OutfitId,
+    pub speed: u16,
 }
 
 #[derive(Event, Debug)]
@@ -64,6 +65,7 @@ pub fn route_event(msg: ServerMessage, commands: &mut Commands) {
             health,
             mana,
             outfit,
+            speed,
         } => {
             commands.trigger(SpawnPlayer {
                 position,
@@ -72,6 +74,7 @@ pub fn route_event(msg: ServerMessage, commands: &mut Commands) {
                 health,
                 mana,
                 outfit,
+                speed,
             });
         }
         ServerMessage::DescribeMap { tiles } => {
