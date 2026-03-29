@@ -5,19 +5,20 @@ use thiserror::Error;
 use crate::{
     actor::{Health, Mana, WalkingDirection},
     conf::map::{STACK_MAX_VISIBLE_ITEMS, TILES_X, TILES_Y},
-    core::OutfitId,
-    items::ItemId,
+    core::{OutfitId, TextMessageType},
+    items::{ContainerId, ItemId},
     map::Position,
 };
 
 pub type ItemStack = [Option<(ItemId, u8)>; STACK_MAX_VISIBLE_ITEMS];
 
 // client
-const MSG_PING: u8 = 0x00;
-const MSG_LOGIN: u8 = 0x01;
-const MSG_MOVE_PLAYER: u8 = 0x02;
-const MSG_GET_PLAYER_POS: u8 = 0x03;
-const MSG_MOVE_ITEM: u8 = 0x04;
+const MSG_PING: u8 = 0;
+const MSG_LOGIN: u8 = 1;
+const MSG_MOVE_PLAYER: u8 = 2;
+const MSG_GET_PLAYER_POS: u8 = 3;
+const MSG_MOVE_ITEM: u8 = 4;
+const MSG_USE_ITEM: u8 = 5;
 
 #[derive(Clone, Debug)]
 pub enum ClientMessage {
@@ -37,18 +38,27 @@ pub enum ClientMessage {
         stack_index: u16,
         to: Position,
     },
+    UseItem {
+        position: Position,
+        item_id: ItemId,
+        stack_index: u16,
+    },
 }
 
 // server
-const MSG_PONG: u8 = 0x00;
-const MSG_LOGIN_ERROR: u8 = 0x01;
-const MSG_DESCRIBE_MAP: u8 = 0x02;
-const MSG_TILE_CHANGED: u8 = 0x03;
-const MSG_PLAYER_WALK_ACK: u8 = 0x04;
-const MSG_PLAYER_POS: u8 = 0x05;
-const MSG_DESCRIBE_PLAYER: u8 = 0x06;
-const MSG_MOVE_ITEM_ACK: u8 = 0x07;
-const MSG_MOVE_ITEM_DENIED: u8 = 0x08;
+const MSG_PONG: u8 = 0;
+const MSG_LOGIN_ERROR: u8 = 1;
+const MSG_DESCRIBE_MAP: u8 = 2;
+const MSG_TILE_CHANGED: u8 = 3;
+const MSG_PLAYER_WALK_ACK: u8 = 4;
+const MSG_PLAYER_POS: u8 = 5;
+const MSG_DESCRIBE_PLAYER: u8 = 6;
+const MSG_MOVE_ITEM_ACK: u8 = 7;
+const MSG_MOVE_ITEM_DENIED: u8 = 8;
+const MSG_TEXT_MESSAGE: u8 = 9;
+const MSG_USE_ITEM_ACK: u8 = 10;
+const MSG_OPEN_CONTAINER: u8 = 11;
+const MSG_UPDATE_CONTAINER: u8 = 12;
 
 #[derive(Clone, Debug)]
 pub enum ServerMessage {
@@ -79,6 +89,21 @@ pub enum ServerMessage {
     },
     MoveItemAck,
     MoveItemDenied,
+    TextMessage {
+        text: String,
+        message_type: TextMessageType,
+    },
+    UseItemAck,
+    OpenContainer {
+        container_id: ContainerId,
+        capacity: u8,
+        title: String,
+        items: Box<[Option<(ItemId, u8)>]>,
+    },
+    UpdateContainer {
+        container_id: ContainerId,
+        items: Box<[Option<(ItemId, u8)>]>,
+    },
 }
 
 #[derive(Error, Debug)]
@@ -169,6 +194,36 @@ impl Decoder for GameMessageCodec {
             }
             MSG_MOVE_ITEM_ACK => Ok(Some(ServerMessage::MoveItemAck)),
             MSG_MOVE_ITEM_DENIED => Ok(Some(ServerMessage::MoveItemDenied)),
+            MSG_USE_ITEM_ACK => Ok(Some(ServerMessage::UseItemAck)),
+            MSG_TEXT_MESSAGE => {
+                let text_len = buf.get_u16_le() as usize;
+                let text = String::from_utf8_lossy(&buf[..text_len]).into_owned();
+                buf.advance(text_len);
+                let message_type = decode_text_type(buf.get_u8());
+                Ok(Some(ServerMessage::TextMessage { text, message_type }))
+            }
+            MSG_OPEN_CONTAINER => {
+                let container_id = buf.get_u16_le();
+                let capacity = buf.get_u8();
+                let title_len = buf.get_u8() as usize;
+                let title = String::from_utf8_lossy(&buf[..title_len]).into_owned();
+                buf.advance(title_len);
+                let items = decode_items(buf);
+                Ok(Some(ServerMessage::OpenContainer {
+                    container_id,
+                    capacity,
+                    title,
+                    items,
+                }))
+            }
+            MSG_UPDATE_CONTAINER => {
+                let container_id = buf.get_u16_le();
+                let items = decode_items(buf);
+                Ok(Some(ServerMessage::UpdateContainer {
+                    container_id,
+                    items,
+                }))
+            }
             _ => Err(MessageDecodeError::WrongSequence),
         }
     }
@@ -191,12 +246,29 @@ fn decode_tile(buf: &mut BytesMut) -> ItemStack {
     tile
 }
 
+fn decode_items(buf: &mut BytesMut) -> Box<[Option<(ItemId, u8)>]> {
+    let mut items = Vec::new();
+    loop {
+        let id = buf.get_u16_le();
+        if id == 0xFFFF {
+            break;
+        }
+        let amount = buf.get_u8();
+        items.push(Some((id, amount)));
+    }
+    items.into()
+}
+
 fn decode_position(buf: &mut BytesMut) -> Position {
     Position {
         x: buf.get_u32_le(),
         y: buf.get_u32_le(),
         z: buf.get_u32_le(),
     }
+}
+
+fn decode_text_type(_b: u8) -> TextMessageType {
+    TextMessageType::ActionDenied
 }
 
 // fn decode_direction(b: u8) -> Result<WalkingDirection, MessageDecodeError> {
@@ -253,6 +325,16 @@ impl Encoder for GameMessageCodec {
             }
             ClientMessage::GetPlayerPosition => {
                 dst.put_u8(MSG_GET_PLAYER_POS);
+            }
+            ClientMessage::UseItem {
+                position,
+                item_id,
+                stack_index,
+            } => {
+                dst.put_u8(MSG_USE_ITEM);
+                encode_position(position, dst);
+                dst.put_u16_le(item_id);
+                dst.put_u16_le(stack_index);
             }
         }
 

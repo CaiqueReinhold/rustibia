@@ -17,7 +17,7 @@ use crate::core::{GameState, PingState};
 
 #[derive(Resource)]
 pub struct UiFonts {
-    // pub main_font: Handle<Font>,
+    pub main_font: Handle<Font>,
     pub content_font: Handle<Font>,
 }
 
@@ -65,7 +65,7 @@ fn spawn_main_ui(
     render_texture: Res<crate::camera::GameRenderTexture>,
 ) {
     let fonts = UiFonts {
-        // main_font: asset_server.load("fonts/Aldrich-Regular.ttf"),
+        main_font: asset_server.load("fonts/Aldrich-Regular.ttf"),
         content_font: asset_server.load("fonts/RubikMonoOne-Regular.ttf"),
     };
 

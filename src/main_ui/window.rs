@@ -9,6 +9,8 @@ use bevy::{
 use std::cmp::Reverse;
 use std::sync::Mutex;
 
+use crate::main_ui::UiFonts;
+
 const WINDOW_MIN_HEIGHT: f32 = 32.0;
 const WINDOW_TITLE_HEIGHT: f32 = 18.0;
 const Z_WINDOW: i32 = 10;
@@ -275,6 +277,7 @@ fn on_add_window(
         Option<&Children>,
     )>,
     c_node_q: Query<&ComputedNode>,
+    fonts: Res<UiFonts>,
 ) {
     let total_height = (event.default_height as f32) + WINDOW_TITLE_HEIGHT;
     let container_entity = find_available_container(&container_q, &c_node_q, total_height);
@@ -305,16 +308,24 @@ fn on_add_window(
             window
                 .spawn((
                     Node {
-                        height: Val::Px(WINDOW_TITLE_HEIGHT),
+                        min_height: Val::Px(WINDOW_TITLE_HEIGHT),
+                        max_height: Val::Px(WINDOW_TITLE_HEIGHT),
                         align_items: AlignItems::Center,
-                        padding: UiRect::horizontal(Val::Px(8.0)),
+                        padding: UiRect::horizontal(Val::Px(4.0)),
                         ..default()
                     },
                     BackgroundColor(Color::srgb(0.2, 0.2, 0.25)),
                     UIWindowTitleBar,
                 ))
                 .with_children(|bar| {
-                    bar.spawn(Text::new(event.title.clone()));
+                    bar.spawn((
+                        Text::new(event.title.clone()),
+                        TextFont {
+                            font: fonts.main_font.clone(),
+                            font_size: 12.0,
+                            ..default()
+                        },
+                    ));
                 })
                 .observe(start_drag_window)
                 .observe(on_drag_window)

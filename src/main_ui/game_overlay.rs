@@ -22,6 +22,7 @@ pub fn spawn_gameviewport(commands: &mut Commands, render_texture: &GameRenderTe
                 overflow: Overflow::clip(),
                 ..default()
             },
+            BackgroundColor(Color::BLACK),
         ))
         .with_child((
             Node {

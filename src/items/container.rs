@@ -4,25 +4,23 @@ use bevy::prelude::*;
 
 use crate::{
     conf::ui::ui_colors,
-    core::Appearances,
-    items::{ui_item::spawn_ui_item, Item},
+    core::{Appearances, ItemConfigs},
+    items::{ui_item::spawn_ui_item, Item, ItemId},
     main_ui::AddUIWindow,
+    network::events::OpenContainer,
     player::MouseHoverState,
 };
 
 const SLOT_SIZE: f32 = 32.0;
 const SLOT_MARGIN: f32 = 1.0;
 
-#[derive(Event)]
-pub struct OpenContainer {
-    pub item: Arc<Item>,
-    pub capacity: usize,
-    pub content: Vec<Arc<Item>>,
-}
+pub type ContainerId = u16;
 
 #[derive(Component)]
 #[allow(dead_code)]
 pub struct LootContainerUI {
+    pub container_id: ContainerId,
+    pub capacity: usize,
     pub items: Vec<Arc<Item>>,
 }
 
@@ -31,14 +29,32 @@ pub struct ContainerSlot {
     index: usize,
 }
 
-pub fn on_open_container(event: On<OpenContainer>, mut commands: Commands) {
-    let item = &event.item;
-    let capacity = event.capacity;
-    if capacity == 0 {
-        return;
+fn as_item_vec(items: &[Option<(ItemId, u8)>], configs: &ItemConfigs) -> Vec<Arc<Item>> {
+    let mut items_vec = Vec::new();
+    for it in items.iter() {
+        if let Some((id, amount)) = it {
+            let item = Arc::new(Item::new(
+                configs.items.get(id).unwrap().clone(),
+                *amount as u32,
+            ));
+            items_vec.push(item);
+        } else {
+            break;
+        }
     }
+    items_vec
+}
 
-    let mut container = LootContainerUI { items: Vec::new() };
+pub fn on_open_container(
+    event: On<OpenContainer>,
+    mut commands: Commands,
+    configs: Res<ItemConfigs>,
+) {
+    let container = LootContainerUI {
+        container_id: event.container_id,
+        capacity: event.capacity as usize,
+        items: as_item_vec(&event.items, &configs),
+    };
     let grid = commands
         .spawn((
             Node {
@@ -55,8 +71,7 @@ pub fn on_open_container(event: On<OpenContainer>, mut commands: Commands) {
         ))
         .id();
 
-    for i in 0..capacity {
-        let slot_item = event.content.get(i).cloned();
+    for i in 0..container.capacity {
         let mut slot_cmds = commands.spawn((
             ContainerSlot { index: i },
             Node {
@@ -76,10 +91,6 @@ pub fn on_open_container(event: On<OpenContainer>, mut commands: Commands) {
         slot_cmds.observe(on_enter_slot);
         slot_cmds.observe(on_leave_slot);
 
-        if let Some(ref slot_item) = slot_item {
-            container.items.push(slot_item.clone());
-        }
-
         let slot_id = slot_cmds.id();
         commands.entity(grid).add_child(slot_id);
     }
@@ -89,7 +100,7 @@ pub fn on_open_container(event: On<OpenContainer>, mut commands: Commands) {
     commands.trigger(AddUIWindow {
         content: grid,
         default_height: 40,
-        title: item.config.name.clone().unwrap_or("Container".to_string()),
+        title: event.title.clone(),
     });
 }
 

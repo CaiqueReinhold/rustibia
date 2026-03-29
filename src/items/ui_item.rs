@@ -6,13 +6,13 @@ use crate::{
     conf::ui::{z_index::DRAGGED_ITEM_UI_Z, UI_ITEM_SIZE},
     core::Appearances,
     items::{instancing::ItemStacks, Item},
-    player::{ItemDragOrigin, MouseHoverState},
+    player::{ItemPlacement, MouseHoverState},
 };
 
 #[derive(Event)]
 pub struct ItemDragStarted {
     pub item: Arc<Item>,
-    pub origin: ItemDragOrigin,
+    pub origin: ItemPlacement,
 }
 
 #[derive(Event)]
@@ -32,7 +32,7 @@ pub struct UiItem {
 
 #[derive(Component)]
 pub struct UiItemDragging {
-    origin: ItemDragOrigin,
+    origin: ItemPlacement,
 }
 
 pub fn spawn_ui_item(
@@ -81,7 +81,7 @@ pub fn item_drag_started(
         commands.entity(e).despawn();
     }
 
-    if let ItemDragOrigin::Map { position, index } = &event.origin {
+    if let ItemPlacement::Map { position, index } = &event.origin {
         let Some(stack_entity) = stacks.occupied_tiles.get(position) else {
             return;
         };
@@ -132,7 +132,7 @@ pub fn item_move_canceled(
     let Ok((entity, drag_item)) = drag_item_q.single() else {
         return;
     };
-    if let ItemDragOrigin::Map { position, index } = &drag_item.origin {
+    if let ItemPlacement::Map { position, index } = &drag_item.origin {
         let Some(stack_entity) = stacks.occupied_tiles.get(position) else {
             return;
         };

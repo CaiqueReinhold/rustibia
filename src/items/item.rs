@@ -16,12 +16,13 @@ pub enum ItemFlag {
     Take,
     FullBank,
     Bottom,
+    Usable,
 }
 
 #[derive(Debug, Eq)]
 pub struct ItemConfig {
     pub id: ItemId,
-    pub name: Option<String>,
+    // pub name: Option<String>,
     pub flags: Vec<ItemFlag>,
     pub friction: Option<u8>,
     // pub minimap_color: Option<u8>,

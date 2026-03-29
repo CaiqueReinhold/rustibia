@@ -30,11 +30,11 @@ pub fn read_item_configs() -> HashMap<ItemId, Arc<ItemConfig>> {
 
 fn read_item_config(config: &Value) -> Option<Arc<ItemConfig>> {
     let id = config["id"].as_u64()? as ItemId;
-    let name = if config["name"].is_null() {
-        None
-    } else {
-        Some(config["name"].as_str()?.to_string())
-    };
+    // let name = if config["name"].is_null() {
+    //     None
+    // } else {
+    //     Some(config["name"].as_str()?.to_string())
+    // };
     // let minimap_color = None;
     let friction = Some(config["ground_speed"].as_u64()? as u8);
     let mut flags: Vec<ItemFlag> = Vec::new();
@@ -68,9 +68,12 @@ fn read_item_config(config: &Value) -> Option<Arc<ItemConfig>> {
     if config["bottom"].as_bool()? {
         flags.push(ItemFlag::Bottom);
     }
+    if config["usable"].as_bool()? {
+        flags.push(ItemFlag::Usable);
+    }
     Some(Arc::new(ItemConfig {
         id,
-        name,
+        // name,
         flags,
         friction,
         // minimap_color,

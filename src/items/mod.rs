@@ -11,7 +11,7 @@ mod item;
 mod material;
 mod ui_item;
 
-pub use container::{LootContainerUI, OpenContainer};
+pub use container::{ContainerId, LootContainerUI};
 pub use instancing::ChangedTileQueue;
 pub use item::{Item, ItemConfig, ItemFlag, ItemId};
 pub use ui_item::{ItemDragEnded, ItemDragStarted, ItemMoveCanceled, ItemMoveConfirmed};

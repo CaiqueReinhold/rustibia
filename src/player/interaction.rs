@@ -7,16 +7,19 @@ use crate::{
     conf::viewport::{GAME_VIEW_HEIGHT, GAME_VIEW_WIDTH},
     items::{
         Item, ItemDragEnded, ItemDragStarted, ItemFlag, ItemMoveCanceled, ItemMoveConfirmed,
-        LootContainerUI, OpenContainer,
+        LootContainerUI,
     },
     main_ui::{GameViewport, MainUI},
     map::{Map, Position},
-    network::{events::MoveItemResult, ClientMessage, SendMessage},
+    network::{
+        events::{MoveItemResult, UseItemAck},
+        ClientMessage, SendMessage,
+    },
     player::components::Player,
 };
 
 #[derive(Clone, Debug)]
-pub enum ItemDragOrigin {
+pub enum ItemPlacement {
     Map { position: Position, index: usize },
     Container { container: Entity, slot: usize },
 }
@@ -24,8 +27,11 @@ pub enum ItemDragOrigin {
 #[derive(Resource, Debug)]
 pub struct ItemDragState {
     item: Arc<Item>,
-    origin: ItemDragOrigin,
+    origin: ItemPlacement,
 }
+
+#[derive(Resource, Debug)]
+pub struct PendingUseAck;
 
 #[derive(Resource, Debug, Default)]
 pub struct MouseHoverState {
@@ -111,14 +117,14 @@ fn on_drag_start(
 
         commands.insert_resource(ItemDragState {
             item: item.clone(),
-            origin: ItemDragOrigin::Map {
+            origin: ItemPlacement::Map {
                 position: position.clone(),
                 index,
             },
         });
         commands.trigger(ItemDragStarted {
             item: item.clone(),
-            origin: ItemDragOrigin::Map {
+            origin: ItemPlacement::Map {
                 position: position.clone(),
                 index,
             },
@@ -139,11 +145,11 @@ fn on_drag_start(
 
         commands.insert_resource(ItemDragState {
             item: item.clone(),
-            origin: ItemDragOrigin::Container { container, slot },
+            origin: ItemPlacement::Container { container, slot },
         });
         commands.trigger(ItemDragStarted {
             item: item.clone(),
-            origin: ItemDragOrigin::Container { container, slot },
+            origin: ItemPlacement::Container { container, slot },
         });
     }
 }
@@ -161,8 +167,8 @@ fn on_drag_end(
     };
 
     let (from_position, stack_index) = match &drag_state.origin {
-        ItemDragOrigin::Map { position, index } => (position, index),
-        ItemDragOrigin::Container { .. } => todo!(),
+        ItemPlacement::Map { position, index } => (position, index),
+        ItemPlacement::Container { .. } => todo!(),
     };
 
     let mut canceled = false;
@@ -217,24 +223,33 @@ fn on_tile_click(
     hover_state: Res<MouseHoverState>,
     map: Res<Map>,
     drag_state: Option<Res<ItemDragState>>,
+    pending_ack: Option<Res<PendingUseAck>>,
 ) {
-    if drag_state.is_some() {
+    if drag_state.is_some() || pending_ack.is_some() {
         return;
     }
+
     if event.button == PointerButton::Secondary {
         let Some(position) = &hover_state.tile_position else {
             return;
         };
-        let Some((item, _)) = map.peek_item(position) else {
+        let Some((item, index)) = map.peek_item(position) else {
             return;
         };
 
-        if item.config.has_flag(ItemFlag::Container) {
-            commands.trigger(OpenContainer {
-                item: item.clone(),
-                capacity: 0,
-                content: Vec::new(),
+        if item.config.has_flag(ItemFlag::Usable) {
+            commands.trigger(SendMessage {
+                msg: ClientMessage::UseItem {
+                    position: position.clone(),
+                    item_id: item.config.id,
+                    stack_index: index as u16,
+                },
             });
+            commands.insert_resource(PendingUseAck);
         }
     }
+}
+
+pub fn on_item_ack(_: On<UseItemAck>, mut commands: Commands) {
+    commands.remove_resource::<PendingUseAck>();
 }

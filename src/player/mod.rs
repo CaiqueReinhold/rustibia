@@ -6,7 +6,7 @@ mod interaction;
 mod keyboard;
 mod movement;
 
-pub use interaction::{ItemDragOrigin, MouseHoverState};
+pub use interaction::{ItemPlacement, MouseHoverState};
 
 use crate::core::GameState;
 
@@ -36,6 +36,7 @@ impl Plugin for PlayerPlugin {
             )
             .add_observer(interaction::attach_observers)
             .add_observer(interaction::on_move_item_result)
+            .add_observer(interaction::on_item_ack)
             .add_observer(movement::on_player_walk)
             .add_observer(movement::on_ack_walk)
             .add_observer(movement::on_player_position)

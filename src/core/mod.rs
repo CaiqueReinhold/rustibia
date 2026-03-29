@@ -5,12 +5,14 @@ mod instances;
 mod items;
 mod sprite;
 mod systems;
+mod text;
 
 pub use assets::*;
 pub use instances::*;
 pub use items::ItemConfigs;
 pub use sprite::*;
 pub use systems::PingState;
+pub use text::TextMessageType;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, States, Default)]
 pub enum GameState {
@@ -35,6 +37,7 @@ impl Plugin for CorePlugin {
                     systems::send_ping.run_if(in_state(GameState::InGame)),
                 ),
             )
-            .add_observer(systems::receive_pong);
+            .add_observer(systems::receive_pong)
+            .add_observer(text::on_text_message);
     }
 }
