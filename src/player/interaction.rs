@@ -4,10 +4,13 @@ use bevy::prelude::*;
 
 use crate::{
     camera::GameCamera,
-    conf::viewport::{GAME_VIEW_HEIGHT, GAME_VIEW_WIDTH},
+    conf::{
+        map::CONTAINER_COORD_FLAG,
+        viewport::{GAME_VIEW_HEIGHT, GAME_VIEW_WIDTH},
+    },
     items::{
-        Item, ItemDragEnded, ItemDragStarted, ItemFlag, ItemMoveCanceled, ItemMoveConfirmed,
-        LootContainerUI,
+        ContainerId, Item, ItemDragEnded, ItemDragStarted, ItemFlag, ItemMoveCanceled,
+        ItemMoveConfirmed, LootContainerUI,
     },
     main_ui::{GameViewport, MainUI},
     map::{Map, Position},
@@ -20,8 +23,14 @@ use crate::{
 
 #[derive(Clone, Debug)]
 pub enum ItemPlacement {
-    Map { position: Position, index: usize },
-    Container { container: Entity, slot: usize },
+    Map {
+        position: Position,
+        index: usize,
+    },
+    Container {
+        container_id: ContainerId,
+        slot: usize,
+    },
 }
 
 #[derive(Resource, Debug)]
@@ -145,11 +154,17 @@ fn on_drag_start(
 
         commands.insert_resource(ItemDragState {
             item: item.clone(),
-            origin: ItemPlacement::Container { container, slot },
+            origin: ItemPlacement::Container {
+                container_id: container_ui.container_id,
+                slot,
+            },
         });
         commands.trigger(ItemDragStarted {
             item: item.clone(),
-            origin: ItemPlacement::Container { container, slot },
+            origin: ItemPlacement::Container {
+                container_id: container_ui.container_id,
+                slot,
+            },
         });
     }
 }
@@ -160,28 +175,35 @@ fn on_drag_end(
     hover_state: Res<MouseHoverState>,
     drag_state: Option<Res<ItemDragState>>,
     map: Res<Map>,
-    mut container_q: Query<&mut LootContainerUI>,
+    container_q: Query<&LootContainerUI>,
 ) {
     let Some(drag_state) = drag_state else {
         return;
     };
 
     let (from_position, stack_index) = match &drag_state.origin {
-        ItemPlacement::Map { position, index } => (position, index),
-        ItemPlacement::Container { .. } => todo!(),
+        ItemPlacement::Map { position, index } => (position.clone(), index),
+        ItemPlacement::Container { container_id, slot } => (
+            Position {
+                x: CONTAINER_COORD_FLAG,
+                y: *container_id as u32,
+                z: *slot as u32,
+            },
+            slot,
+        ),
     };
 
     let mut canceled = false;
-    // target map
+
     if let Some(target_position) = &hover_state.tile_position {
-        if target_position == from_position {
+        if *target_position == from_position {
             return;
         }
 
         if map.can_drop_item(target_position) {
             commands.trigger(SendMessage {
                 msg: ClientMessage::MoveItem {
-                    from: from_position.clone(),
+                    from: from_position,
                     item_id: drag_state.item.config.id,
                     amount: drag_state.item.amount as u8,
                     stack_index: *stack_index as u16,
@@ -191,13 +213,30 @@ fn on_drag_end(
         } else {
             canceled = true;
         }
-    }
-    // target container
-    if let Some(container) = hover_state.container {
-        let Ok(mut container_ui) = container_q.get_mut(container) else {
+    } else if let Some(container) = hover_state.container {
+        let Ok(container_ui) = container_q.get(container) else {
             return;
         };
-        container_ui.items.insert(0, drag_state.item.clone());
+        // let Some(slot) = hover_state.container_slot else {
+        //     return;
+        // };
+        if !container_ui.is_full() {
+            commands.trigger(SendMessage {
+                msg: ClientMessage::MoveItem {
+                    from: from_position,
+                    item_id: drag_state.item.config.id,
+                    amount: drag_state.item.amount as u8,
+                    stack_index: 0,
+                    to: Position {
+                        x: CONTAINER_COORD_FLAG,
+                        y: container_ui.container_id as u32,
+                        z: 0,
+                    },
+                },
+            });
+        } else {
+            canceled = true;
+        }
     }
 
     if canceled {

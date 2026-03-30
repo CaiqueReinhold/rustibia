@@ -7,7 +7,7 @@ use crate::{
     core::{Appearances, ItemConfigs},
     items::{ui_item::spawn_ui_item, Item, ItemId},
     main_ui::AddUIWindow,
-    network::events::OpenContainer,
+    network::events::{ContainerClosed, OpenContainer, UpdateContainer},
     player::MouseHoverState,
 };
 
@@ -17,16 +17,53 @@ const SLOT_MARGIN: f32 = 1.0;
 pub type ContainerId = u16;
 
 #[derive(Component)]
-#[allow(dead_code)]
 pub struct LootContainerUI {
     pub container_id: ContainerId,
     pub capacity: usize,
     pub items: Vec<Arc<Item>>,
 }
 
+impl LootContainerUI {
+    pub fn is_full(&self) -> bool {
+        self.items.len() >= self.capacity
+    }
+}
+
 #[derive(Component)]
 pub struct ContainerSlot {
     index: usize,
+}
+
+fn on_enter_slot(
+    event: On<Pointer<Over>>,
+    mut commands: Commands,
+    mut hover_state: ResMut<MouseHoverState>,
+    container_q: Query<(&ChildOf, &ContainerSlot)>,
+) {
+    commands.entity(event.entity).insert(Outline {
+        width: Val::Px(1.0),
+        offset: Val::Px(0.0),
+        color: Color::from(ui_colors::ITEM_SLOT_OUTLINE_HOVERED),
+    });
+    let Ok((container, slot)) = container_q.get(event.entity) else {
+        return;
+    };
+    hover_state.container = Some(container.parent());
+    hover_state.container_slot = Some(slot.index);
+}
+
+fn on_leave_slot(
+    event: On<Pointer<Out>>,
+    mut commands: Commands,
+    mut hover_state: ResMut<MouseHoverState>,
+) {
+    commands.entity(event.entity).insert(Outline {
+        width: Val::Px(1.0),
+        offset: Val::Px(0.0),
+        color: Color::from(ui_colors::ITEM_SLOT_OUTLINE),
+    });
+    hover_state.container = None;
+    hover_state.container_slot = None;
 }
 
 fn as_item_vec(items: &[Option<(ItemId, u8)>], configs: &ItemConfigs) -> Vec<Arc<Item>> {
@@ -49,7 +86,14 @@ pub fn on_open_container(
     event: On<OpenContainer>,
     mut commands: Commands,
     configs: Res<ItemConfigs>,
+    loot_container_q: Query<&LootContainerUI>,
 ) {
+    for container in loot_container_q.iter() {
+        if container.container_id == event.container_id {
+            return;
+        }
+    }
+
     let container = LootContainerUI {
         container_id: event.container_id,
         capacity: event.capacity as usize,
@@ -104,36 +148,30 @@ pub fn on_open_container(
     });
 }
 
-fn on_enter_slot(
-    event: On<Pointer<Over>>,
-    mut commands: Commands,
-    mut hover_state: ResMut<MouseHoverState>,
-    container_q: Query<(&ChildOf, &ContainerSlot)>,
+pub fn on_update_container(
+    event: On<UpdateContainer>,
+    configs: Res<ItemConfigs>,
+    mut loot_container_q: Query<&mut LootContainerUI>,
 ) {
-    commands.entity(event.entity).insert(Outline {
-        width: Val::Px(1.0),
-        offset: Val::Px(0.0),
-        color: Color::from(ui_colors::ITEM_SLOT_OUTLINE_HOVERED),
-    });
-    let Ok((container, slot)) = container_q.get(event.entity) else {
-        return;
-    };
-    hover_state.container = Some(container.parent());
-    hover_state.container_slot = Some(slot.index);
+    for mut container in loot_container_q.iter_mut() {
+        if container.container_id == event.container_id {
+            container.items = as_item_vec(&event.items, &configs);
+            break;
+        }
+    }
 }
 
-fn on_leave_slot(
-    event: On<Pointer<Out>>,
+pub fn on_container_closed(
+    event: On<ContainerClosed>,
     mut commands: Commands,
-    mut hover_state: ResMut<MouseHoverState>,
+    loot_container_q: Query<(Entity, &LootContainerUI)>,
 ) {
-    commands.entity(event.entity).insert(Outline {
-        width: Val::Px(1.0),
-        offset: Val::Px(0.0),
-        color: Color::from(ui_colors::ITEM_SLOT_OUTLINE),
-    });
-    hover_state.container = None;
-    hover_state.container_slot = None;
+    for (entity, container) in loot_container_q.iter() {
+        if container.container_id == event.container_id {
+            commands.entity(entity).despawn();
+            break;
+        }
+    }
 }
 
 pub fn container_content_changed(

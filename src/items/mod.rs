@@ -43,6 +43,8 @@ impl Plugin for ItemsPlugin {
             .add_observer(ui_item::item_drag_ended)
             .add_observer(ui_item::item_move_confirmed)
             .add_observer(ui_item::item_move_canceled)
-            .add_observer(container::on_open_container);
+            .add_observer(container::on_open_container)
+            .add_observer(container::on_update_container)
+            .add_observer(container::on_container_closed);
     }
 }

@@ -5,6 +5,8 @@ pub mod map {
     pub const TILES_X: usize = 19;
     pub const TILES_Y: usize = 15;
     pub const STACK_MAX_VISIBLE_ITEMS: usize = 8;
+    pub const CONTAINER_COORD_FLAG: u32 = 0xFFFFFFFF;
+    // pub const INVENTORY_COORD_FLAG: u32 = 0xFFFFFFFE;
 }
 
 pub mod z_order {

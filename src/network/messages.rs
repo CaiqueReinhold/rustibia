@@ -19,6 +19,7 @@ const MSG_MOVE_PLAYER: u8 = 2;
 const MSG_GET_PLAYER_POS: u8 = 3;
 const MSG_MOVE_ITEM: u8 = 4;
 const MSG_USE_ITEM: u8 = 5;
+const MSG_CLOSE_CONTAINER: u8 = 6;
 
 #[derive(Clone, Debug)]
 pub enum ClientMessage {
@@ -43,6 +44,9 @@ pub enum ClientMessage {
         item_id: ItemId,
         stack_index: u16,
     },
+    CloseContainer {
+        container_id: ContainerId,
+    },
 }
 
 // server
@@ -59,6 +63,7 @@ const MSG_TEXT_MESSAGE: u8 = 9;
 const MSG_USE_ITEM_ACK: u8 = 10;
 const MSG_OPEN_CONTAINER: u8 = 11;
 const MSG_UPDATE_CONTAINER: u8 = 12;
+const MSG_CONTAINER_CLOSED: u8 = 13;
 
 #[derive(Clone, Debug)]
 pub enum ServerMessage {
@@ -103,6 +108,9 @@ pub enum ServerMessage {
     UpdateContainer {
         container_id: ContainerId,
         items: Box<[Option<(ItemId, u8)>]>,
+    },
+    ContainerClosed {
+        container_id: ContainerId,
     },
 }
 
@@ -224,6 +232,10 @@ impl Decoder for GameMessageCodec {
                     items,
                 }))
             }
+            MSG_CONTAINER_CLOSED => {
+                let container_id = buf.get_u16_le();
+                Ok(Some(ServerMessage::ContainerClosed { container_id }))
+            }
             _ => Err(MessageDecodeError::WrongSequence),
         }
     }
@@ -335,6 +347,10 @@ impl Encoder for GameMessageCodec {
                 encode_position(position, dst);
                 dst.put_u16_le(item_id);
                 dst.put_u16_le(stack_index);
+            }
+            ClientMessage::CloseContainer { container_id } => {
+                dst.put_u8(MSG_CLOSE_CONTAINER);
+                dst.put_u16_le(container_id);
             }
         }
 

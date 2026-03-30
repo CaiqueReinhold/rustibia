@@ -70,6 +70,17 @@ pub struct OpenContainer {
     pub items: Box<[Option<(ItemId, u8)>]>,
 }
 
+#[derive(Event, Debug)]
+pub struct UpdateContainer {
+    pub container_id: ContainerId,
+    pub items: Box<[Option<(ItemId, u8)>]>,
+}
+
+#[derive(Event, Debug)]
+pub struct ContainerClosed {
+    pub container_id: ContainerId,
+}
+
 pub fn route_event(msg: ServerMessage, commands: &mut Commands) {
     match msg {
         ServerMessage::Pong => {
@@ -135,6 +146,14 @@ pub fn route_event(msg: ServerMessage, commands: &mut Commands) {
         ServerMessage::UpdateContainer {
             container_id,
             items,
-        } => {}
+        } => {
+            commands.trigger(UpdateContainer {
+                container_id,
+                items,
+            });
+        }
+        ServerMessage::ContainerClosed { container_id } => {
+            commands.trigger(ContainerClosed { container_id });
+        }
     }
 }
