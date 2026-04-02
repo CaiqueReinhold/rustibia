@@ -46,6 +46,7 @@ impl Plugin for UIWindowPlugin {
                 ),
             )
             .add_observer(on_add_window)
+            .add_observer(on_close_window)
             .add_observer(on_commit_order)
             .add_observer(on_rollback_order)
             .add_observer(on_transfer_window)
@@ -97,6 +98,11 @@ pub struct Index(pub usize);
 
 #[derive(Component, Clone, Copy, Ord, PartialOrd, PartialEq, Eq, Debug)]
 struct PreviewIndex(pub usize);
+
+#[derive(Component)]
+pub struct UiWindowRef {
+    pub window_id: WindowId,
+}
 
 #[derive(Component)]
 pub struct UIWindowDock {
@@ -177,6 +183,14 @@ struct OverDock {
 struct LeftDock {
     dock_id: DockId,
 }
+
+#[derive(Event)]
+pub struct CloseUIWindow {
+    pub window_id: WindowId,
+}
+
+#[derive(Component)]
+struct UIWindowCloseButton;
 
 #[derive(Resource, Default)]
 struct CurrentDockHover {
@@ -287,6 +301,7 @@ fn on_add_window(
         None => 0,
     };
 
+    let window_id = WindowId::new();
     let window = commands
         .spawn((
             Node {
@@ -299,7 +314,7 @@ fn on_add_window(
             },
             ZIndex(Z_WINDOW),
             UIWindow {
-                id: WindowId::new(),
+                id: window_id,
                 dock_id: dock.id,
             },
             Index(window_index),
@@ -311,6 +326,7 @@ fn on_add_window(
                         min_height: Val::Px(WINDOW_TITLE_HEIGHT),
                         max_height: Val::Px(WINDOW_TITLE_HEIGHT),
                         align_items: AlignItems::Center,
+                        justify_content: JustifyContent::SpaceBetween,
                         padding: UiRect::horizontal(Val::Px(4.0)),
                         ..default()
                     },
@@ -325,7 +341,41 @@ fn on_add_window(
                             font_size: 12.0,
                             ..default()
                         },
+                        Node {
+                            flex_grow: 1.0,
+                            ..default()
+                        },
                     ));
+                    bar.spawn((
+                        Node {
+                            width: Val::Px(14.0),
+                            height: Val::Px(14.0),
+                            align_items: AlignItems::Center,
+                            justify_content: JustifyContent::Center,
+                            ..default()
+                        },
+                        BackgroundColor(Color::srgb(0.45, 0.15, 0.15)),
+                        UIWindowCloseButton,
+                    ))
+                    .with_children(|btn| {
+                        btn.spawn((
+                            Text::new("X"),
+                            TextFont {
+                                font: fonts.main_font.clone(),
+                                font_size: 9.0,
+                                ..default()
+                            },
+                        ));
+                    })
+                    .observe(
+                        move |mut event: On<Pointer<Click>>, mut commands: Commands| {
+                            event.propagate(false);
+                            commands.trigger(CloseUIWindow { window_id });
+                        },
+                    )
+                    .observe(|mut event: On<Pointer<DragStart>>| {
+                        event.propagate(false);
+                    });
                 })
                 .observe(start_drag_window)
                 .observe(on_drag_window)
@@ -406,7 +456,39 @@ fn on_add_window(
                 .observe(on_resize_end);
         })
         .id();
+    commands
+        .entity(event.content)
+        .insert(UiWindowRef { window_id });
     commands.entity(container_entity).add_child(window);
+}
+
+fn on_close_window(
+    event: On<CloseUIWindow>,
+    mut commands: Commands,
+    dock_q: Query<(Entity, &UIWindowDock)>,
+    window_q: Query<(Entity, &UIWindow, &Index)>,
+) {
+    let Some((window_entity, window, _)) =
+        window_q.iter().find(|(_, w, _)| w.id == event.window_id)
+    else {
+        return;
+    };
+
+    let dock_id = window.dock_id;
+    let dock_entity = get_dock_by_id(dock_id, &dock_q);
+
+    commands.entity(dock_entity).detach_child(window_entity);
+    commands.entity(window_entity).despawn();
+
+    let mut siblings: Vec<(Entity, usize)> = window_q
+        .iter()
+        .filter(|(_, w, _)| w.dock_id == dock_id && w.id != event.window_id)
+        .map(|(e, _, i)| (e, i.0))
+        .collect();
+    siblings.sort_by_key(|(_, i)| *i);
+    for (new_idx, (e, _)) in siblings.into_iter().enumerate() {
+        commands.entity(e).insert(Index(new_idx));
+    }
 }
 
 fn find_available_container(

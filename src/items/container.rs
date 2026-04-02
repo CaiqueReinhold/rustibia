@@ -6,8 +6,11 @@ use crate::{
     conf::ui::ui_colors,
     core::{Appearances, ItemConfigs},
     items::{ui_item::spawn_ui_item, Item, ItemId},
-    main_ui::AddUIWindow,
-    network::events::{ContainerClosed, OpenContainer, UpdateContainer},
+    main_ui::{AddUIWindow, CloseUIWindow, UiWindowRef},
+    network::{
+        events::{ContainerClosed, OpenContainer, UpdateContainer},
+        ClientMessage, SendMessage,
+    },
     player::MouseHoverState,
 };
 
@@ -164,14 +167,32 @@ pub fn on_update_container(
 pub fn on_container_closed(
     event: On<ContainerClosed>,
     mut commands: Commands,
-    loot_container_q: Query<(Entity, &LootContainerUI)>,
+    loot_container_q: Query<(&LootContainerUI, &UiWindowRef)>,
 ) {
-    for (entity, container) in loot_container_q.iter() {
-        if container.container_id == event.container_id {
-            commands.entity(entity).despawn();
+    for (container_ui, window_ref) in loot_container_q.iter() {
+        if container_ui.container_id == event.container_id {
+            commands.trigger(CloseUIWindow {
+                window_id: window_ref.window_id,
+            });
             break;
         }
     }
+}
+
+pub fn on_container_ui_closed(
+    event: On<Remove, LootContainerUI>,
+    mut commands: Commands,
+    loot_container_q: Query<&LootContainerUI>,
+) {
+    let Ok(loot_container) = loot_container_q.get(event.entity) else {
+        return;
+    };
+
+    commands.trigger(SendMessage {
+        msg: ClientMessage::CloseContainer {
+            container_id: loot_container.container_id,
+        },
+    });
 }
 
 pub fn container_content_changed(

@@ -81,6 +81,9 @@ pub struct ContainerClosed {
     pub container_id: ContainerId,
 }
 
+#[derive(Event, Debug)]
+pub struct PlayerWalkDenied;
+
 pub fn route_event(msg: ServerMessage, commands: &mut Commands) {
     match msg {
         ServerMessage::Pong => {
@@ -154,6 +157,9 @@ pub fn route_event(msg: ServerMessage, commands: &mut Commands) {
         }
         ServerMessage::ContainerClosed { container_id } => {
             commands.trigger(ContainerClosed { container_id });
+        }
+        ServerMessage::PlayerWalkDenied => {
+            commands.trigger(PlayerWalkDenied);
         }
     }
 }

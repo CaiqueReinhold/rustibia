@@ -193,7 +193,7 @@ fn on_drag_end(
         ),
     };
 
-    let mut canceled = false;
+    let mut canceled = true;
 
     if let Some(target_position) = &hover_state.tile_position {
         if *target_position == from_position {
@@ -210,8 +210,7 @@ fn on_drag_end(
                     to: target_position.clone(),
                 },
             });
-        } else {
-            canceled = true;
+            canceled = false;
         }
     } else if let Some(container) = hover_state.container {
         let Ok(container_ui) = container_q.get(container) else {
@@ -226,7 +225,7 @@ fn on_drag_end(
                     from: from_position,
                     item_id: drag_state.item.config.id,
                     amount: drag_state.item.amount as u8,
-                    stack_index: 0,
+                    stack_index: *stack_index as u16,
                     to: Position {
                         x: CONTAINER_COORD_FLAG,
                         y: container_ui.container_id as u32,
@@ -234,8 +233,7 @@ fn on_drag_end(
                     },
                 },
             });
-        } else {
-            canceled = true;
+            canceled = false;
         }
     }
 

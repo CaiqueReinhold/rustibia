@@ -11,7 +11,7 @@ mod toppanel;
 mod window;
 
 pub use game_overlay::GameViewport;
-pub use window::AddUIWindow;
+pub use window::{AddUIWindow, CloseUIWindow, UiWindowRef};
 
 use crate::core::{GameState, PingState};
 

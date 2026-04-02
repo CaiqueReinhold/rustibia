@@ -64,6 +64,7 @@ const MSG_USE_ITEM_ACK: u8 = 10;
 const MSG_OPEN_CONTAINER: u8 = 11;
 const MSG_UPDATE_CONTAINER: u8 = 12;
 const MSG_CONTAINER_CLOSED: u8 = 13;
+const MSG_PLAYER_WALK_DENIED: u8 = 14;
 
 #[derive(Clone, Debug)]
 pub enum ServerMessage {
@@ -112,6 +113,7 @@ pub enum ServerMessage {
     ContainerClosed {
         container_id: ContainerId,
     },
+    PlayerWalkDenied,
 }
 
 #[derive(Error, Debug)]
@@ -236,6 +238,7 @@ impl Decoder for GameMessageCodec {
                 let container_id = buf.get_u16_le();
                 Ok(Some(ServerMessage::ContainerClosed { container_id }))
             }
+            MSG_PLAYER_WALK_DENIED => Ok(Some(ServerMessage::PlayerWalkDenied)),
             _ => Err(MessageDecodeError::WrongSequence),
         }
     }

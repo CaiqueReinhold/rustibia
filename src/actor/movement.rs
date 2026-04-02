@@ -9,19 +9,10 @@ use crate::map::{Map, Position};
 use crate::player::components::Player;
 
 #[derive(Component, Debug)]
-pub struct QueuedMove {
-    pub start: Position,
-    pub end: Position,
-    pub step_time_ms: u32,
-    pub facing: FacingDirection,
-}
-
-#[derive(Component, Debug)]
 pub struct Moving {
     pub start: Position,
     pub end: Position,
     pub timer: Timer,
-    pub queued: Option<QueuedMove>,
 }
 
 #[derive(Event, Debug)]
@@ -37,40 +28,25 @@ pub struct ActorChangeDirection {
 pub fn on_actor_move(
     event: On<MoveActor>,
     mut commands: Commands,
-    mut player_q: Query<(Entity, &mut Actor, Option<&mut Moving>, &Position), With<Player>>,
+    mut player_q: Query<(Entity, &mut Actor, &Position), With<Player>>,
     map: Res<Map>,
 ) {
-    let Ok((entity, mut actor, moving, position)) = player_q.single_mut() else {
+    let Ok((entity, mut actor, position)) = player_q.single_mut() else {
         return;
     };
 
-    let start_position = match &moving {
-        Some(m) => m.end.clone(),
-        None => position.clone(),
-    };
+    let start_position = position.clone();
     let facing = event.direction.facing();
-    let end_postion = start_position.clone() + event.direction;
-    let tile_modifier = map.get_tile_friction(&end_postion);
+    let end_position = start_position.clone() + event.direction;
+    let tile_modifier = map.get_tile_friction(&end_position);
     let step_time_ms = actor.get_step_duration(tile_modifier, event.direction.is_diagonal());
-    match moving {
-        Some(mut m) => {
-            m.queued = Some(QueuedMove {
-                start: start_position.clone(),
-                end: end_postion,
-                step_time_ms,
-                facing,
-            })
-        }
-        None => {
-            actor.direction = facing;
-            commands.entity(entity).insert(Moving {
-                start: start_position.clone(),
-                end: end_postion,
-                timer: Timer::new(Duration::from_millis(step_time_ms as u64), TimerMode::Once),
-                queued: None,
-            });
-        }
-    }
+
+    actor.direction = facing;
+    commands.entity(entity).insert(Moving {
+        start: start_position.clone(),
+        end: end_position,
+        timer: Timer::new(Duration::from_millis(step_time_ms as u64), TimerMode::Once),
+    });
 }
 
 pub fn on_actor_change_direction(
@@ -100,18 +76,6 @@ pub fn move_actor(
                 .remove::<Moving>();
 
             transform.translation = moving.end.to_world() + Vec3::new(0.0, 0.0, ACTOR_Z_OFFSET);
-            if let Some(q) = &moving.queued {
-                commands.entity(entity).insert(Moving {
-                    start: q.start.clone(),
-                    end: q.end.clone(),
-                    timer: Timer::new(
-                        Duration::from_millis(q.step_time_ms as u64),
-                        TimerMode::Once,
-                    ),
-                    queued: None,
-                });
-                actor.direction = q.facing;
-            };
             return;
         }
 

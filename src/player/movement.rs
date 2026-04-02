@@ -10,7 +10,7 @@ use crate::{
     items::ChangedTileQueue,
     map::{self, Map, Position},
     network::{
-        events::{PlayerPosition, PlayerWalk},
+        events::{PlayerPosition, PlayerWalk, PlayerWalkDenied},
         ClientMessage, SendMessage,
     },
     player::components::Player,
@@ -56,6 +56,10 @@ pub fn process_move_queue(
             return;
         }
 
+        info!(
+            "move to {:?} from {:?} to {:?}",
+            direction, player_pos, new_position
+        );
         queue.pending_ack = Some(direction);
         queue.predicted_pos = Some(new_position);
         commands.trigger(SendMessage {
@@ -73,6 +77,8 @@ pub fn on_ack_walk(
     mut tile_queue: ResMut<ChangedTileQueue>,
     config: Res<ItemConfigs>,
 ) {
+    info!("walk ack: {:?}", event.event().position);
+    info!("predicted pos: {:?}", move_queue.predicted_pos);
     if move_queue.predicted_pos.as_ref() != Some(&event.position) {
         move_queue.moves.clear();
         commands.trigger(SendMessage {
@@ -93,31 +99,60 @@ pub fn on_ack_walk(
     move_queue.predicted_pos = None;
 }
 
+pub fn on_walk_denied(
+    _: On<PlayerWalkDenied>,
+    mut move_queue: ResMut<MovementQueue>,
+    mut commands: Commands,
+    player: Single<(Entity, &Position), With<Player>>,
+) {
+    move_queue.moves.clear();
+
+    if let Some(direction) = move_queue.pending_ack {
+        if let Some(predicted_pos) = &move_queue.predicted_pos {
+            let (entity, position) = *player;
+            let player_pos = predicted_pos.clone() - direction;
+            commands.entity(entity).insert(Moving {
+                start: position.clone(),
+                end: player_pos,
+                timer: Timer::new(Duration::from_millis(1), TimerMode::Once),
+            });
+        }
+    }
+    move_queue.pending_ack = None;
+    move_queue.predicted_pos = None;
+}
+
 pub fn on_player_position(
     event: On<PlayerPosition>,
     mut commands: Commands,
     mut queue: ResMut<MovementQueue>,
-    player: Single<(Entity, &Position), With<Player>>,
+    player: Single<(Entity, &Position, Option<&Moving>), With<Player>>,
 ) {
     // receiving player position message means walk was denied by server
     // or client requested position because was out of sync
     // in any case there's a pending ack
-    let predicted = queue.predicted_pos.clone();
+    let pending = queue.pending_ack;
     queue.pending_ack = None;
     queue.predicted_pos = None;
 
-    let (entity, pos) = *player;
+    let (entity, position, moving) = *player;
 
-    if Some(&event.position) == predicted.as_ref() {
-        // walk was denied but there's no unsynchronized state
-        return;
-    }
+    let expected_pos = if let Some(direction) = pending {
+        event.position.clone() + direction
+    } else {
+        event.position.clone()
+    };
+    let time = if let Some(moving) = moving {
+        moving.timer.duration() - moving.timer.elapsed()
+    } else {
+        Duration::from_millis(1)
+    };
+
     // just add moving so placement, z ordering and moving state is handled by actor move system
     commands.entity(entity).insert(Moving {
-        start: pos.clone(),
-        end: event.position.clone(),
-        timer: Timer::new(Duration::from_millis(1), TimerMode::Once),
-        queued: None,
+        start: position.clone(),
+        end: expected_pos,
+        timer: Timer::new(time, TimerMode::Once),
     });
 }
 
