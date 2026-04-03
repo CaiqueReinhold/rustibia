@@ -5,24 +5,12 @@ use bevy::{camera::visibility::RenderLayers, prelude::*};
 use crate::{
     conf::ui::{z_index::DRAGGED_ITEM_UI_Z, UI_ITEM_SIZE},
     core::Appearances,
-    items::{instancing::ItemStacks, Item},
-    player::{ItemPlacement, MouseHoverState},
+    items::{
+        instancing::ItemStacks, Item, ItemDragEnded, ItemDragStarted, ItemMoveCanceled,
+        ItemMoveConfirmed, ItemPlacement,
+    },
+    player::MouseHoverState,
 };
-
-#[derive(Event)]
-pub struct ItemDragStarted {
-    pub item: Arc<Item>,
-    pub origin: ItemPlacement,
-}
-
-#[derive(Event)]
-pub struct ItemDragEnded;
-
-#[derive(Event)]
-pub struct ItemMoveCanceled;
-
-#[derive(Event)]
-pub struct ItemMoveConfirmed;
 
 #[derive(Component, Debug)]
 #[allow(dead_code)]

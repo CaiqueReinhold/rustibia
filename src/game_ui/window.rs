@@ -9,7 +9,7 @@ use bevy::{
 use std::cmp::Reverse;
 use std::sync::Mutex;
 
-use crate::main_ui::UiFonts;
+use crate::game_ui::assets::GameUiAssets;
 
 const WINDOW_MIN_HEIGHT: f32 = 32.0;
 const WINDOW_TITLE_HEIGHT: f32 = 18.0;
@@ -19,6 +19,7 @@ const STIFFNESS: f32 = 40.0;
 const DAMPING: f32 = 12.0;
 const SNAP_THRESHOLD: f32 = 0.5;
 const LINE_HEIGHT: f32 = 21.;
+const MINIMIZE_VELOCITY: f32 = 1000.0;
 
 static DOCK_ID_COUNTER: Mutex<u8> = Mutex::new(1);
 static WINDOW_ID_COUNTER: Mutex<u64> = Mutex::new(1);
@@ -43,10 +44,13 @@ impl Plugin for UIWindowPlugin {
                         .chain(),
                     resize_window,
                     on_window_scroll,
+                    animate_minimize_window,
                 ),
             )
             .add_observer(on_add_window)
             .add_observer(on_close_window)
+            .add_observer(on_minimize_window)
+            .add_observer(on_replace_window_content)
             .add_observer(on_commit_order)
             .add_observer(on_rollback_order)
             .add_observer(on_transfer_window)
@@ -156,6 +160,15 @@ pub struct AddUIWindow {
     pub content: Entity,
     pub default_height: usize,
     pub title: String,
+    pub custom_buttons: Vec<Entity>,
+}
+
+#[derive(Event)]
+pub struct ReplaceUIWindowContent {
+    pub window_id: WindowId,
+    pub content: Entity,
+    pub title: String,
+    pub custom_buttons: Vec<Entity>,
 }
 
 #[derive(Event)]
@@ -189,8 +202,21 @@ pub struct CloseUIWindow {
     pub window_id: WindowId,
 }
 
+#[derive(Event)]
+pub struct MinimizeUIWindow {
+    pub window_id: WindowId,
+}
+
 #[derive(Component)]
-struct UIWindowCloseButton;
+struct UIWindowMinimized {
+    original_height: f32,
+}
+
+#[derive(Component)]
+struct MinimizeAnimation {
+    target_height: f32,
+    is_minimizing: bool,
+}
 
 #[derive(Resource, Default)]
 struct CurrentDockHover {
@@ -280,6 +306,75 @@ fn check_dock_hover(
     }
 }
 
+fn set_window_title_bar_content(
+    bar: &mut bevy::ecs::relationship::RelatedSpawnerCommands<'_, ChildOf>,
+    title: &str,
+    ui_assets: &GameUiAssets,
+    window_id: WindowId,
+    custom_buttons: &[Entity],
+) {
+    bar.spawn((
+        Text::new(title),
+        TextFont {
+            font: ui_assets.fonts.main_font.clone(),
+            font_size: 12.0,
+            ..default()
+        },
+        Node {
+            flex_grow: 1.0,
+            ..default()
+        },
+    ));
+
+    for &button_entity in custom_buttons {
+        let parent = bar.target_entity();
+        bar.commands_mut()
+            .entity(parent)
+            .add_one_related::<ChildOf>(button_entity);
+    }
+    bar.spawn((
+        Node {
+            width: Val::Px(10.0),
+            height: Val::Px(10.0),
+            ..default()
+        },
+        ImageNode {
+            image: ui_assets.window.minimize_button.clone(),
+            ..default()
+        },
+    ))
+    .observe(
+        move |mut event: On<Pointer<Click>>, mut commands: Commands| {
+            event.propagate(false);
+            commands.trigger(MinimizeUIWindow { window_id });
+        },
+    )
+    .observe(|mut event: On<Pointer<DragStart>>| {
+        event.propagate(false);
+    });
+
+    bar.spawn((
+        Node {
+            width: Val::Px(10.0),
+            height: Val::Px(10.0),
+            ..default()
+        },
+        ImageNode {
+            image: ui_assets.window.close_button.clone(),
+            ..default()
+        },
+    ))
+    .observe(
+        move |mut event: On<Pointer<Click>>, mut commands: Commands| {
+            event.propagate(false);
+            commands.trigger(CloseUIWindow { window_id });
+        },
+    )
+    .observe(|mut event: On<Pointer<DragStart>>| {
+        event.propagate(false);
+    });
+}
+
 fn on_add_window(
     event: On<AddUIWindow>,
     mut commands: Commands,
@@ -291,7 +386,7 @@ fn on_add_window(
         Option<&Children>,
     )>,
     c_node_q: Query<&ComputedNode>,
-    fonts: Res<UiFonts>,
+    ui_assets: Res<GameUiAssets>,
 ) {
     let total_height = (event.default_height as f32) + WINDOW_TITLE_HEIGHT;
     let container_entity = find_available_container(&container_q, &c_node_q, total_height);
@@ -327,56 +422,24 @@ fn on_add_window(
                         max_height: Val::Px(WINDOW_TITLE_HEIGHT),
                         align_items: AlignItems::Center,
                         justify_content: JustifyContent::SpaceBetween,
-                        padding: UiRect::horizontal(Val::Px(4.0)),
+                        column_gap: Val::Px(2.0),
+                        padding: UiRect::horizontal(Val::Px(2.0)),
                         ..default()
                     },
                     BackgroundColor(Color::srgb(0.2, 0.2, 0.25)),
                     UIWindowTitleBar,
                 ))
-                .with_children(|bar| {
-                    bar.spawn((
-                        Text::new(event.title.clone()),
-                        TextFont {
-                            font: fonts.main_font.clone(),
-                            font_size: 12.0,
-                            ..default()
-                        },
-                        Node {
-                            flex_grow: 1.0,
-                            ..default()
-                        },
-                    ));
-                    bar.spawn((
-                        Node {
-                            width: Val::Px(14.0),
-                            height: Val::Px(14.0),
-                            align_items: AlignItems::Center,
-                            justify_content: JustifyContent::Center,
-                            ..default()
-                        },
-                        BackgroundColor(Color::srgb(0.45, 0.15, 0.15)),
-                        UIWindowCloseButton,
-                    ))
-                    .with_children(|btn| {
-                        btn.spawn((
-                            Text::new("X"),
-                            TextFont {
-                                font: fonts.main_font.clone(),
-                                font_size: 9.0,
-                                ..default()
-                            },
-                        ));
-                    })
-                    .observe(
-                        move |mut event: On<Pointer<Click>>, mut commands: Commands| {
-                            event.propagate(false);
-                            commands.trigger(CloseUIWindow { window_id });
-                        },
-                    )
-                    .observe(|mut event: On<Pointer<DragStart>>| {
-                        event.propagate(false);
-                    });
-                })
+                .with_children(
+                    |bar: &mut bevy::ecs::relationship::RelatedSpawnerCommands<'_, ChildOf>| {
+                        set_window_title_bar_content(
+                            bar,
+                            &event.title,
+                            &ui_assets,
+                            window_id,
+                            &event.custom_buttons,
+                        );
+                    },
+                )
                 .observe(start_drag_window)
                 .observe(on_drag_window)
                 .observe(stop_drag_window);
@@ -462,6 +525,51 @@ fn on_add_window(
     commands.entity(container_entity).add_child(window);
 }
 
+fn on_replace_window_content(
+    event: On<ReplaceUIWindowContent>,
+    mut commands: Commands,
+    window_q: Query<(Entity, &UIWindow)>,
+    children_q: Query<&Children>,
+    ui_assets: Res<GameUiAssets>,
+) {
+    let Some((window_entity, window)) = window_q.iter().find(|(_, w)| w.id == event.window_id)
+    else {
+        return;
+    };
+
+    let Ok(children) = children_q.get(window_entity) else {
+        return;
+    };
+    let Some(title_entity) = children.first() else {
+        return;
+    };
+
+    commands.entity(*title_entity).despawn_children();
+    commands.entity(*title_entity).with_children(|title_bar| {
+        set_window_title_bar_content(
+            title_bar,
+            &event.title,
+            &ui_assets,
+            event.window_id,
+            &event.custom_buttons,
+        );
+    });
+
+    let Ok(scroll_content) = children_q
+        .get(*children.get(1).unwrap())
+        .and_then(|c| children_q.get(*c.first().unwrap()))
+        .map(|c| *c.first().unwrap())
+    else {
+        return;
+    };
+    commands.entity(scroll_content).despawn_children();
+    commands.entity(scroll_content).add_child(event.content);
+
+    commands.entity(event.content).insert(UiWindowRef {
+        window_id: window.id,
+    });
+}
+
 fn on_close_window(
     event: On<CloseUIWindow>,
     mut commands: Commands,
@@ -488,6 +596,85 @@ fn on_close_window(
     siblings.sort_by_key(|(_, i)| *i);
     for (new_idx, (e, _)) in siblings.into_iter().enumerate() {
         commands.entity(e).insert(Index(new_idx));
+    }
+}
+
+fn on_minimize_window(
+    event: On<MinimizeUIWindow>,
+    mut commands: Commands,
+    mut window_q: Query<(
+        Entity,
+        &UIWindow,
+        &mut Node,
+        Option<&UIWindowMinimized>,
+        &Children,
+    )>,
+    mut visibility_q: Query<&mut Visibility, With<UIScrollableView>>,
+) {
+    let Some((window_entity, _, mut node, minimized, children)) = window_q
+        .iter_mut()
+        .find(|(_, w, _, _, _)| w.id == event.window_id)
+    else {
+        return;
+    };
+
+    if let Some(minimized) = minimized {
+        let original_height = minimized.original_height;
+        if let Some(&scroll_child) = children.get(1) {
+            if let Ok(mut vis) = visibility_q.get_mut(scroll_child) {
+                *vis = Visibility::Inherited;
+            }
+        }
+        node.min_height = Val::Px(WINDOW_MIN_HEIGHT);
+        commands.entity(window_entity).insert(MinimizeAnimation {
+            target_height: original_height,
+            is_minimizing: false,
+        });
+    } else {
+        let current_height = val_to_f32(node.height);
+        node.min_height = Val::Px(WINDOW_TITLE_HEIGHT);
+        commands.entity(window_entity).insert((
+            UIWindowMinimized {
+                original_height: current_height,
+            },
+            MinimizeAnimation {
+                target_height: WINDOW_TITLE_HEIGHT,
+                is_minimizing: true,
+            },
+        ));
+    }
+}
+
+fn animate_minimize_window(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut window_q: Query<(Entity, &mut Node, &MinimizeAnimation, &Children), With<UIWindow>>,
+    mut visibility_q: Query<&mut Visibility, With<UIScrollableView>>,
+) {
+    let dt = time.delta().as_secs_f32();
+
+    for (entity, mut node, anim, children) in window_q.iter_mut() {
+        let current_height = val_to_f32(node.height);
+        let displacement = current_height - anim.target_height;
+        let new_height = current_height - MINIMIZE_VELOCITY * dt;
+
+        if displacement <= SNAP_THRESHOLD {
+            node.height = Val::Px(anim.target_height);
+            let is_minimizing = anim.is_minimizing;
+            commands.entity(entity).remove::<MinimizeAnimation>();
+
+            if let Some(&scroll_child) = children.get(1) {
+                if is_minimizing {
+                    if let Ok(mut vis) = visibility_q.get_mut(scroll_child) {
+                        *vis = Visibility::Hidden;
+                    }
+                } else {
+                    commands.entity(entity).remove::<UIWindowMinimized>();
+                }
+            }
+        } else {
+            node.height = Val::Px(new_height);
+        }
     }
 }
 
@@ -540,8 +727,15 @@ fn on_over_resize_handle(
     mut event: On<Pointer<Over>>,
     mut commands: Commands,
     window: Single<Entity, With<Window>>,
+    parent_q: Query<&ChildOf>,
+    minimized_window_q: Query<&UIWindowMinimized>,
 ) {
     event.propagate(false);
+
+    let parent = parent_q.get(event.entity).unwrap();
+    if minimized_window_q.get(parent.parent()).is_ok() {
+        return;
+    };
 
     commands.entity(*window).insert(CursorIcon::System(
         bevy::window::SystemCursorIcon::RowResize,
@@ -552,8 +746,15 @@ fn on_out_resize_handle(
     mut event: On<Pointer<Out>>,
     mut commands: Commands,
     window: Single<Entity, With<Window>>,
+    parent_q: Query<&ChildOf>,
+    minimized_window_q: Query<&UIWindowMinimized>,
 ) {
     event.propagate(false);
+
+    let parent = parent_q.get(event.entity).unwrap();
+    if minimized_window_q.get(parent.parent()).is_ok() {
+        return;
+    };
 
     commands
         .entity(*window)
@@ -565,10 +766,16 @@ fn on_resize_start(
     mut commands: Commands,
     parent_q: Query<&ChildOf>,
     node_q: Query<&ComputedNode>,
+    minimized_window_q: Query<&UIWindowMinimized>,
 ) {
     event.propagate(false);
 
     let resize_handle = parent_q.get(event.entity).unwrap();
+
+    if minimized_window_q.get(resize_handle.parent()).is_ok() {
+        return;
+    };
+
     let node = node_q.get(resize_handle.parent()).unwrap();
 
     commands

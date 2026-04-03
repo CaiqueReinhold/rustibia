@@ -20,6 +20,7 @@ const MSG_GET_PLAYER_POS: u8 = 3;
 const MSG_MOVE_ITEM: u8 = 4;
 const MSG_USE_ITEM: u8 = 5;
 const MSG_CLOSE_CONTAINER: u8 = 6;
+const MSG_OPEN_PARENT_CONTAINER: u8 = 7;
 
 #[derive(Clone, Debug)]
 pub enum ClientMessage {
@@ -45,6 +46,9 @@ pub enum ClientMessage {
         stack_index: u16,
     },
     CloseContainer {
+        container_id: ContainerId,
+    },
+    OpenParentContainer {
         container_id: ContainerId,
     },
 }
@@ -103,6 +107,7 @@ pub enum ServerMessage {
     OpenContainer {
         container_id: ContainerId,
         capacity: u8,
+        has_parent: bool,
         title: String,
         items: Box<[Option<(ItemId, u8)>]>,
     },
@@ -215,6 +220,7 @@ impl Decoder for GameMessageCodec {
             MSG_OPEN_CONTAINER => {
                 let container_id = buf.get_u16_le();
                 let capacity = buf.get_u8();
+                let has_parent = buf.get_u8() != 0;
                 let title_len = buf.get_u8() as usize;
                 let title = String::from_utf8_lossy(&buf[..title_len]).into_owned();
                 buf.advance(title_len);
@@ -222,6 +228,7 @@ impl Decoder for GameMessageCodec {
                 Ok(Some(ServerMessage::OpenContainer {
                     container_id,
                     capacity,
+                    has_parent,
                     title,
                     items,
                 }))
@@ -353,6 +360,10 @@ impl Encoder for GameMessageCodec {
             }
             ClientMessage::CloseContainer { container_id } => {
                 dst.put_u8(MSG_CLOSE_CONTAINER);
+                dst.put_u16_le(container_id);
+            }
+            ClientMessage::OpenParentContainer { container_id } => {
+                dst.put_u8(MSG_OPEN_PARENT_CONTAINER);
                 dst.put_u16_le(container_id);
             }
         }

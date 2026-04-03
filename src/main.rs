@@ -9,8 +9,8 @@ mod actor;
 mod camera;
 mod conf;
 mod core;
+mod game_ui;
 mod items;
-mod main_ui;
 mod map;
 mod network;
 mod player;
@@ -44,7 +44,7 @@ fn main() {
             core::CorePlugin,
             actor::ActorPlugin,
             map::MapPlugin,
-            main_ui::UiPlugin,
+            game_ui::GameUiPlugin,
             items::ItemsPlugin,
             player::PlayerPlugin,
             network::NetworkPlugin,

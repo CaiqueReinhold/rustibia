@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 use crate::actor::{Health, HealthState, Mana};
 use crate::conf::ui::TOP_BAR_HEIGHT;
-use crate::main_ui::UiFonts;
+use crate::game_ui::assets::GameUiAssets;
 use crate::player::components::Player;
 
 #[derive(Component)]
@@ -39,7 +39,7 @@ pub struct BarEntities {
 pub fn spawn_top_panel(
     commands: &mut Commands,
     asset_server: &Res<AssetServer>,
-    fonts: &UiFonts,
+    ui_assets: &GameUiAssets,
 ) -> Entity {
     let bar_assets = BarAssets {
         background: asset_server.load("ui/bar_background.png"),
@@ -97,7 +97,7 @@ pub fn spawn_top_panel(
         true,
         bar_assets.background.clone(),
         bar_assets.fill_dark_green.clone(),
-        fonts.content_font.clone(),
+        ui_assets.fonts.content_font.clone(),
     );
     let mana = spawn_ui_bar(
         commands,
@@ -107,7 +107,7 @@ pub fn spawn_top_panel(
         true,
         bar_assets.background.clone(),
         bar_assets.fill_blue.clone(),
-        fonts.content_font.clone(),
+        ui_assets.fonts.content_font.clone(),
     );
     let experience = spawn_ui_bar(
         commands,
@@ -117,7 +117,7 @@ pub fn spawn_top_panel(
         false,
         bar_assets.background.clone(),
         bar_assets.fill_small_green.clone(),
-        fonts.content_font.clone(),
+        ui_assets.fonts.content_font.clone(),
     );
 
     commands

@@ -8,11 +8,11 @@ use crate::{
         map::CONTAINER_COORD_FLAG,
         viewport::{GAME_VIEW_HEIGHT, GAME_VIEW_WIDTH},
     },
+    game_ui::{GameViewport, MainUI, UiWindowRef, WindowId},
     items::{
-        ContainerId, Item, ItemDragEnded, ItemDragStarted, ItemFlag, ItemMoveCanceled,
-        ItemMoveConfirmed, LootContainerUI,
+        Item, ItemDragEnded, ItemDragStarted, ItemFlag, ItemMoveCanceled, ItemMoveConfirmed,
+        ItemPlacement, LootContainerUI,
     },
-    main_ui::{GameViewport, MainUI},
     map::{Map, Position},
     network::{
         events::{MoveItemResult, UseItemAck},
@@ -21,18 +21,6 @@ use crate::{
     player::components::Player,
 };
 
-#[derive(Clone, Debug)]
-pub enum ItemPlacement {
-    Map {
-        position: Position,
-        index: usize,
-    },
-    Container {
-        container_id: ContainerId,
-        slot: usize,
-    },
-}
-
 #[derive(Resource, Debug)]
 pub struct ItemDragState {
     item: Arc<Item>,
@@ -40,7 +28,9 @@ pub struct ItemDragState {
 }
 
 #[derive(Resource, Debug)]
-pub struct PendingUseAck;
+pub struct PendingUseAck {
+    pub target_window_id: Option<WindowId>,
+}
 
 #[derive(Resource, Debug, Default)]
 pub struct MouseHoverState {
@@ -96,7 +86,7 @@ pub fn attach_observers(event: On<Add, MainUI>, mut commands: Commands) {
         .entity(event.entity)
         .observe(on_drag_start)
         .observe(on_drag_end)
-        .observe(on_tile_click);
+        .observe(on_item_click);
 }
 
 fn on_drag_start(
@@ -216,9 +206,9 @@ fn on_drag_end(
         let Ok(container_ui) = container_q.get(container) else {
             return;
         };
-        // let Some(slot) = hover_state.container_slot else {
-        //     return;
-        // };
+        let Some(slot) = hover_state.container_slot else {
+            return;
+        };
         if !container_ui.is_full() {
             commands.trigger(SendMessage {
                 msg: ClientMessage::MoveItem {
@@ -229,7 +219,7 @@ fn on_drag_end(
                     to: Position {
                         x: CONTAINER_COORD_FLAG,
                         y: container_ui.container_id as u32,
-                        z: 0,
+                        z: slot as u32,
                     },
                 },
             });
@@ -254,39 +244,80 @@ pub fn on_move_item_result(event: On<MoveItemResult>, mut commands: Commands) {
     }
 }
 
-fn on_tile_click(
+fn on_item_click(
     event: On<Pointer<Click>>,
     mut commands: Commands,
     hover_state: Res<MouseHoverState>,
     map: Res<Map>,
     drag_state: Option<Res<ItemDragState>>,
     pending_ack: Option<Res<PendingUseAck>>,
+    container_q: Query<(&LootContainerUI, &UiWindowRef)>,
 ) {
     if drag_state.is_some() || pending_ack.is_some() {
         return;
     }
 
     if event.button == PointerButton::Secondary {
-        let Some(position) = &hover_state.tile_position else {
-            return;
-        };
-        let Some((item, index)) = map.peek_item(position) else {
-            return;
-        };
+        if let Some(position) = &hover_state.tile_position {
+            let Some((item, index)) = map.peek_item(position) else {
+                return;
+            };
 
-        if item.config.has_flag(ItemFlag::Usable) {
-            commands.trigger(SendMessage {
-                msg: ClientMessage::UseItem {
-                    position: position.clone(),
-                    item_id: item.config.id,
-                    stack_index: index as u16,
-                },
-            });
-            commands.insert_resource(PendingUseAck);
+            if item.config.has_flag(ItemFlag::Usable) {
+                commands.trigger(SendMessage {
+                    msg: ClientMessage::UseItem {
+                        position: position.clone(),
+                        item_id: item.config.id,
+                        stack_index: index as u16,
+                    },
+                });
+                commands.insert_resource(PendingUseAck {
+                    target_window_id: None,
+                });
+            }
+        } else if let Some(container) = hover_state.container {
+            let Ok((container_ui, window_ref)) = container_q.get(container) else {
+                return;
+            };
+            let Some(slot) = hover_state.container_slot else {
+                return;
+            };
+            let Some(item) = container_ui.items.get(slot) else {
+                return;
+            };
+
+            if item.config.has_flag(ItemFlag::Usable) {
+                commands.trigger(SendMessage {
+                    msg: ClientMessage::UseItem {
+                        position: Position {
+                            x: CONTAINER_COORD_FLAG,
+                            y: container_ui.container_id as u32,
+                            z: slot as u32,
+                        },
+                        item_id: item.config.id,
+                        stack_index: 0,
+                    },
+                });
+
+                if item.config.has_flag(ItemFlag::Container) {
+                    commands.insert_resource(PendingUseAck {
+                        target_window_id: Some(window_ref.window_id),
+                    });
+                }
+            }
         }
     }
 }
 
-pub fn on_item_ack(_: On<UseItemAck>, mut commands: Commands) {
-    commands.remove_resource::<PendingUseAck>();
+pub fn on_item_ack(
+    _: On<UseItemAck>,
+    mut commands: Commands,
+    pending_ack: Option<Res<PendingUseAck>>,
+) {
+    if let Some(ack) = pending_ack {
+        if ack.target_window_id.is_none() {
+            commands.remove_resource::<PendingUseAck>();
+        }
+        // If the ack is for opening a container, the resource will be removed in the container system
+    }
 }

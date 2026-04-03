@@ -1,8 +1,20 @@
 use std::sync::Arc;
 
-use crate::{core::SpriteConfig, map::Position};
+use crate::{core::SpriteConfig, items::ContainerId, map::Position};
 
 pub type ItemId = u16;
+
+#[derive(Clone, Debug)]
+pub enum ItemPlacement {
+    Map {
+        position: Position,
+        index: usize,
+    },
+    Container {
+        container_id: ContainerId,
+        slot: usize,
+    },
+}
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum ItemFlag {

@@ -3,21 +3,26 @@ use std::sync::Arc;
 use bevy::prelude::*;
 
 use crate::{
-    conf::ui::ui_colors,
+    conf::ui::{ui_colors, LOOT_CONTAINER_DEFAULT_HEIGHT},
     core::{Appearances, ItemConfigs},
-    items::{ui_item::spawn_ui_item, Item, ItemId},
-    main_ui::{AddUIWindow, CloseUIWindow, UiWindowRef},
+    game_ui::{AddUIWindow, CloseUIWindow, GameUiAssets, ReplaceUIWindowContent, UiWindowRef},
+    items::{ui_item::spawn_ui_item, Item, ItemId, OpenParentContainer},
     network::{
         events::{ContainerClosed, OpenContainer, UpdateContainer},
         ClientMessage, SendMessage,
     },
-    player::MouseHoverState,
+    player::{MouseHoverState, PendingUseAck},
 };
 
 const SLOT_SIZE: f32 = 32.0;
 const SLOT_MARGIN: f32 = 1.0;
 
 pub type ContainerId = u16;
+
+#[derive(Resource)]
+pub struct PreventContainerCloseEvent {
+    container_id: ContainerId,
+}
 
 #[derive(Component)]
 pub struct LootContainerUI {
@@ -89,10 +94,25 @@ pub fn on_open_container(
     event: On<OpenContainer>,
     mut commands: Commands,
     configs: Res<ItemConfigs>,
-    loot_container_q: Query<&LootContainerUI>,
+    ui_assets: Res<GameUiAssets>,
+    loot_container_q: Query<(&LootContainerUI, &UiWindowRef)>,
+    pending_ack: Option<Res<PendingUseAck>>,
 ) {
-    for container in loot_container_q.iter() {
-        if container.container_id == event.container_id {
+    let container = loot_container_q
+        .iter()
+        .find(|c| c.0.container_id == event.container_id);
+    if let Some((_, window_ref)) = container {
+        if let Some(ack) = &pending_ack {
+            if ack.target_window_id.is_some() && ack.target_window_id != Some(window_ref.window_id)
+            {
+                commands.insert_resource(PreventContainerCloseEvent {
+                    container_id: event.container_id,
+                });
+                commands.trigger(CloseUIWindow {
+                    window_id: window_ref.window_id,
+                });
+            }
+        } else {
             return;
         }
     }
@@ -144,10 +164,88 @@ pub fn on_open_container(
 
     commands.entity(grid).insert(container);
 
-    commands.trigger(AddUIWindow {
-        content: grid,
-        default_height: 40,
-        title: event.title.clone(),
+    let container_id = event.container_id;
+    let custom_buttons = if event.has_parent {
+        let button = commands
+            .spawn((
+                Node {
+                    width: Val::Px(10.0),
+                    height: Val::Px(10.0),
+                    ..default()
+                },
+                ImageNode {
+                    image: ui_assets.window.parent_container.clone(),
+                    ..default()
+                },
+            ))
+            .observe(move |mut e: On<Pointer<Click>>, mut commands: Commands| {
+                e.propagate(false);
+                info!(
+                    "Open parent container button clicked for container {}",
+                    container_id
+                );
+                commands.trigger(OpenParentContainer { container_id });
+            })
+            .observe(|mut e: On<Pointer<DragStart>>| {
+                e.propagate(false);
+            })
+            .id();
+        vec![button]
+    } else {
+        Vec::new()
+    };
+
+    if let Some(window_id) = pending_ack.as_ref().and_then(|ack| ack.target_window_id) {
+        commands.trigger(ReplaceUIWindowContent {
+            window_id,
+            content: grid,
+            title: event.title.clone(),
+            custom_buttons,
+        });
+    } else {
+        commands.trigger(AddUIWindow {
+            content: grid,
+            default_height: LOOT_CONTAINER_DEFAULT_HEIGHT,
+            title: event.title.clone(),
+            custom_buttons,
+        });
+    }
+
+    if pending_ack.is_some() {
+        commands.remove_resource::<PendingUseAck>();
+    }
+}
+
+pub fn on_open_parent_container(
+    event: On<OpenParentContainer>,
+    mut commands: Commands,
+    loot_container_q: Query<(&LootContainerUI, &UiWindowRef)>,
+) {
+    info!(
+        "Requesting to open parent container for container {}",
+        event.container_id
+    );
+    for (container_ui, window_ref) in loot_container_q.iter() {
+        info!(
+            "Checking container {} with ID {:?}",
+            container_ui.container_id, window_ref.window_id
+        );
+    }
+    let Some((_, window_ref)) = loot_container_q
+        .iter()
+        .find(|c| c.0.container_id == event.container_id)
+    else {
+        info!("Container not found for ID: {}", event.container_id);
+        return;
+    };
+
+    commands.insert_resource(PendingUseAck {
+        target_window_id: Some(window_ref.window_id),
+    });
+    commands.trigger(SendMessage {
+        msg: ClientMessage::OpenParentContainer {
+            container_id: event.container_id,
+        },
     });
 }
 
@@ -164,7 +262,7 @@ pub fn on_update_container(
     }
 }
 
-pub fn on_container_closed(
+pub fn on_container_closed_by_server(
     event: On<ContainerClosed>,
     mut commands: Commands,
     loot_container_q: Query<(&LootContainerUI, &UiWindowRef)>,
@@ -183,10 +281,18 @@ pub fn on_container_ui_closed(
     event: On<Remove, LootContainerUI>,
     mut commands: Commands,
     loot_container_q: Query<&LootContainerUI>,
+    prevent_close: Option<Res<PreventContainerCloseEvent>>,
 ) {
     let Ok(loot_container) = loot_container_q.get(event.entity) else {
         return;
     };
+
+    if let Some(prevent_close) = prevent_close.as_ref() {
+        if prevent_close.container_id == loot_container.container_id {
+            commands.remove_resource::<PreventContainerCloseEvent>();
+            return;
+        }
+    }
 
     commands.trigger(SendMessage {
         msg: ClientMessage::CloseContainer {

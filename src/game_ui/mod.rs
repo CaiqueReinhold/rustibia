@@ -3,6 +3,7 @@ use std::time::Duration;
 use bevy::prelude::*;
 use bevy::{camera::visibility::RenderLayers, time::common_conditions::on_timer};
 
+mod assets;
 mod chat;
 mod game_overlay;
 mod leftpanel;
@@ -10,16 +11,12 @@ mod rightpanel;
 mod toppanel;
 mod window;
 
+pub use assets::GameUiAssets;
 pub use game_overlay::GameViewport;
-pub use window::{AddUIWindow, CloseUIWindow, UiWindowRef};
+pub use window::{AddUIWindow, CloseUIWindow, ReplaceUIWindowContent, UiWindowRef, WindowId};
 
+use crate::camera::GameRenderTexture;
 use crate::core::{GameState, PingState};
-
-#[derive(Resource)]
-pub struct UiFonts {
-    pub main_font: Handle<Font>,
-    pub content_font: Handle<Font>,
-}
 
 #[derive(Component)]
 pub struct MainUI;
@@ -27,17 +24,13 @@ pub struct MainUI;
 #[derive(Component)]
 pub struct PingView;
 
-// #[derive(Resource)]
-// pub struct UiAssets {
-//     pub resize_cursor: Handle<Image>,
-// }
+pub struct GameUiPlugin;
 
-pub struct UiPlugin;
-
-impl Plugin for UiPlugin {
+impl Plugin for GameUiPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(window::UIWindowPlugin)
             .add_systems(OnEnter(GameState::InGame), spawn_main_ui)
+            .add_systems(Startup, assets::setup_game_ui_assets)
             .add_systems(
                 Update,
                 (
@@ -62,13 +55,9 @@ impl Plugin for UiPlugin {
 fn spawn_main_ui(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
-    render_texture: Res<crate::camera::GameRenderTexture>,
+    render_texture: Res<GameRenderTexture>,
+    ui_assets: Res<GameUiAssets>,
 ) {
-    let fonts = UiFonts {
-        main_font: asset_server.load("fonts/Aldrich-Regular.ttf"),
-        content_font: asset_server.load("fonts/RubikMonoOne-Regular.ttf"),
-    };
-
     let main_ui = commands
         .spawn((
             MainUI,
@@ -96,7 +85,7 @@ fn spawn_main_ui(
         .entity(main_ui)
         .add_children(&[left_panel, middle_container, right_panel]);
 
-    let top_panel = toppanel::spawn_top_panel(&mut commands, &asset_server, &fonts);
+    let top_panel = toppanel::spawn_top_panel(&mut commands, &asset_server, &ui_assets);
     let gameview = game_overlay::spawn_gameviewport(&mut commands, &render_texture);
     let chat = chat::spawn_chat(&mut commands, &asset_server);
     commands
@@ -115,7 +104,7 @@ fn spawn_main_ui(
                 PingView,
                 Text::new(""),
                 TextFont {
-                    font: fonts.content_font.clone(),
+                    font: ui_assets.fonts.content_font.clone(),
                     font_size: 11.0,
                     ..default()
                 },
@@ -124,8 +113,6 @@ fn spawn_main_ui(
         ))
         .id();
     commands.entity(gameview).add_child(ping_view);
-
-    commands.insert_resource(fonts);
 }
 
 pub fn update_ping(mut ping_text: Single<&mut Text, With<PingView>>, ping_state: Res<PingState>) {

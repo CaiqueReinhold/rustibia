@@ -6,7 +6,7 @@ mod interaction;
 mod keyboard;
 mod movement;
 
-pub use interaction::{ItemPlacement, MouseHoverState};
+pub use interaction::{MouseHoverState, PendingUseAck};
 
 use crate::core::GameState;
 

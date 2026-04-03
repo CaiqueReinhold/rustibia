@@ -66,6 +66,7 @@ pub struct UseItemAck;
 pub struct OpenContainer {
     pub container_id: ContainerId,
     pub capacity: u8,
+    pub has_parent: bool,
     pub title: String,
     pub items: Box<[Option<(ItemId, u8)>]>,
 }
@@ -136,12 +137,14 @@ pub fn route_event(msg: ServerMessage, commands: &mut Commands) {
         ServerMessage::OpenContainer {
             container_id,
             capacity,
+            has_parent,
             title,
             items,
         } => {
             commands.trigger(OpenContainer {
                 container_id,
                 capacity,
+                has_parent,
                 title,
                 items,
             });

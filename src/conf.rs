@@ -36,6 +36,7 @@ pub mod ui {
     pub const SIDE_PANEL_WIDTH: f32 = 180.0;
     pub const CHAT_BOX_HEIGHT: f32 = 220.0;
     pub const UI_ITEM_SIZE: f32 = 32.0;
+    pub const LOOT_CONTAINER_DEFAULT_HEIGHT: usize = 40;
 
     pub mod z_index {
         pub const DRAGGED_ITEM_UI_Z: i32 = 100;

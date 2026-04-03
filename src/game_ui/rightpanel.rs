@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use crate::conf::ui::SIDE_PANEL_WIDTH;
-use crate::main_ui::window::{DockId, Index, UIWindowDock};
+use crate::game_ui::window::{DockId, Index, UIWindowDock};
 
 #[derive(Component)]
 pub struct RightPanel;
