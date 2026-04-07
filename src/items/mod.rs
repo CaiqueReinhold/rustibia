@@ -8,6 +8,7 @@ use crate::{
 mod container;
 mod events;
 mod instancing;
+mod inventory;
 mod item;
 mod material;
 mod ui_item;
@@ -15,7 +16,7 @@ mod ui_item;
 pub use container::{ContainerId, LootContainerUI};
 pub use events::*;
 pub use instancing::ChangedTileQueue;
-pub use item::{Item, ItemConfig, ItemFlag, ItemId, ItemPlacement};
+pub use item::{InventorySlot, Item, ItemConfig, ItemFlag, ItemId, ItemPlacement};
 
 pub struct ItemsPlugin;
 
@@ -27,11 +28,16 @@ impl Plugin for ItemsPlugin {
             .init_resource::<ChangedTileQueue>()
             .add_systems(Startup, instancing::init_material_buffer)
             .add_systems(
+                OnEnter(GameState::InGame),
+                inventory::spawn_inventory_ui.after(crate::game_ui::spawn_main_ui),
+            )
+            .add_systems(
                 Update,
                 (
                     instancing::process_tile_changed,
                     ui_item::move_dragged_item,
                     container::container_content_changed,
+                    inventory::update_inventory_ui,
                 )
                     .run_if(in_state(GameState::InGame)),
             )

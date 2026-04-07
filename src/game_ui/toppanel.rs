@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use crate::actor::{Health, HealthState, Mana};
-use crate::conf::ui::TOP_BAR_HEIGHT;
+use crate::conf::ui::{ui_colors, TOP_BAR_HEIGHT};
 use crate::game_ui::assets::GameUiAssets;
 use crate::player::components::Player;
 
@@ -51,14 +51,6 @@ pub fn spawn_top_panel(
         fill_blue: asset_server.load("ui/bar_blue.png"),
         fill_small_green: asset_server.load("ui/small_fill_green.png"),
     };
-    let bg_box = asset_server.load("ui/box_under.png");
-
-    let slicer = TextureSlicer {
-        border: BorderRect::all(50.0),
-        center_scale_mode: SliceScaleMode::Stretch,
-        sides_scale_mode: SliceScaleMode::Stretch,
-        max_corner_scale: 1.0,
-    };
 
     let top_panel = commands
         .spawn((
@@ -66,28 +58,52 @@ pub fn spawn_top_panel(
             Node {
                 position_type: PositionType::Relative,
                 width: Val::Percent(100.0),
-                max_height: Val::Px(TOP_BAR_HEIGHT - 2.0),
-                min_height: Val::Px(TOP_BAR_HEIGHT - 2.0),
-                flex_direction: FlexDirection::Row,
-                align_items: AlignItems::Start,
-                align_content: AlignContent::Start,
-                row_gap: Val::Px(5.0),
-                padding: UiRect::all(Val::Px(4.0)),
-                flex_wrap: FlexWrap::Wrap,
-                margin: UiRect {
+                max_height: Val::Px(TOP_BAR_HEIGHT),
+                min_height: Val::Px(TOP_BAR_HEIGHT),
+                border: UiRect {
+                    top: Val::Px(1.0),
+                    left: Val::Px(2.0),
+                    right: Val::Px(2.0),
                     bottom: Val::Px(2.0),
-                    ..default()
                 },
                 ..default()
             },
-            (ImageNode {
-                image: bg_box,
-                ..default()
-            })
-            .with_mode(NodeImageMode::Sliced(slicer)),
+            BorderColor {
+                top: ui_colors::LIGHT_BORDER_COLOR.into(),
+                right: ui_colors::DARK_BORDER_COLOR.into(),
+                bottom: ui_colors::DARK_BORDER_COLOR.into(),
+                left: ui_colors::LIGHT_BORDER_COLOR.into(),
+            },
             ZIndex(5),
         ))
         .id();
+
+    let panel_inner = commands
+        .spawn((
+            Node {
+                width: Val::Percent(100.0),
+                height: Val::Percent(100.0),
+                flex_direction: FlexDirection::Row,
+                align_items: AlignItems::Start,
+                align_content: AlignContent::Start,
+                row_gap: Val::Px(3.0),
+                flex_wrap: FlexWrap::Wrap,
+                padding: UiRect::all(Val::Px(2.0)),
+                ..default()
+            },
+            ImageNode {
+                image: ui_assets.background_light.clone(),
+                image_mode: NodeImageMode::Tiled {
+                    tile_x: true,
+                    tile_y: true,
+                    stretch_value: 1.0,
+                },
+                ..default()
+            },
+        ))
+        .id();
+
+    commands.entity(top_panel).add_child(panel_inner);
 
     let health = spawn_ui_bar(
         commands,
@@ -97,7 +113,7 @@ pub fn spawn_top_panel(
         true,
         bar_assets.background.clone(),
         bar_assets.fill_dark_green.clone(),
-        ui_assets.fonts.content_font.clone(),
+        ui_assets.font.clone(),
     );
     let mana = spawn_ui_bar(
         commands,
@@ -107,7 +123,7 @@ pub fn spawn_top_panel(
         true,
         bar_assets.background.clone(),
         bar_assets.fill_blue.clone(),
-        ui_assets.fonts.content_font.clone(),
+        ui_assets.font.clone(),
     );
     let experience = spawn_ui_bar(
         commands,
@@ -117,11 +133,11 @@ pub fn spawn_top_panel(
         false,
         bar_assets.background.clone(),
         bar_assets.fill_small_green.clone(),
-        ui_assets.fonts.content_font.clone(),
+        ui_assets.font.clone(),
     );
 
     commands
-        .entity(top_panel)
+        .entity(panel_inner)
         .add_children(&[health, mana, experience]);
 
     commands.insert_resource(bar_assets);

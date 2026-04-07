@@ -4,7 +4,7 @@ use crate::{
     actor::{Health, Mana},
     conf::map::{TILES_X, TILES_Y},
     core::{OutfitId, TextMessageType},
-    items::{ContainerId, ItemId},
+    items::{ContainerId, InventorySlot, ItemId},
     map::Position,
     network::{messages::ItemStack, ServerMessage},
 };
@@ -22,8 +22,18 @@ pub struct SpawnPlayer {
     pub _level: u16,
     pub health: Health,
     pub mana: Mana,
-    pub outfit: OutfitId,
+    pub outfit: (OutfitId, (u8, u8, u8, u8)),
     pub speed: u16,
+    pub inventory_head: Option<ItemId>,
+    pub inventory_amulet: Option<ItemId>,
+    pub inventory_backpack: Option<ItemId>,
+    pub inventory_chest: Option<ItemId>,
+    pub inventory_right_hand: Option<ItemId>,
+    pub inventory_left_hand: Option<ItemId>,
+    pub inventory_legs: Option<ItemId>,
+    pub inventory_feet: Option<ItemId>,
+    pub inventory_ring: Option<ItemId>,
+    pub inventory_trinket: Option<ItemId>,
 }
 
 #[derive(Event, Debug)]
@@ -85,6 +95,12 @@ pub struct ContainerClosed {
 #[derive(Event, Debug)]
 pub struct PlayerWalkDenied;
 
+#[derive(Event, Debug)]
+pub struct IventorySlotUpdated {
+    pub slot: InventorySlot,
+    pub item_id: Option<ItemId>,
+}
+
 pub fn route_event(msg: ServerMessage, commands: &mut Commands) {
     match msg {
         ServerMessage::Pong => {
@@ -99,6 +115,16 @@ pub fn route_event(msg: ServerMessage, commands: &mut Commands) {
             mana,
             outfit,
             speed,
+            inventory_head,
+            inventory_amulet,
+            inventory_backpack,
+            inventory_chest,
+            inventory_right_hand,
+            inventory_left_hand,
+            inventory_legs,
+            inventory_feet,
+            inventory_ring,
+            inventory_trinket,
         } => {
             commands.trigger(SpawnPlayer {
                 position,
@@ -108,6 +134,16 @@ pub fn route_event(msg: ServerMessage, commands: &mut Commands) {
                 mana,
                 outfit,
                 speed,
+                inventory_head,
+                inventory_amulet,
+                inventory_backpack,
+                inventory_chest,
+                inventory_right_hand,
+                inventory_left_hand,
+                inventory_legs,
+                inventory_feet,
+                inventory_ring,
+                inventory_trinket,
             });
         }
         ServerMessage::DescribeMap { tiles } => {
@@ -163,6 +199,9 @@ pub fn route_event(msg: ServerMessage, commands: &mut Commands) {
         }
         ServerMessage::PlayerWalkDenied => {
             commands.trigger(PlayerWalkDenied);
+        }
+        ServerMessage::IventorySlotUpdated { slot, item_id } => {
+            commands.trigger(IventorySlotUpdated { slot, item_id });
         }
     }
 }

@@ -48,10 +48,7 @@ pub fn spawn_actor(
     appearances: &Appearances,
     time: &Time,
     outfit_id: OutfitId,
-    color_head: u32,
-    color_body: u32,
-    color_legs: u32,
-    color_feet: u32,
+    outfit_colors: (u8, u8, u8, u8),
     speed: u16,
     addons: u32,
     position: Position,
@@ -76,10 +73,7 @@ pub fn spawn_actor(
     let actor = Actor {
         // outfit_id,
         addons,
-        color_head,
-        color_body,
-        color_feet,
-        color_legs,
+        outfit_colors,
         speed,
         box_size: [outfit.still_sprite.box_size, outfit.moving_sprite.box_size],
         boxes: [
@@ -198,10 +192,10 @@ pub fn update_actor_instances(
         instance.direction = actor.direction.into();
         instance.mounted = actor.mounted.into();
         instance.addons = actor.addons;
-        instance.color_head = COLOR_TABLE[actor.color_head as usize];
-        instance.color_body = COLOR_TABLE[actor.color_body as usize];
-        instance.color_legs = COLOR_TABLE[actor.color_legs as usize];
-        instance.color_feet = COLOR_TABLE[actor.color_feet as usize];
+        instance.color_head = COLOR_TABLE[actor.outfit_colors.0 as usize];
+        instance.color_body = COLOR_TABLE[actor.outfit_colors.1 as usize];
+        instance.color_legs = COLOR_TABLE[actor.outfit_colors.2 as usize];
+        instance.color_feet = COLOR_TABLE[actor.outfit_colors.3 as usize];
         instance.bounding_square = actor.box_size[instance.moving as usize];
         let bbox = &actor.boxes[instance.moving as usize][actor.direction as usize];
         instance.bbox_min = bbox.min;

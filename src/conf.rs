@@ -6,7 +6,7 @@ pub mod map {
     pub const TILES_Y: usize = 15;
     pub const STACK_MAX_VISIBLE_ITEMS: usize = 8;
     pub const CONTAINER_COORD_FLAG: u32 = 0xFFFFFFFF;
-    // pub const INVENTORY_COORD_FLAG: u32 = 0xFFFFFFFE;
+    pub const INVENTORY_COORD_FLAG: u32 = 0xFFFFFFFE;
 }
 
 pub mod z_order {
@@ -32,18 +32,24 @@ pub mod viewport {
 }
 
 pub mod ui {
-    pub const TOP_BAR_HEIGHT: f32 = 80.0;
-    pub const SIDE_PANEL_WIDTH: f32 = 180.0;
-    pub const CHAT_BOX_HEIGHT: f32 = 220.0;
-    pub const UI_ITEM_SIZE: f32 = 32.0;
+    pub const TOP_BAR_HEIGHT: f32 = 50.0;
+    pub const SIDE_PANEL_WIDTH: f32 = 170.0;
+    pub const CHAT_BOX_HEIGHT: f32 = 170.0;
+    pub const UI_ITEM_SIZE: f32 = 30.0;
     pub const LOOT_CONTAINER_DEFAULT_HEIGHT: usize = 40;
+    pub const INVENTORY_HEIGHT: f32 = 163.0;
+    pub const ITEM_SLOT_SIZE: f32 = 34.0;
 
     pub mod z_index {
+        pub const Z_WINDOW: i32 = 10;
+        pub const Z_DRAGGING_WINDOW: i32 = 20;
         pub const DRAGGED_ITEM_UI_Z: i32 = 100;
     }
 
     pub mod ui_colors {
         use bevy::color::Srgba;
+        pub const DARK_BORDER_COLOR: Srgba = Srgba::new(0.145098, 0.145098, 0.145098, 1.0);
+        pub const LIGHT_BORDER_COLOR: Srgba = Srgba::new(0.4588235, 0.4588235, 0.4588235, 1.0);
 
         pub const ITEM_SLOT_OUTLINE: Srgba = Srgba::new(0.35, 0.35, 0.35, 1.0);
         pub const ITEM_SLOT_OUTLINE_HOVERED: Srgba = Srgba::new(0.8, 0.8, 0.8, 1.0);

@@ -1,24 +1,16 @@
 use bevy::prelude::*;
 
-use crate::conf::ui::SIDE_PANEL_WIDTH;
+use crate::conf::ui::{ui_colors, SIDE_PANEL_WIDTH};
 use crate::game_ui::window::{DockId, Index, UIWindowDock};
+use crate::game_ui::GameUiAssets;
 
 #[derive(Component)]
 pub struct RightPanel;
 
-pub fn spawn_right_panel(commands: &mut Commands, asset_server: &Res<AssetServer>) -> Entity {
-    let bg_box = asset_server.load("ui/box.png");
+#[derive(Component)]
+pub struct RightPanelDock;
 
-    let slicer = TextureSlicer {
-        border: BorderRect {
-            min_inset: Vec2 { x: 20.0, y: 50.0 },
-            max_inset: Vec2 { x: 20.0, y: 50.0 },
-        },
-        center_scale_mode: SliceScaleMode::Stretch,
-        sides_scale_mode: SliceScaleMode::Stretch,
-        max_corner_scale: 1.0,
-    };
-
+pub fn spawn_right_panel(commands: &mut Commands, ui_assets: &GameUiAssets) -> Entity {
     commands
         .spawn((
             RightPanel,
@@ -28,14 +20,20 @@ pub fn spawn_right_panel(commands: &mut Commands, asset_server: &Res<AssetServer
                 min_width: Val::Px(SIDE_PANEL_WIDTH),
                 height: Val::Percent(100.0),
                 flex_direction: FlexDirection::Column,
-                padding: UiRect::all(Val::Px(8.0)),
+                border: UiRect {
+                    top: Val::Px(0.0),
+                    left: Val::Px(2.0),
+                    right: Val::Px(2.0),
+                    bottom: Val::Px(2.0),
+                },
                 ..default()
             },
-            (ImageNode {
-                image: bg_box,
-                ..default()
-            })
-            .with_mode(NodeImageMode::Sliced(slicer)),
+            BorderColor {
+                top: ui_colors::LIGHT_BORDER_COLOR.into(),
+                right: ui_colors::DARK_BORDER_COLOR.into(),
+                bottom: ui_colors::DARK_BORDER_COLOR.into(),
+                left: ui_colors::LIGHT_BORDER_COLOR.into(),
+            },
             ZIndex(1),
         ))
         .with_children(|parent| {
@@ -48,6 +46,16 @@ pub fn spawn_right_panel(commands: &mut Commands, asset_server: &Res<AssetServer
                 },
                 UIWindowDock { id: DockId::new() },
                 Index(0),
+                RightPanelDock,
+                ImageNode {
+                    image: ui_assets.background_light.clone(),
+                    image_mode: NodeImageMode::Tiled {
+                        tile_x: true,
+                        tile_y: true,
+                        stretch_value: 1.0,
+                    },
+                    ..default()
+                },
             ));
         })
         .id()

@@ -5,20 +5,20 @@ use bevy::prelude::*;
 use crate::{
     camera::GameCamera,
     conf::{
-        map::CONTAINER_COORD_FLAG,
+        map::{CONTAINER_COORD_FLAG, INVENTORY_COORD_FLAG},
         viewport::{GAME_VIEW_HEIGHT, GAME_VIEW_WIDTH},
     },
     game_ui::{GameViewport, MainUI, UiWindowRef, WindowId},
     items::{
-        Item, ItemDragEnded, ItemDragStarted, ItemFlag, ItemMoveCanceled, ItemMoveConfirmed,
-        ItemPlacement, LootContainerUI,
+        InventorySlot, Item, ItemDragEnded, ItemDragStarted, ItemFlag, ItemMoveCanceled,
+        ItemMoveConfirmed, ItemPlacement, LootContainerUI,
     },
     map::{Map, Position},
     network::{
         events::{MoveItemResult, UseItemAck},
         ClientMessage, SendMessage,
     },
-    player::components::Player,
+    player::components::{Player, PlayerInventory},
 };
 
 #[derive(Resource, Debug)]
@@ -39,6 +39,7 @@ pub struct MouseHoverState {
     pub tile_position: Option<Position>,
     pub container: Option<Entity>,
     pub container_slot: Option<usize>,
+    pub inventory_slot: Option<InventorySlot>,
 }
 
 pub fn update_hover_state(
@@ -46,19 +47,14 @@ pub fn update_hover_state(
     camera_transform: Single<&GlobalTransform, With<GameCamera>>,
     player_position: Single<&Position, With<Player>>,
     mut hover_state: ResMut<MouseHoverState>,
-    viewport_q: Query<&Children, With<GameViewport>>,
-    node_q: Query<(&ComputedNode, &UiGlobalTransform), With<ImageNode>>,
+    node_q: Query<(&ComputedNode, &UiGlobalTransform), With<GameViewport>>,
 ) {
     let Some(mouse_position) = window.cursor_position() else {
         return;
     };
     hover_state.screen_position = mouse_position;
 
-    let Ok(children) = viewport_q.single() else {
-        return;
-    };
-    let Some((computed, ui_transform)) = children.iter().find_map(|child| node_q.get(child).ok())
-    else {
+    let Ok((computed, ui_transform)) = node_q.single() else {
         return;
     };
 
@@ -96,6 +92,7 @@ fn on_drag_start(
     map: Res<Map>,
     drag_state: Option<Res<ItemDragState>>,
     container_q: Query<&LootContainerUI>,
+    inventory: Res<PlayerInventory>,
 ) {
     if drag_state.is_some() {
         return;
@@ -128,10 +125,7 @@ fn on_drag_start(
                 index,
             },
         });
-        return;
-    }
-
-    if let Some(container) = hover_state.container {
+    } else if let Some(container) = hover_state.container {
         let Some(slot) = hover_state.container_slot else {
             return;
         };
@@ -156,6 +150,23 @@ fn on_drag_start(
                 slot,
             },
         });
+    } else if let Some(inventory_slot) = hover_state.inventory_slot {
+        let Some(item) = inventory.items.get(&inventory_slot) else {
+            return;
+        };
+
+        commands.insert_resource(ItemDragState {
+            item: item.clone(),
+            origin: ItemPlacement::Inventory {
+                slot: inventory_slot,
+            },
+        });
+        commands.trigger(ItemDragStarted {
+            item: item.clone(),
+            origin: ItemPlacement::Inventory {
+                slot: inventory_slot,
+            },
+        });
     }
 }
 
@@ -172,14 +183,22 @@ fn on_drag_end(
     };
 
     let (from_position, stack_index) = match &drag_state.origin {
-        ItemPlacement::Map { position, index } => (position.clone(), index),
+        ItemPlacement::Map { position, index } => (position.clone(), *index),
         ItemPlacement::Container { container_id, slot } => (
             Position {
                 x: CONTAINER_COORD_FLAG,
                 y: *container_id as u32,
                 z: *slot as u32,
             },
-            slot,
+            0,
+        ),
+        ItemPlacement::Inventory { slot } => (
+            Position {
+                x: INVENTORY_COORD_FLAG,
+                y: slot.as_id(),
+                z: 0,
+            },
+            0,
         ),
     };
 
@@ -196,7 +215,7 @@ fn on_drag_end(
                     from: from_position,
                     item_id: drag_state.item.config.id,
                     amount: drag_state.item.amount as u8,
-                    stack_index: *stack_index as u16,
+                    stack_index: stack_index as u16,
                     to: target_position.clone(),
                 },
             });
@@ -215,7 +234,7 @@ fn on_drag_end(
                     from: from_position,
                     item_id: drag_state.item.config.id,
                     amount: drag_state.item.amount as u8,
-                    stack_index: *stack_index as u16,
+                    stack_index: stack_index as u16,
                     to: Position {
                         x: CONTAINER_COORD_FLAG,
                         y: container_ui.container_id as u32,
@@ -224,6 +243,26 @@ fn on_drag_end(
                 },
             });
             canceled = false;
+        }
+    } else if let Some(slot) = hover_state.inventory_slot {
+        if let Some(item_slot) = drag_state.item.config.slot {
+            if item_slot == slot
+                || (item_slot == InventorySlot::BothHands && slot == InventorySlot::LeftHand)
+            {
+                commands.trigger(SendMessage {
+                    msg: ClientMessage::MoveItem {
+                        from: from_position,
+                        item_id: drag_state.item.config.id,
+                        amount: drag_state.item.amount as u8,
+                        stack_index: stack_index as u16,
+                        to: Position {
+                            x: INVENTORY_COORD_FLAG,
+                            y: slot.as_id(),
+                            z: 0,
+                        },
+                    },
+                });
+            }
         }
     }
 
@@ -252,6 +291,7 @@ fn on_item_click(
     drag_state: Option<Res<ItemDragState>>,
     pending_ack: Option<Res<PendingUseAck>>,
     container_q: Query<(&LootContainerUI, &UiWindowRef)>,
+    inventory: Res<PlayerInventory>,
 ) {
     if drag_state.is_some() || pending_ack.is_some() {
         return;
@@ -303,7 +343,32 @@ fn on_item_click(
                     commands.insert_resource(PendingUseAck {
                         target_window_id: Some(window_ref.window_id),
                     });
+                } else {
+                    commands.insert_resource(PendingUseAck {
+                        target_window_id: None,
+                    });
                 }
+            }
+        } else if let Some(slot) = &hover_state.inventory_slot {
+            let Some(item) = inventory.items.get(slot) else {
+                return;
+            };
+
+            if item.config.has_flag(ItemFlag::Usable) {
+                commands.trigger(SendMessage {
+                    msg: ClientMessage::UseItem {
+                        position: Position {
+                            x: INVENTORY_COORD_FLAG,
+                            y: slot.as_id(),
+                            z: 0,
+                        },
+                        item_id: item.config.id,
+                        stack_index: 0,
+                    },
+                });
+                commands.insert_resource(PendingUseAck {
+                    target_window_id: None,
+                });
             }
         }
     }

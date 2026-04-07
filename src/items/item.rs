@@ -4,6 +4,56 @@ use crate::{core::SpriteConfig, items::ContainerId, map::Position};
 
 pub type ItemId = u16;
 
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Copy, PartialOrd, Ord)]
+pub enum InventorySlot {
+    Head,
+    Amulet,
+    Chest,
+    Backpack,
+    LeftHand,
+    RightHand,
+    BothHands,
+    Ring,
+    Legs,
+    Feet,
+    Trinket,
+}
+
+impl InventorySlot {
+    pub fn as_id(&self) -> u32 {
+        match self {
+            InventorySlot::BothHands => 0,
+            InventorySlot::Head => 1,
+            InventorySlot::Amulet => 2,
+            InventorySlot::Backpack => 3,
+            InventorySlot::Chest => 4,
+            InventorySlot::RightHand => 5,
+            InventorySlot::LeftHand => 6,
+            InventorySlot::Legs => 7,
+            InventorySlot::Feet => 8,
+            InventorySlot::Ring => 9,
+            InventorySlot::Trinket => 10,
+        }
+    }
+
+    pub fn from_id(id: u8) -> Option<Self> {
+        match id {
+            0 => Some(InventorySlot::BothHands),
+            1 => Some(InventorySlot::Head),
+            2 => Some(InventorySlot::Amulet),
+            3 => Some(InventorySlot::Backpack),
+            4 => Some(InventorySlot::Chest),
+            5 => Some(InventorySlot::RightHand),
+            6 => Some(InventorySlot::LeftHand),
+            7 => Some(InventorySlot::Legs),
+            8 => Some(InventorySlot::Feet),
+            9 => Some(InventorySlot::Ring),
+            10 => Some(InventorySlot::Trinket),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Clone, Debug)]
 pub enum ItemPlacement {
     Map {
@@ -13,6 +63,9 @@ pub enum ItemPlacement {
     Container {
         container_id: ContainerId,
         slot: usize,
+    },
+    Inventory {
+        slot: InventorySlot,
     },
 }
 
@@ -37,6 +90,7 @@ pub struct ItemConfig {
     // pub name: Option<String>,
     pub flags: Vec<ItemFlag>,
     pub friction: Option<u8>,
+    pub slot: Option<InventorySlot>,
     // pub minimap_color: Option<u8>,
 }
 

@@ -9,12 +9,17 @@ use bevy::{
 use std::cmp::Reverse;
 use std::sync::Mutex;
 
-use crate::game_ui::assets::GameUiAssets;
+use crate::{
+    conf::ui::{
+        ui_colors,
+        z_index::{Z_DRAGGING_WINDOW, Z_WINDOW},
+        SIDE_PANEL_WIDTH,
+    },
+    game_ui::assets::GameUiAssets,
+};
 
 const WINDOW_MIN_HEIGHT: f32 = 32.0;
-const WINDOW_TITLE_HEIGHT: f32 = 18.0;
-const Z_WINDOW: i32 = 10;
-const Z_DRAGGING: i32 = 20;
+const WINDOW_TITLE_HEIGHT: f32 = 12.0;
 const STIFFNESS: f32 = 40.0;
 const DAMPING: f32 = 12.0;
 const SNAP_THRESHOLD: f32 = 0.5;
@@ -316,8 +321,9 @@ fn set_window_title_bar_content(
     bar.spawn((
         Text::new(title),
         TextFont {
-            font: ui_assets.fonts.main_font.clone(),
-            font_size: 12.0,
+            font: ui_assets.font.clone(),
+            font_size: 9.0,
+            weight: FontWeight::EXTRA_BOLD,
             ..default()
         },
         Node {
@@ -336,6 +342,20 @@ fn set_window_title_bar_content(
         Node {
             width: Val::Px(10.0),
             height: Val::Px(10.0),
+            border: UiRect::all(Val::Px(1.0)),
+            ..default()
+        },
+        BorderColor {
+            top: ui_colors::LIGHT_BORDER_COLOR.into(),
+            right: ui_colors::DARK_BORDER_COLOR.into(),
+            bottom: ui_colors::DARK_BORDER_COLOR.into(),
+            left: ui_colors::LIGHT_BORDER_COLOR.into(),
+        },
+    ))
+    .with_child((
+        Node {
+            width: Val::Percent(100.0),
+            height: Val::Percent(100.0),
             ..default()
         },
         ImageNode {
@@ -357,6 +377,20 @@ fn set_window_title_bar_content(
         Node {
             width: Val::Px(10.0),
             height: Val::Px(10.0),
+            border: UiRect::all(Val::Px(1.0)),
+            ..default()
+        },
+        BorderColor {
+            top: ui_colors::LIGHT_BORDER_COLOR.into(),
+            right: ui_colors::DARK_BORDER_COLOR.into(),
+            bottom: ui_colors::DARK_BORDER_COLOR.into(),
+            left: ui_colors::LIGHT_BORDER_COLOR.into(),
+        },
+    ))
+    .with_child((
+        Node {
+            width: Val::Percent(100.0),
+            height: Val::Percent(100.0),
             ..default()
         },
         ImageNode {
@@ -400,12 +434,20 @@ fn on_add_window(
     let window = commands
         .spawn((
             Node {
-                width: Val::Percent(100.0),
+                left: Val::Px(-2.0),
+                width: Val::Px(SIDE_PANEL_WIDTH),
                 height: Val::Px(total_height),
+                border: UiRect::all(Val::Px(2.0)),
                 min_height: Val::Px(WINDOW_MIN_HEIGHT),
                 flex_direction: FlexDirection::Column,
-                overflow: Overflow::hidden(),
+                // overflow: Overflow::hidden(),
                 ..default()
+            },
+            BorderColor {
+                top: ui_colors::LIGHT_BORDER_COLOR.into(),
+                left: ui_colors::LIGHT_BORDER_COLOR.into(),
+                bottom: ui_colors::DARK_BORDER_COLOR.into(),
+                right: ui_colors::DARK_BORDER_COLOR.into(),
             },
             ZIndex(Z_WINDOW),
             UIWindow {
@@ -426,7 +468,15 @@ fn on_add_window(
                         padding: UiRect::horizontal(Val::Px(2.0)),
                         ..default()
                     },
-                    BackgroundColor(Color::srgb(0.2, 0.2, 0.25)),
+                    ImageNode {
+                        image: ui_assets.background_dark.clone(),
+                        image_mode: NodeImageMode::Tiled {
+                            tile_x: true,
+                            tile_y: true,
+                            stretch_value: 1.0,
+                        },
+                        ..default()
+                    },
                     UIWindowTitleBar,
                 ))
                 .with_children(
@@ -450,68 +500,108 @@ fn on_add_window(
                         flex_grow: 1.0,
                         flex_direction: FlexDirection::Row,
                         overflow: Overflow::hidden(),
+                        padding: UiRect::all(Val::Px(1.0)),
                         ..default()
                     },
-                    Hovered::default(),
-                    BackgroundColor(Color::BLACK),
-                    UIScrollableView,
+                    ImageNode {
+                        image: ui_assets.background_dark.clone(),
+                        image_mode: NodeImageMode::Tiled {
+                            tile_x: true,
+                            tile_y: true,
+                            stretch_value: 1.0,
+                        },
+                        ..default()
+                    },
                 ))
                 .with_children(|scroll_view| {
-                    let scroll_area_id = scroll_view
+                    scroll_view
                         .spawn((
                             Node {
                                 width: Val::Percent(100.0),
                                 display: Display::Flex,
-                                flex_direction: FlexDirection::Column,
-                                overflow: Overflow::scroll_y(),
+                                flex_direction: FlexDirection::Row,
+                                overflow: Overflow::hidden(),
+                                border: UiRect::all(Val::Px(1.0)),
                                 ..default()
                             },
-                            ScrollPosition(Vec2::ZERO),
-                        ))
-                        .with_children(|scroll_content| {
-                            scroll_content
-                                .spawn((Node {
-                                    width: Val::Percent(100.0),
-                                    overflow: Overflow::clip(),
-                                    ..default()
-                                },))
-                                .add_child(event.content);
-                        })
-                        .id();
-
-                    scroll_view.spawn((
-                        Node {
-                            min_width: px(10),
-                            height: Val::Percent(100.0),
-                            ..default()
-                        },
-                        Scrollbar {
-                            orientation: ControlOrientation::Vertical,
-                            target: scroll_area_id,
-                            min_thumb_length: 10.0,
-                        },
-                        Children::spawn(Spawn((
-                            Node {
-                                position_type: PositionType::Absolute,
-                                border_radius: BorderRadius::all(px(4)),
-                                ..default()
+                            BorderColor {
+                                top: ui_colors::DARK_BORDER_COLOR.into(),
+                                right: ui_colors::LIGHT_BORDER_COLOR.into(),
+                                bottom: ui_colors::LIGHT_BORDER_COLOR.into(),
+                                left: ui_colors::DARK_BORDER_COLOR.into(),
                             },
                             Hovered::default(),
-                            BackgroundColor(Srgba::new(0.486, 0.486, 0.529, 1.0).into()),
-                            CoreScrollbarThumb,
-                        ))),
-                    ));
+                            UIScrollableView,
+                        ))
+                        .with_children(|inner| {
+                            let scroll_area_id = inner
+                                .spawn((
+                                    Node {
+                                        width: Val::Percent(100.0),
+                                        display: Display::Flex,
+                                        flex_direction: FlexDirection::Column,
+                                        overflow: Overflow::scroll_y(),
+                                        ..default()
+                                    },
+                                    ImageNode {
+                                        image: ui_assets.background_light.clone(),
+                                        image_mode: NodeImageMode::Tiled {
+                                            tile_x: true,
+                                            tile_y: true,
+                                            stretch_value: 1.0,
+                                        },
+                                        ..default()
+                                    },
+                                    ScrollPosition(Vec2::ZERO),
+                                ))
+                                .with_children(|scroll_content| {
+                                    scroll_content
+                                        .spawn((Node {
+                                            width: Val::Percent(100.0),
+                                            overflow: Overflow::clip(),
+                                            ..default()
+                                        },))
+                                        .add_child(event.content);
+                                })
+                                .id();
+
+                            inner.spawn((
+                                Node {
+                                    min_width: px(10),
+                                    height: Val::Percent(100.0),
+                                    ..default()
+                                },
+                                Scrollbar {
+                                    orientation: ControlOrientation::Vertical,
+                                    target: scroll_area_id,
+                                    min_thumb_length: 10.0,
+                                },
+                                Children::spawn(Spawn((
+                                    Node {
+                                        position_type: PositionType::Absolute,
+                                        border_radius: BorderRadius::all(px(4)),
+                                        ..default()
+                                    },
+                                    Hovered::default(),
+                                    BackgroundColor(Srgba::new(0.486, 0.486, 0.529, 1.0).into()),
+                                    CoreScrollbarThumb,
+                                ))),
+                            ));
+                        });
                 });
 
             window
-                .spawn((Node {
-                    width: Val::Percent(100.0),
-                    height: Val::Px(8.0),
-                    position_type: PositionType::Absolute,
-                    bottom: Val::Px(0.0),
-                    left: Val::Px(0.0),
-                    ..default()
-                },))
+                .spawn((
+                    Node {
+                        width: Val::Percent(100.0),
+                        height: Val::Px(5.0),
+                        position_type: PositionType::Absolute,
+                        bottom: Val::Px(-5.0),
+                        left: Val::Px(0.0),
+                        ..default()
+                    },
+                    // BackgroundColor(Color::WHITE),
+                ))
                 .observe(on_over_resize_handle)
                 .observe(on_out_resize_handle)
                 .observe(on_resize_start)
@@ -557,6 +647,7 @@ fn on_replace_window_content(
 
     let Ok(scroll_content) = children_q
         .get(*children.get(1).unwrap())
+        .and_then(|c| children_q.get(*c.first().unwrap()))
         .and_then(|c| children_q.get(*c.first().unwrap()))
         .map(|c| *c.first().unwrap())
     else {
@@ -891,7 +982,7 @@ fn start_drag_window(
             current_dock: Some(window.dock_id),
             prev_index: index.0,
         },
-        GlobalZIndex(Z_DRAGGING),
+        GlobalZIndex(Z_DRAGGING_WINDOW),
     ));
 
     let all_windows_in_dock = window_q
@@ -911,7 +1002,6 @@ fn start_drag_window(
             height: node.height,
             ..default()
         },
-        BackgroundColor(Color::WHITE),
         UIWindowPreview { index: index.0 },
     ));
 }

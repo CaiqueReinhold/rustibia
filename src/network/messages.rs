@@ -6,7 +6,7 @@ use crate::{
     actor::{Health, Mana, WalkingDirection},
     conf::map::{STACK_MAX_VISIBLE_ITEMS, TILES_X, TILES_Y},
     core::{OutfitId, TextMessageType},
-    items::{ContainerId, ItemId},
+    items::{ContainerId, InventorySlot, ItemId},
     map::Position,
 };
 
@@ -69,6 +69,7 @@ const MSG_OPEN_CONTAINER: u8 = 11;
 const MSG_UPDATE_CONTAINER: u8 = 12;
 const MSG_CONTAINER_CLOSED: u8 = 13;
 const MSG_PLAYER_WALK_DENIED: u8 = 14;
+const MSG_INVETORY_SLOT_UPDATED: u8 = 15;
 
 #[derive(Clone, Debug)]
 pub enum ServerMessage {
@@ -80,8 +81,18 @@ pub enum ServerMessage {
         level: u16,
         health: Health,
         mana: Mana,
-        outfit: OutfitId,
+        outfit: (OutfitId, (u8, u8, u8, u8)),
         speed: u16,
+        inventory_head: Option<ItemId>,
+        inventory_amulet: Option<ItemId>,
+        inventory_backpack: Option<ItemId>,
+        inventory_chest: Option<ItemId>,
+        inventory_right_hand: Option<ItemId>,
+        inventory_left_hand: Option<ItemId>,
+        inventory_legs: Option<ItemId>,
+        inventory_feet: Option<ItemId>,
+        inventory_ring: Option<ItemId>,
+        inventory_trinket: Option<ItemId>,
     },
     DescribeMap {
         tiles: Box<[ItemStack; TILES_X * TILES_Y]>,
@@ -119,6 +130,10 @@ pub enum ServerMessage {
         container_id: ContainerId,
     },
     PlayerWalkDenied,
+    IventorySlotUpdated {
+        slot: InventorySlot,
+        item_id: Option<ItemId>,
+    },
 }
 
 #[derive(Error, Debug)]
@@ -166,15 +181,39 @@ impl Decoder for GameMessageCodec {
                     max: buf.get_u32_le(),
                 };
                 let outfit = buf.get_u16_le();
+                let color1 = buf.get_u8();
+                let color2 = buf.get_u8();
+                let color3 = buf.get_u8();
+                let color4 = buf.get_u8();
                 let speed = buf.get_u16_le();
+                let inventory_head = decode_optional_item(buf);
+                let inventory_amulet = decode_optional_item(buf);
+                let inventory_backpack = decode_optional_item(buf);
+                let inventory_chest = decode_optional_item(buf);
+                let inventory_right_hand = decode_optional_item(buf);
+                let inventory_left_hand = decode_optional_item(buf);
+                let inventory_legs = decode_optional_item(buf);
+                let inventory_feet = decode_optional_item(buf);
+                let inventory_ring = decode_optional_item(buf);
+                let inventory_trinket = decode_optional_item(buf);
                 Ok(Some(ServerMessage::DescribePlayer {
                     position,
                     name,
                     level,
                     health,
                     mana,
-                    outfit,
+                    outfit: (outfit, (color1, color2, color3, color4)),
                     speed,
+                    inventory_head,
+                    inventory_amulet,
+                    inventory_backpack,
+                    inventory_chest,
+                    inventory_right_hand,
+                    inventory_left_hand,
+                    inventory_legs,
+                    inventory_feet,
+                    inventory_ring,
+                    inventory_trinket,
                 }))
             }
             MSG_DESCRIBE_MAP => {
@@ -246,6 +285,14 @@ impl Decoder for GameMessageCodec {
                 Ok(Some(ServerMessage::ContainerClosed { container_id }))
             }
             MSG_PLAYER_WALK_DENIED => Ok(Some(ServerMessage::PlayerWalkDenied)),
+            MSG_INVETORY_SLOT_UPDATED => {
+                let slot = InventorySlot::from_id(buf.get_u8());
+                let Some(slot) = slot else {
+                    return Err(MessageDecodeError::WrongSequence);
+                };
+                let item_id = decode_optional_item(buf);
+                Ok(Some(ServerMessage::IventorySlotUpdated { slot, item_id }))
+            }
             _ => Err(MessageDecodeError::WrongSequence),
         }
     }
@@ -291,6 +338,15 @@ fn decode_position(buf: &mut BytesMut) -> Position {
 
 fn decode_text_type(_b: u8) -> TextMessageType {
     TextMessageType::ActionDenied
+}
+
+fn decode_optional_item(buf: &mut BytesMut) -> Option<ItemId> {
+    let item_id = buf.get_u16_le();
+    if item_id == 0xFFFF {
+        None
+    } else {
+        Some(item_id)
+    }
 }
 
 // fn decode_direction(b: u8) -> Result<WalkingDirection, MessageDecodeError> {

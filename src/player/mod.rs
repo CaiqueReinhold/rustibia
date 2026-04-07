@@ -6,7 +6,7 @@ mod interaction;
 mod keyboard;
 mod movement;
 
-pub use interaction::{MouseHoverState, PendingUseAck};
+pub use interaction::{ItemDragState, MouseHoverState, PendingUseAck};
 
 use crate::core::GameState;
 
@@ -40,7 +40,8 @@ impl Plugin for PlayerPlugin {
             .add_observer(movement::on_player_walk)
             .add_observer(movement::on_ack_walk)
             .add_observer(movement::on_player_position)
+            .add_observer(movement::on_walk_denied)
             .add_observer(events::spawn_player)
-            .add_observer(movement::on_walk_denied);
+            .add_observer(events::on_slot_update);
     }
 }

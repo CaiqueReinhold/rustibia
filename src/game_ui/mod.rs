@@ -13,7 +13,11 @@ mod window;
 
 pub use assets::GameUiAssets;
 pub use game_overlay::GameViewport;
-pub use window::{AddUIWindow, CloseUIWindow, ReplaceUIWindowContent, UiWindowRef, WindowId};
+pub use rightpanel::RightPanelDock;
+pub use window::{
+    AddUIWindow, CloseUIWindow, Index, ReplaceUIWindowContent, UIWindow, UIWindowDock, UiWindowRef,
+    WindowId,
+};
 
 use crate::camera::GameRenderTexture;
 use crate::core::{GameState, PingState};
@@ -42,6 +46,10 @@ impl Plugin for GameUiPlugin {
                     .chain()
                     .run_if(in_state(GameState::InGame)),
             )
+            .add_systems(
+                Update,
+                game_overlay::update_viewport_size.run_if(in_state(GameState::InGame)),
+            )
             .add_systems(Update, update_ping.run_if(on_timer(Duration::from_secs(1))));
     }
 }
@@ -52,7 +60,7 @@ impl Plugin for GameUiPlugin {
 // });
 // }
 
-fn spawn_main_ui(
+pub(crate) fn spawn_main_ui(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     render_texture: Res<GameRenderTexture>,
@@ -72,7 +80,7 @@ fn spawn_main_ui(
         ))
         .id();
 
-    let left_panel = leftpanel::spawn_left_panel(&mut commands, &asset_server);
+    let left_panel = leftpanel::spawn_left_panel(&mut commands, &ui_assets);
     let middle_container = commands
         .spawn((Node {
             flex_grow: 1.0,
@@ -80,14 +88,14 @@ fn spawn_main_ui(
             ..default()
         },))
         .id();
-    let right_panel = rightpanel::spawn_right_panel(&mut commands, &asset_server);
+    let right_panel = rightpanel::spawn_right_panel(&mut commands, &ui_assets);
     commands
         .entity(main_ui)
         .add_children(&[left_panel, middle_container, right_panel]);
 
     let top_panel = toppanel::spawn_top_panel(&mut commands, &asset_server, &ui_assets);
-    let gameview = game_overlay::spawn_gameviewport(&mut commands, &render_texture);
-    let chat = chat::spawn_chat(&mut commands, &asset_server);
+    let gameview = game_overlay::spawn_gameviewport(&mut commands, &render_texture, &ui_assets);
+    let chat = chat::spawn_chat(&mut commands, &ui_assets);
     commands
         .entity(middle_container)
         .add_children(&[top_panel, gameview, chat]);
@@ -104,7 +112,7 @@ fn spawn_main_ui(
                 PingView,
                 Text::new(""),
                 TextFont {
-                    font: ui_assets.fonts.content_font.clone(),
+                    font: ui_assets.font.clone(),
                     font_size: 11.0,
                     ..default()
                 },

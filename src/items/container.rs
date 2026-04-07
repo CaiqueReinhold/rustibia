@@ -3,7 +3,7 @@ use std::sync::Arc;
 use bevy::prelude::*;
 
 use crate::{
-    conf::ui::{ui_colors, LOOT_CONTAINER_DEFAULT_HEIGHT},
+    conf::ui::{ui_colors, ITEM_SLOT_SIZE, LOOT_CONTAINER_DEFAULT_HEIGHT},
     core::{Appearances, ItemConfigs},
     game_ui::{AddUIWindow, CloseUIWindow, GameUiAssets, ReplaceUIWindowContent, UiWindowRef},
     items::{ui_item::spawn_ui_item, Item, ItemId, OpenParentContainer},
@@ -13,9 +13,6 @@ use crate::{
     },
     player::{MouseHoverState, PendingUseAck},
 };
-
-const SLOT_SIZE: f32 = 32.0;
-const SLOT_MARGIN: f32 = 1.0;
 
 pub type ContainerId = u16;
 
@@ -129,9 +126,15 @@ pub fn on_open_container(
                 display: Display::Flex,
                 flex_direction: FlexDirection::Row,
                 flex_wrap: FlexWrap::Wrap,
-                padding: UiRect::new(Val::Px(5.0), Val::Px(3.0), Val::Px(3.0), Val::Px(3.0)),
+                padding: UiRect {
+                    top: Val::Px(2.0),
+                    left: Val::Px(4.0),
+                    bottom: Val::ZERO,
+                    right: Val::ZERO,
+                },
                 row_gap: Val::Px(3.0),
                 column_gap: Val::Px(3.0),
+                justify_content: JustifyContent::FlexStart,
                 ..default()
             },
             Transform::default(),
@@ -142,19 +145,33 @@ pub fn on_open_container(
         let mut slot_cmds = commands.spawn((
             ContainerSlot { index: i },
             Node {
-                width: Val::Px(SLOT_SIZE),
-                height: Val::Px(SLOT_SIZE),
-                margin: UiRect::all(Val::Px(SLOT_MARGIN)),
+                width: Val::Px(ITEM_SLOT_SIZE),
+                height: Val::Px(ITEM_SLOT_SIZE),
+                border: UiRect::all(Val::Px(1.0)),
                 ..default()
             },
-            Transform::default(),
-            BackgroundColor(Color::srgba(0.1, 0.1, 0.1, 1.0)),
-            Outline {
-                width: Val::Px(1.0),
-                offset: Val::Px(0.0),
-                color: Color::from(ui_colors::ITEM_SLOT_OUTLINE),
+            BorderColor {
+                top: ui_colors::DARK_BORDER_COLOR.into(),
+                right: ui_colors::LIGHT_BORDER_COLOR.into(),
+                bottom: ui_colors::LIGHT_BORDER_COLOR.into(),
+                left: ui_colors::DARK_BORDER_COLOR.into(),
             },
+            Transform::default(),
         ));
+
+        slot_cmds.with_children(|parent| {
+            parent.spawn((
+                Node {
+                    width: Val::Percent(100.0),
+                    height: Val::Percent(100.0),
+                    ..default()
+                },
+                ImageNode {
+                    image: ui_assets.background_dark.clone(),
+                    ..default()
+                },
+            ));
+        });
         slot_cmds.observe(on_enter_slot);
         slot_cmds.observe(on_leave_slot);
 
@@ -171,6 +188,23 @@ pub fn on_open_container(
                 Node {
                     width: Val::Px(10.0),
                     height: Val::Px(10.0),
+                    border: UiRect::all(Val::Px(1.0)),
+                    flex_direction: FlexDirection::Column,
+                    justify_content: JustifyContent::Center,
+                    align_content: AlignContent::Center,
+                    ..default()
+                },
+                BorderColor {
+                    top: ui_colors::LIGHT_BORDER_COLOR.into(),
+                    right: ui_colors::DARK_BORDER_COLOR.into(),
+                    bottom: ui_colors::DARK_BORDER_COLOR.into(),
+                    left: ui_colors::LIGHT_BORDER_COLOR.into(),
+                },
+            ))
+            .with_child((
+                Node {
+                    width: Val::Percent(100.0),
+                    height: Val::Percent(100.0),
                     ..default()
                 },
                 ImageNode {
@@ -180,10 +214,6 @@ pub fn on_open_container(
             ))
             .observe(move |mut e: On<Pointer<Click>>, mut commands: Commands| {
                 e.propagate(false);
-                info!(
-                    "Open parent container button clicked for container {}",
-                    container_id
-                );
                 commands.trigger(OpenParentContainer { container_id });
             })
             .observe(|mut e: On<Pointer<DragStart>>| {
@@ -221,21 +251,10 @@ pub fn on_open_parent_container(
     mut commands: Commands,
     loot_container_q: Query<(&LootContainerUI, &UiWindowRef)>,
 ) {
-    info!(
-        "Requesting to open parent container for container {}",
-        event.container_id
-    );
-    for (container_ui, window_ref) in loot_container_q.iter() {
-        info!(
-            "Checking container {} with ID {:?}",
-            container_ui.container_id, window_ref.window_id
-        );
-    }
     let Some((_, window_ref)) = loot_container_q
         .iter()
         .find(|c| c.0.container_id == event.container_id)
     else {
-        info!("Container not found for ID: {}", event.container_id);
         return;
     };
 
@@ -305,18 +324,45 @@ pub fn container_content_changed(
     mut commands: Commands,
     container_q: Query<(&LootContainerUI, &Children), Changed<LootContainerUI>>,
     appearances: Res<Appearances>,
+    ui_assets: Res<GameUiAssets>,
     mut texture_atlases: ResMut<Assets<TextureAtlasLayout>>,
 ) {
     for (container, children) in container_q {
         for (i, child) in children.iter().enumerate() {
             commands.entity(child).despawn_children();
+            commands.entity(child).with_child((
+                Node {
+                    position_type: PositionType::Absolute,
+                    width: Val::Percent(100.0),
+                    height: Val::Percent(100.0),
+                    ..default()
+                },
+                ImageNode {
+                    image: ui_assets.background_dark.clone(),
+                    image_mode: NodeImageMode::Tiled {
+                        tile_x: true,
+                        tile_y: true,
+                        stretch_value: 1.0,
+                    },
+                    ..default()
+                },
+            ));
             if let Some(item) = container.items.get(i) {
-                commands.entity(child).with_child(spawn_ui_item(
-                    item,
-                    &appearances,
-                    &mut texture_atlases,
-                    &Vec2::ZERO,
-                ));
+                commands.entity(child).with_children(|item_container| {
+                    item_container
+                        .spawn(Node {
+                            width: Val::Percent(100.0),
+                            height: Val::Percent(100.0),
+                            padding: UiRect::all(Val::Px(2.0)),
+                            ..default()
+                        })
+                        .with_child(spawn_ui_item(
+                            item,
+                            &appearances,
+                            &mut texture_atlases,
+                            &Vec2::ZERO,
+                        ));
+                });
             }
         }
     }
