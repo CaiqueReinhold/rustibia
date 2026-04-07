@@ -33,12 +33,12 @@ pub mod viewport {
 
 pub mod ui {
     pub const TOP_BAR_HEIGHT: f32 = 50.0;
-    pub const SIDE_PANEL_WIDTH: f32 = 170.0;
+    pub const SIDE_PANEL_WIDTH: f32 = 180.0;
     pub const CHAT_BOX_HEIGHT: f32 = 170.0;
-    pub const UI_ITEM_SIZE: f32 = 30.0;
+    pub const UI_ITEM_SIZE: f32 = 32.0;
     pub const LOOT_CONTAINER_DEFAULT_HEIGHT: usize = 40;
-    pub const INVENTORY_HEIGHT: f32 = 163.0;
-    pub const ITEM_SLOT_SIZE: f32 = 34.0;
+    pub const INVENTORY_HEIGHT: f32 = 170.0;
+    pub const ITEM_SLOT_SIZE: f32 = 36.0;
 
     pub mod z_index {
         pub const Z_WINDOW: i32 = 10;
