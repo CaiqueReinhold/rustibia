@@ -9,7 +9,7 @@ use crate::conf::actor::{ADDON_1_FLAG, ADDON_2_FLAG};
 use crate::core::{Appearances, GameState, InstanceManager, ItemConfigs};
 
 use crate::items::{InventorySlot, Item};
-use crate::network::events::{IventorySlotUpdated, SpawnPlayer};
+use crate::network::events::{IventorySlotUpdated, PlayerCapacityUpdated, SpawnPlayer};
 use crate::player::components::{Player, PlayerInventory};
 
 pub fn check_game_ready(mut commands: Commands, player_q: Query<&Player>) {
@@ -142,7 +142,10 @@ pub fn spawn_player(
         );
     }
 
-    commands.insert_resource(PlayerInventory { items: inventory });
+    commands.insert_resource(PlayerInventory {
+        items: inventory,
+        capacity: event.capacity,
+    });
 }
 
 pub fn on_slot_update(
@@ -159,4 +162,11 @@ pub fn on_slot_update(
     } else {
         inventory.items.remove(&event.slot);
     }
+}
+
+pub fn on_capacity_update(
+    event: On<PlayerCapacityUpdated>,
+    mut inventory: ResMut<PlayerInventory>,
+) {
+    inventory.capacity = event.capacity;
 }

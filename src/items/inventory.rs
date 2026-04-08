@@ -25,7 +25,9 @@ pub struct SoulDisplay;
 fn spawn_inventory_display(
     col: &mut RelatedSpawnerCommands<'_, ChildOf>,
     marker: impl Component,
-    background: Handle<Image>,
+    title: &str,
+    content: &str,
+    ui_assets: &GameUiAssets,
 ) {
     col.spawn((
         marker,
@@ -33,6 +35,8 @@ fn spawn_inventory_display(
             width: Val::Percent(100.0),
             height: Val::Px(20.0),
             border: UiRect::all(Val::Px(1.0)),
+            flex_direction: FlexDirection::Column,
+            justify_content: JustifyContent::Center,
             ..default()
         },
         BorderColor {
@@ -44,12 +48,13 @@ fn spawn_inventory_display(
     ))
     .with_child((
         Node {
+            position_type: PositionType::Absolute,
             width: Val::Percent(100.0),
             height: Val::Percent(100.0),
             ..default()
         },
         ImageNode {
-            image: background,
+            image: ui_assets.background_dark.clone(),
             image_mode: NodeImageMode::Tiled {
                 tile_x: true,
                 tile_y: true,
@@ -57,6 +62,26 @@ fn spawn_inventory_display(
             },
             ..default()
         },
+    ))
+    .with_child((
+        Text::new(title),
+        TextFont {
+            font: ui_assets.font.clone(),
+            font_size: 6.0,
+            ..default()
+        },
+        TextLayout::new_with_justify(Justify::Center),
+        TextColor(ui_colors::FONT_COLOR_CONTENT.into()),
+    ))
+    .with_child((
+        Text::new(content),
+        TextFont {
+            font: ui_assets.font.clone(),
+            font_size: 9.0,
+            ..default()
+        },
+        TextLayout::new_with_justify(Justify::Center),
+        TextColor(ui_colors::FONT_COLOR_CONTENT.into()),
     ));
 }
 
@@ -200,7 +225,7 @@ pub fn spawn_inventory_ui(
                         ui_assets.background_dark.clone(),
                         ring_item,
                     );
-                    spawn_inventory_display(col1, CapDisplay, ui_assets.background_dark.clone());
+                    spawn_inventory_display(col1, SoulDisplay, "Soul:", "0", &ui_assets);
                 });
 
             content
@@ -272,7 +297,13 @@ pub fn spawn_inventory_ui(
                         ui_assets.background_dark.clone(),
                         trinket_item,
                     );
-                    spawn_inventory_display(col3, SoulDisplay, ui_assets.background_dark.clone());
+                    spawn_inventory_display(
+                        col3,
+                        CapDisplay,
+                        "Cap:",
+                        &inventory.get_capacity_display(),
+                        &ui_assets,
+                    );
                 });
         })
         .id();
@@ -430,4 +461,25 @@ pub fn update_inventory_ui(
             ));
         }
     }
+}
+
+pub fn update_capacity(
+    inventory: Res<PlayerInventory>,
+    cap_q: Query<&Children, With<CapDisplay>>,
+    mut text_q: Query<&mut Text>,
+) {
+    if !inventory.is_changed() {
+        return;
+    }
+
+    let Ok(children) = cap_q.single() else {
+        return;
+    };
+    let Some(content_entity) = children.get(2) else {
+        return;
+    };
+    let Ok(mut text) = text_q.get_mut(*content_entity) else {
+        return;
+    };
+    text.0 = inventory.get_capacity_display();
 }

@@ -24,6 +24,7 @@ pub struct SpawnPlayer {
     pub mana: Mana,
     pub outfit: (OutfitId, (u8, u8, u8, u8)),
     pub speed: u16,
+    pub capacity: u32,
     pub inventory_head: Option<ItemId>,
     pub inventory_amulet: Option<ItemId>,
     pub inventory_backpack: Option<ItemId>,
@@ -101,6 +102,11 @@ pub struct IventorySlotUpdated {
     pub item_id: Option<ItemId>,
 }
 
+#[derive(Event, Debug)]
+pub struct PlayerCapacityUpdated {
+    pub capacity: u32,
+}
+
 pub fn route_event(msg: ServerMessage, commands: &mut Commands) {
     match msg {
         ServerMessage::Pong => {
@@ -115,6 +121,7 @@ pub fn route_event(msg: ServerMessage, commands: &mut Commands) {
             mana,
             outfit,
             speed,
+            capacity,
             inventory_head,
             inventory_amulet,
             inventory_backpack,
@@ -134,6 +141,7 @@ pub fn route_event(msg: ServerMessage, commands: &mut Commands) {
                 mana,
                 outfit,
                 speed,
+                capacity,
                 inventory_head,
                 inventory_amulet,
                 inventory_backpack,
@@ -202,6 +210,9 @@ pub fn route_event(msg: ServerMessage, commands: &mut Commands) {
         }
         ServerMessage::IventorySlotUpdated { slot, item_id } => {
             commands.trigger(IventorySlotUpdated { slot, item_id });
+        }
+        ServerMessage::PlayerCapacityUpdated { capacity } => {
+            commands.trigger(PlayerCapacityUpdated { capacity });
         }
     }
 }

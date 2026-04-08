@@ -53,6 +53,9 @@ pub mod ui {
 
         pub const ITEM_SLOT_OUTLINE: Srgba = Srgba::new(0.35, 0.35, 0.35, 1.0);
         pub const ITEM_SLOT_OUTLINE_HOVERED: Srgba = Srgba::new(0.8, 0.8, 0.8, 1.0);
+
+        // pub const FONT_COLOR_TITLE: Srgba = Srgba::new(0.564705, 0.564705, 0.564705, 1.0);
+        pub const FONT_COLOR_CONTENT: Srgba = Srgba::new(0.75294, 0.75294, 0.75294, 1.0);
     }
 }
 

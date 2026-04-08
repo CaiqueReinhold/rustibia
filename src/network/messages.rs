@@ -70,6 +70,7 @@ const MSG_UPDATE_CONTAINER: u8 = 12;
 const MSG_CONTAINER_CLOSED: u8 = 13;
 const MSG_PLAYER_WALK_DENIED: u8 = 14;
 const MSG_INVETORY_SLOT_UPDATED: u8 = 15;
+const MSG_PLAYER_CAPACITY_UPDATED: u8 = 16;
 
 #[derive(Clone, Debug)]
 pub enum ServerMessage {
@@ -83,6 +84,7 @@ pub enum ServerMessage {
         mana: Mana,
         outfit: (OutfitId, (u8, u8, u8, u8)),
         speed: u16,
+        capacity: u32,
         inventory_head: Option<ItemId>,
         inventory_amulet: Option<ItemId>,
         inventory_backpack: Option<ItemId>,
@@ -133,6 +135,9 @@ pub enum ServerMessage {
     IventorySlotUpdated {
         slot: InventorySlot,
         item_id: Option<ItemId>,
+    },
+    PlayerCapacityUpdated {
+        capacity: u32,
     },
 }
 
@@ -186,6 +191,7 @@ impl Decoder for GameMessageCodec {
                 let color3 = buf.get_u8();
                 let color4 = buf.get_u8();
                 let speed = buf.get_u16_le();
+                let capacity = buf.get_u32_le();
                 let inventory_head = decode_optional_item(buf);
                 let inventory_amulet = decode_optional_item(buf);
                 let inventory_backpack = decode_optional_item(buf);
@@ -204,6 +210,7 @@ impl Decoder for GameMessageCodec {
                     mana,
                     outfit: (outfit, (color1, color2, color3, color4)),
                     speed,
+                    capacity,
                     inventory_head,
                     inventory_amulet,
                     inventory_backpack,
@@ -292,6 +299,10 @@ impl Decoder for GameMessageCodec {
                 };
                 let item_id = decode_optional_item(buf);
                 Ok(Some(ServerMessage::IventorySlotUpdated { slot, item_id }))
+            }
+            MSG_PLAYER_CAPACITY_UPDATED => {
+                let capacity = buf.get_u32_le();
+                Ok(Some(ServerMessage::PlayerCapacityUpdated { capacity }))
             }
             _ => Err(MessageDecodeError::WrongSequence),
         }

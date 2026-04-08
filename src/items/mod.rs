@@ -38,6 +38,7 @@ impl Plugin for ItemsPlugin {
                     ui_item::move_dragged_item,
                     container::container_content_changed,
                     inventory::update_inventory_ui,
+                    inventory::update_capacity,
                 )
                     .run_if(in_state(GameState::InGame)),
             )
