@@ -17,18 +17,21 @@ pub mod z_order {
 }
 
 pub mod actor {
-    // pub const ADDONS_NONE: u32 = 0;
-    pub const ADDON_1_FLAG: u32 = 0b1;
-    pub const ADDON_2_FLAG: u32 = 0b10;
+    // pub const ADDONS_NONE: u8 = 0;
+    pub const ADDON_1_FLAG: u8 = 0b1;
+    pub const ADDON_2_FLAG: u8 = 0b10;
     pub const SPEED_PARAM_A: f32 = 857.36;
     pub const SPEED_PARAM_B: f32 = 261.29;
     pub const SPEED_PARAM_C: f32 = -4795.009;
+    pub const HUD_BAR_WIDTH: f32 = 30.0;
+    pub const HUD_BAR_HEIGHT: f32 = 4.0;
 }
 
 pub mod viewport {
     use super::map;
     pub const GAME_VIEW_WIDTH: f32 = map::VIEW_TILES_X * map::TILE_SIZE;
     pub const GAME_VIEW_HEIGHT: f32 = map::VIEW_TILES_Y * map::TILE_SIZE;
+    // pub const GAME_VIEW_MIN_SIZE: f32 = 400.0;
 }
 
 pub mod ui {
@@ -39,6 +42,7 @@ pub mod ui {
     pub const LOOT_CONTAINER_DEFAULT_HEIGHT: usize = 40;
     pub const INVENTORY_HEIGHT: f32 = 170.0;
     pub const ITEM_SLOT_SIZE: f32 = 36.0;
+    pub const UI_BAR_HEIGHT: f32 = 20.0;
 
     pub mod z_index {
         pub const Z_WINDOW: i32 = 10;
@@ -56,6 +60,8 @@ pub mod ui {
 
         // pub const FONT_COLOR_TITLE: Srgba = Srgba::new(0.564705, 0.564705, 0.564705, 1.0);
         pub const FONT_COLOR_CONTENT: Srgba = Srgba::new(0.75294, 0.75294, 0.75294, 1.0);
+
+        pub const MANA_BAR_COLOR: Srgba = Srgba::new(0.0, 0.0, 0.6, 1.0);
     }
 }
 

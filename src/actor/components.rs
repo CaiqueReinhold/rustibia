@@ -22,7 +22,7 @@ impl From<Mounted> for u32 {
 pub struct Actor {
     // pub outfit_id: u32,
     pub direction: FacingDirection,
-    pub addons: u32,
+    pub addons: u8,
     pub mounted: Mounted,
     pub outfit_colors: (u8, u8, u8, u8),
     pub speed: u16,
@@ -106,3 +106,85 @@ impl WalkingDirection {
         }
     }
 }
+
+// --- HUD components ---
+#[derive(Component, Debug, Clone)]
+pub enum HealthState {
+    Lowest,
+    Low,
+    Half,
+    AmostFull,
+    Full,
+}
+
+impl HealthState {
+    pub fn color(&self) -> Color {
+        match self {
+            HealthState::Full => Srgba::rgb(0.0, 0.7372549, 0.0).into(),
+            HealthState::AmostFull => Srgba::rgb(0.6039216, 0.8039216, 0.19607843).into(),
+            HealthState::Half => Srgba::rgb(0.98039216, 0.92156863, 0.0).into(),
+            HealthState::Low => Srgba::rgb(1.0, 0.5, 0.0).into(),
+            HealthState::Lowest => Srgba::rgb(1.0, 0.0, 0.0).into(),
+        }
+    }
+
+    pub fn from_ratio(ratio: f32) -> Self {
+        if ratio >= 0.90 {
+            HealthState::Full
+        } else if ratio >= 0.6 {
+            HealthState::AmostFull
+        } else if ratio >= 0.3 {
+            HealthState::Half
+        } else if ratio >= 0.5 {
+            HealthState::Low
+        } else {
+            HealthState::Lowest
+        }
+    }
+}
+
+#[derive(Component, Debug, Clone)]
+pub struct Health {
+    pub current: u32,
+    pub max: u32,
+}
+
+impl Health {
+    pub fn ratio(&self) -> f32 {
+        self.current as f32 / self.max as f32
+    }
+}
+
+#[derive(Component, Debug, Clone)]
+pub struct Mana {
+    pub current: u32,
+    pub max: u32,
+}
+
+impl Mana {
+    pub fn ratio(&self) -> f32 {
+        self.current as f32 / self.max as f32
+    }
+}
+
+#[derive(Component, Debug, Clone)]
+pub struct Hud;
+
+#[derive(Component, Debug, Clone)]
+pub struct ActorHud {
+    pub main_entity: Entity,
+    pub health_bar: Option<Entity>,
+    pub mana_bar: Option<Entity>,
+    pub display_name: Entity,
+    pub world_y_offset: f32,
+}
+
+#[derive(Component, Debug, Clone)]
+pub struct DisplayName;
+
+#[derive(Component, Debug, Clone)]
+pub struct HudBar {
+    pub ratio: f32,
+}
+
+// --- HUD components ---

@@ -18,7 +18,7 @@ pub struct LoginError;
 #[derive(Event, Debug)]
 pub struct SpawnPlayer {
     pub position: Position,
-    pub _name: String,
+    pub name: String,
     pub _level: u16,
     pub health: Health,
     pub mana: Mana,
@@ -65,9 +65,9 @@ pub struct MoveItemResult {
 }
 
 #[derive(Event, Debug)]
-pub struct TextMessage {
+pub struct ShowTextMessage {
     pub text: String,
-    pub message_type: TextMessageType,
+    pub _message_type: TextMessageType,
 }
 
 #[derive(Event, Debug)]
@@ -135,7 +135,7 @@ pub fn route_event(msg: ServerMessage, commands: &mut Commands) {
         } => {
             commands.trigger(SpawnPlayer {
                 position,
-                _name: name,
+                name,
                 _level: level,
                 health,
                 mana,
@@ -173,7 +173,10 @@ pub fn route_event(msg: ServerMessage, commands: &mut Commands) {
             commands.trigger(MoveItemResult { success: false });
         }
         ServerMessage::TextMessage { text, message_type } => {
-            commands.trigger(TextMessage { text, message_type });
+            commands.trigger(ShowTextMessage {
+                text,
+                _message_type: message_type,
+            });
         }
         ServerMessage::UseItemAck => {
             commands.trigger(UseItemAck);

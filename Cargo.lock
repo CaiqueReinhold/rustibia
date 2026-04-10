@@ -1483,6 +1483,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "bevy_text_outline"
+version = "0.1.0"
+dependencies = [
+ "bevy",
+]
+
+[[package]]
 name = "bevy_time"
 version = "0.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2074,7 +2081,7 @@ dependencies = [
  "rangemap",
  "rustc-hash 1.1.0",
  "self_cell",
- "skrifa 0.39.0",
+ "skrifa",
  "smol_str",
  "swash",
  "sys-locale",
@@ -2813,7 +2820,7 @@ dependencies = [
  "bitflags 2.10.0",
  "bytemuck",
  "core_maths",
- "read-fonts 0.36.0",
+ "read-fonts",
  "smallvec",
 ]
 
@@ -4009,16 +4016,6 @@ checksum = "20675572f6f24e9e76ef639bc5552774ed45f1c30e2951e1e99c59888861c539"
 
 [[package]]
 name = "read-fonts"
-version = "0.35.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6717cf23b488adf64b9d711329542ba34de147df262370221940dfabc2c91358"
-dependencies = [
- "bytemuck",
- "font-types",
-]
-
-[[package]]
-name = "read-fonts"
 version = "0.36.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5eaa2941a4c05443ee3a7b26ab076a553c343ad5995230cc2b1d3e993bdc6345"
@@ -4156,6 +4153,7 @@ dependencies = [
  "asynchronous-codec",
  "bevy",
  "bevy_asset_loader",
+ "bevy_text_outline",
  "bytes",
  "futures",
  "serde",
@@ -4322,22 +4320,12 @@ checksum = "e320a6c5ad31d271ad523dcf3ad13e2767ad8b1cb8f047f75a8aeaf8da139da2"
 
 [[package]]
 name = "skrifa"
-version = "0.37.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8c31071dedf532758ecf3fed987cdb4bd9509f900e026ab684b4ecb81ea49841"
-dependencies = [
- "bytemuck",
- "read-fonts 0.35.0",
-]
-
-[[package]]
-name = "skrifa"
 version = "0.39.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9c9eb0b904a04d09bd68c65d946617b8ff733009999050f3b851c32fb3cfb60e"
 dependencies = [
  "bytemuck",
- "read-fonts 0.36.0",
+ "read-fonts",
 ]
 
 [[package]]
@@ -4448,11 +4436,11 @@ checksum = "0193cc4331cfd2f3d2011ef287590868599a2f33c3e69bc22c1a3d3acf9e02fb"
 
 [[package]]
 name = "swash"
-version = "0.2.6"
+version = "0.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "47846491253e976bdd07d0f9cc24b7daf24720d11309302ccbbc6e6b6e53550a"
+checksum = "842f3cd369c2ba38966204f983eaa5e54a8e84a7d7159ed36ade2b6c335aae64"
 dependencies = [
- "skrifa 0.37.0",
+ "skrifa",
  "yazi",
  "zeno",
 ]

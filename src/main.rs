@@ -3,6 +3,8 @@
 use bevy::prelude::*;
 use bevy::window::PresentMode;
 
+use bevy_text_outline::TextOutlinePlugin;
+
 // use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 
 mod actor;
@@ -41,6 +43,7 @@ fn main() {
             (camera::spawn_ui_camera, camera::spawn_game_camera),
         )
         .add_plugins((
+            TextOutlinePlugin,
             core::CorePlugin,
             actor::ActorPlugin,
             map::MapPlugin,

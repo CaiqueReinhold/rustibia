@@ -27,8 +27,11 @@ impl Plugin for PlayerPlugin {
             )
             .add_systems(
                 Update,
-                (movement::center_on_player, movement::process_move_queue)
-                    .run_if(in_state(GameState::InGame)),
+                movement::process_move_queue.run_if(in_state(GameState::InGame)),
+            )
+            .add_systems(
+                PostUpdate,
+                movement::center_on_player.run_if(in_state(GameState::InGame)),
             )
             .add_systems(
                 Update,

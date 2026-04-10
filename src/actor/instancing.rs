@@ -1,10 +1,17 @@
 use bevy::asset::RenderAssetUsages;
+use bevy::camera::visibility::RenderLayers;
 use bevy::mesh::MeshTag;
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
 use bevy::render::storage::ShaderStorageBuffer;
+use bevy::text::FontSmoothing;
+use bevy::ui::{UiTransform, Val2};
+use bevy_text_outline::TextOutline;
 
 use crate::actor::components::Actor;
+use crate::actor::{ActorHud, DisplayName, Health, HealthState, Hud, HudBar, Mana};
+use crate::conf::actor::{HUD_BAR_HEIGHT, HUD_BAR_WIDTH};
+use crate::conf::ui::ui_colors;
 use crate::conf::z_order::ACTOR_Z_OFFSET;
 use crate::core::OutfitId;
 use crate::core::{Appearances, InstanceManager, OutfitSprite, SpriteAnimation, SpriteSheet};
@@ -18,7 +25,7 @@ use crate::map::Position;
 
 #[derive(Resource, Default, Debug)]
 pub struct LoadedMaterials {
-    materials: HashMap<OutfitId, (Handle<Mesh>, Handle<ActorMaterial>)>,
+    materials: HashMap<String, (Handle<Mesh>, Handle<ActorMaterial>)>,
     buffer: Handle<ShaderStorageBuffer>,
 }
 
@@ -45,22 +52,32 @@ pub fn spawn_actor(
     meshes: &mut Assets<Mesh>,
     buffers: &mut Assets<ShaderStorageBuffer>,
     instances: &mut InstanceManager<ActorInstance>,
+    font: &Handle<Font>,
     appearances: &Appearances,
     time: &Time,
     outfit_id: OutfitId,
     outfit_colors: (u8, u8, u8, u8),
     speed: u16,
-    addons: u32,
+    addons: u8,
     position: Position,
+    name: String,
+    health: Option<Health>,
+    mana: Option<Mana>,
 ) -> Entity {
     let outfit = appearances.get_outfit(outfit_id);
     let sheet = appearances.get_sheet(&outfit.still_sprite.group);
 
-    if !loaded_materials.materials.contains_key(&outfit.id) {
+    if !loaded_materials
+        .materials
+        .contains_key(&outfit.still_sprite.group)
+    {
         init_material(outfit, sheet, materials, meshes, buffers, loaded_materials);
     }
 
-    let (mesh, material) = loaded_materials.materials.get(&outfit.id).unwrap();
+    let (mesh, material) = loaded_materials
+        .materials
+        .get(&outfit.still_sprite.group)
+        .unwrap();
     let index = instances.alloc_index();
     let instance = &mut instances.get_mut(index);
     instance.time_offset = time.elapsed_secs_wrapped();
@@ -102,6 +119,131 @@ pub fn spawn_actor(
             ),
         ))
         .id();
+
+    if let Some(health) = &health {
+        commands.entity(entity).insert(health.clone());
+    }
+
+    if let Some(mana) = &mana {
+        commands.entity(entity).insert(mana.clone());
+    }
+
+    let mut world_y_offset = outfit.still_sprite.boxes[0].max.y / 2.0 + 5.0;
+    if health.is_some() {
+        world_y_offset += HUD_BAR_HEIGHT;
+    }
+    if mana.is_some() {
+        world_y_offset += HUD_BAR_HEIGHT;
+    }
+    let mut display_name_entity = None;
+    let mut health_bar_entity = None;
+    let mut mana_bar_entity = None;
+    let hud_entity = commands
+        .spawn((
+            Hud,
+            Node {
+                position_type: PositionType::Absolute,
+                flex_direction: FlexDirection::Column,
+                align_items: AlignItems::Center,
+                left: Val::Px(0.0),
+                top: Val::Px(0.0),
+                ..default()
+            },
+            ZIndex(100),
+            UiTransform::from_translation(Val2::new(Val::ZERO, Val::ZERO)),
+            RenderLayers::layer(1),
+        ))
+        .with_children(|parent| {
+            display_name_entity = Some(
+                parent
+                    .spawn((
+                        DisplayName,
+                        if let Some(health) = &health {
+                            HealthState::from_ratio(health.ratio())
+                        } else {
+                            HealthState::Full
+                        },
+                        Text::new(name),
+                        TextFont {
+                            font: font.clone(),
+                            font_size: 11.0,
+                            ..default()
+                        }
+                        .with_font_smoothing(FontSmoothing::None),
+                        TextOutline {
+                            width: 1.0,
+                            ..default()
+                        },
+                    ))
+                    .id(),
+            );
+            if let Some(health) = &health {
+                health_bar_entity = Some(
+                    parent
+                        .spawn((
+                            Node {
+                                width: Val::Px(HUD_BAR_WIDTH),
+                                height: Val::Px(HUD_BAR_HEIGHT),
+                                border: UiRect::all(Val::Px(1.0)),
+                                margin: UiRect::top(Val::Px(2.0)),
+                                ..default()
+                            },
+                            BorderColor::all(Color::BLACK),
+                            BackgroundColor(Color::BLACK),
+                        ))
+                        .with_child((
+                            HudBar {
+                                ratio: health.ratio(),
+                            },
+                            Node {
+                                width: Val::Percent(100.0),
+                                height: Val::Percent(100.0),
+                                ..default()
+                            },
+                            HealthState::from_ratio(health.ratio()),
+                        ))
+                        .id(),
+                );
+            }
+
+            if let Some(mana) = mana {
+                mana_bar_entity = Some(
+                    parent
+                        .spawn((
+                            Node {
+                                width: Val::Px(HUD_BAR_WIDTH),
+                                height: Val::Px(HUD_BAR_HEIGHT),
+                                border: UiRect::all(Val::Px(1.0)),
+                                ..default()
+                            },
+                            BorderColor::all(Color::BLACK),
+                            BackgroundColor(Color::BLACK),
+                        ))
+                        .with_child((
+                            HudBar {
+                                ratio: mana.ratio(),
+                            },
+                            Node {
+                                width: Val::Percent(100.0),
+                                height: Val::Percent(100.0),
+                                ..default()
+                            },
+                            BackgroundColor(ui_colors::MANA_BAR_COLOR.into()),
+                        ))
+                        .id(),
+                );
+            }
+        })
+        .id();
+
+    commands.entity(entity).insert(ActorHud {
+        main_entity: hud_entity,
+        health_bar: health_bar_entity,
+        mana_bar: mana_bar_entity,
+        display_name: display_name_entity.unwrap(),
+        world_y_offset,
+    });
+
     entity
 }
 
@@ -140,20 +282,24 @@ fn init_material(
 
     let mesh = Mesh::from(Rectangle::new(64.0, 64.0));
     let mesh_handle = meshes.add(mesh);
-    loaded_materials
-        .materials
-        .insert(outfit.id, (mesh_handle, material_handle));
+    loaded_materials.materials.insert(
+        outfit.still_sprite.group.clone(),
+        (mesh_handle, material_handle),
+    );
 }
 
 pub fn on_remove_actor(
     event: On<RemoveActor>,
     mut commands: Commands,
     mut instances: ResMut<InstanceManager<ActorInstance>>,
-    actor_q: Query<&MeshTag, With<Actor>>,
+    actor_q: Query<(&MeshTag, Option<&ActorHud>), With<Actor>>,
 ) {
-    let Ok(tag) = actor_q.get(event.entity) else {
+    let Ok((tag, maybe_hud)) = actor_q.get(event.entity) else {
         return;
     };
+    if let Some(hud) = maybe_hud {
+        commands.entity(hud.main_entity).despawn();
+    }
     instances.dealloc_index(tag.0);
     commands.entity(event.entity).despawn();
 }
@@ -191,7 +337,7 @@ pub fn update_actor_instances(
         };
         instance.direction = actor.direction.into();
         instance.mounted = actor.mounted.into();
-        instance.addons = actor.addons;
+        instance.addons = actor.addons as u32;
         instance.color_head = COLOR_TABLE[actor.outfit_colors.0 as usize];
         instance.color_body = COLOR_TABLE[actor.outfit_colors.1 as usize];
         instance.color_legs = COLOR_TABLE[actor.outfit_colors.2 as usize];

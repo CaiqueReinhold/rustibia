@@ -8,6 +8,7 @@ use crate::actor::{spawn_actor, ActorInstance, ActorMaterial, LoadedMaterials};
 use crate::conf::actor::{ADDON_1_FLAG, ADDON_2_FLAG};
 use crate::core::{Appearances, GameState, InstanceManager, ItemConfigs};
 
+use crate::game_ui::GameUiAssets;
 use crate::items::{InventorySlot, Item};
 use crate::network::events::{IventorySlotUpdated, PlayerCapacityUpdated, SpawnPlayer};
 use crate::player::components::{Player, PlayerInventory};
@@ -26,6 +27,7 @@ pub fn spawn_player(
     mut meshes: ResMut<Assets<Mesh>>,
     mut buffers: ResMut<Assets<ShaderStorageBuffer>>,
     mut instances: ResMut<InstanceManager<ActorInstance>>,
+    ui_assets: Res<GameUiAssets>,
     appearances: Res<Appearances>,
     item_configs: Res<ItemConfigs>,
     time: Res<Time>,
@@ -37,6 +39,7 @@ pub fn spawn_player(
         &mut meshes,
         &mut buffers,
         &mut instances,
+        &ui_assets.font,
         &appearances,
         &time,
         event.outfit.0,
@@ -44,11 +47,12 @@ pub fn spawn_player(
         event.speed,
         ADDON_1_FLAG | ADDON_2_FLAG,
         event.position.clone(),
+        event.name.clone(),
+        Some(event.health.clone()),
+        Some(event.mana.clone()),
     );
 
-    commands
-        .entity(entity)
-        .insert((Player, event.health.clone(), event.mana.clone()));
+    commands.entity(entity).insert(Player);
 
     let mut inventory = HashMap::new();
     if let Some(item_id) = event.inventory_head {

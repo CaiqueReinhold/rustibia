@@ -37,14 +37,7 @@ impl Plugin for GameUiPlugin {
             .add_systems(Startup, assets::setup_game_ui_assets)
             .add_systems(
                 Update,
-                (
-                    toppanel::update_health,
-                    toppanel::update_mana,
-                    toppanel::update_ui_bars_fill,
-                    toppanel::update_health_fill_color,
-                )
-                    .chain()
-                    .run_if(in_state(GameState::InGame)),
+                toppanel::update_bar_ratio.run_if(in_state(GameState::InGame)),
             )
             .add_systems(
                 Update,
@@ -62,7 +55,6 @@ impl Plugin for GameUiPlugin {
 
 pub(crate) fn spawn_main_ui(
     mut commands: Commands,
-    asset_server: Res<AssetServer>,
     render_texture: Res<GameRenderTexture>,
     ui_assets: Res<GameUiAssets>,
 ) {
@@ -93,7 +85,7 @@ pub(crate) fn spawn_main_ui(
         .entity(main_ui)
         .add_children(&[left_panel, middle_container, right_panel]);
 
-    let top_panel = toppanel::spawn_top_panel(&mut commands, &asset_server, &ui_assets);
+    let top_panel = toppanel::spawn_top_panel(&mut commands, &ui_assets);
     let gameview = game_overlay::spawn_gameviewport(&mut commands, &render_texture, &ui_assets);
     let chat = chat::spawn_chat(&mut commands, &ui_assets);
     commands

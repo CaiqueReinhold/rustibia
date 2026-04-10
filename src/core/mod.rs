@@ -37,6 +37,10 @@ impl Plugin for CorePlugin {
                     systems::send_ping.run_if(in_state(GameState::InGame)),
                 ),
             )
+            .add_systems(
+                Update,
+                text::despawn_text_messages.run_if(in_state(GameState::InGame)),
+            )
             .add_observer(systems::receive_pong)
             .add_observer(text::on_text_message);
     }

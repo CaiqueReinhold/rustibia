@@ -1,9 +1,9 @@
 use bevy::camera::visibility::RenderLayers;
 use bevy::camera::{Camera, ClearColorConfig, OrthographicProjection, RenderTarget, ScalingMode};
 use bevy::core_pipeline::tonemapping::Tonemapping;
+use bevy::image::ImageSampler;
 use bevy::prelude::*;
 use bevy::render::render_resource::TextureFormat;
-use bevy::image::ImageSampler;
 
 use crate::conf::viewport::{GAME_VIEW_HEIGHT, GAME_VIEW_WIDTH};
 

@@ -25,6 +25,7 @@ pub struct GameUiAssets {
     pub inventory: UiInventory,
     pub background_dark: Handle<Image>,
     pub background_light: Handle<Image>,
+    pub bar_overlay: Handle<Image>,
 }
 
 pub fn setup_game_ui_assets(mut commands: Commands, asset_server: Res<AssetServer>) {
@@ -52,5 +53,6 @@ pub fn setup_game_ui_assets(mut commands: Commands, asset_server: Res<AssetServe
         inventory,
         background_dark: asset_server.load("ui/background_dark.png"),
         background_light: asset_server.load("ui/background_light.png"),
+        bar_overlay: asset_server.load("ui/bar_overlay.png"),
     });
 }

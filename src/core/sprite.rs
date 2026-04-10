@@ -11,7 +11,7 @@ pub type OutfitId = u16;
 
 #[derive(Debug)]
 pub struct OutfitSprite {
-    pub id: OutfitId,
+    // pub id: OutfitId,
     pub still_sprite: SpriteConfig,
     pub moving_sprite: SpriteConfig,
 }
@@ -129,7 +129,7 @@ pub fn read_sprites_config() -> (
         outfits.insert(
             id,
             OutfitSprite {
-                id,
+                // id,
                 still_sprite,
                 moving_sprite,
             },
