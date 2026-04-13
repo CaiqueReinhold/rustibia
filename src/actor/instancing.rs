@@ -14,6 +14,7 @@ use crate::actor::{
 };
 use crate::conf::actor::{HUD_BAR_HEIGHT, HUD_BAR_WIDTH};
 use crate::conf::ui::ui_colors;
+use crate::conf::ui::z_index::Z_AGENT_HUD;
 use crate::conf::z_order::ACTOR_Z_OFFSET;
 use crate::core::OutfitId;
 use crate::core::{Appearances, InstanceManager, OutfitSprite, SpriteAnimation, SpriteSheet};
@@ -152,9 +153,10 @@ pub fn spawn_actor(
                 top: Val::Px(0.0),
                 ..default()
             },
-            ZIndex(100),
+            ZIndex(Z_AGENT_HUD),
             UiTransform::from_translation(Val2::new(Val::ZERO, Val::ZERO)),
             RenderLayers::layer(1),
+            Pickable::IGNORE,
         ))
         .with_children(|parent| {
             display_name_entity = Some(
@@ -177,6 +179,7 @@ pub fn spawn_actor(
                             width: 1.0,
                             ..default()
                         },
+                        Pickable::IGNORE,
                     ))
                     .id(),
             );
@@ -193,6 +196,7 @@ pub fn spawn_actor(
                             },
                             BorderColor::all(Color::BLACK),
                             BackgroundColor(Color::BLACK),
+                            Pickable::IGNORE,
                         ))
                         .with_child((
                             HudBar {
@@ -204,6 +208,7 @@ pub fn spawn_actor(
                                 ..default()
                             },
                             HealthState::from_ratio(health.ratio()),
+                            Pickable::IGNORE,
                         ))
                         .id(),
                 );
@@ -221,6 +226,7 @@ pub fn spawn_actor(
                             },
                             BorderColor::all(Color::BLACK),
                             BackgroundColor(Color::BLACK),
+                            Pickable::IGNORE,
                         ))
                         .with_child((
                             HudBar {
@@ -232,6 +238,7 @@ pub fn spawn_actor(
                                 ..default()
                             },
                             BackgroundColor(ui_colors::MANA_BAR_COLOR.into()),
+                            Pickable::IGNORE,
                         ))
                         .id(),
                 );

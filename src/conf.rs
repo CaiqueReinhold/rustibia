@@ -48,6 +48,7 @@ pub mod ui {
         pub const Z_WINDOW: i32 = 10;
         pub const Z_DRAGGING_WINDOW: i32 = 20;
         pub const DRAGGED_ITEM_UI_Z: i32 = 100;
+        pub const Z_AGENT_HUD: i32 = 10;
     }
 
     pub mod ui_colors {
