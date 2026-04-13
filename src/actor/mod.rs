@@ -13,7 +13,7 @@ mod movement;
 pub use crate::actor::components::*;
 pub use crate::actor::instancing::{spawn_actor, LoadedMaterials};
 pub use crate::actor::material::{ActorInstance, ActorMaterial};
-pub use crate::actor::movement::{ActorChangeDirection, MoveActor, Moving};
+pub use crate::actor::movement::{MoveActor, Moving};
 
 pub struct ActorPlugin;
 

@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use bevy::prelude::*;
 
+use crate::actor::AgentId;
 use crate::items::{Item, ItemFlag};
 use crate::map::position::Position;
 
@@ -14,9 +15,18 @@ pub struct MapTile {
 #[derive(Resource, Default)]
 pub struct Map {
     tiles: HashMap<Position, MapTile>,
+    agents: HashMap<AgentId, Entity>,
 }
 
 impl Map {
+    pub fn add_agent(&mut self, id: AgentId, agent: Entity) {
+        self.agents.insert(id, agent);
+    }
+
+    pub fn get_agent(&self, id: AgentId) -> Option<Entity> {
+        self.agents.get(&id).cloned()
+    }
+
     pub fn replace_tile(&mut self, items: Vec<Arc<Item>>, pos: &Position) {
         self.tiles.insert(pos.clone(), MapTile { items });
     }

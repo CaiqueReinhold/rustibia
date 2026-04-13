@@ -61,7 +61,7 @@ pub mod ui {
         // pub const FONT_COLOR_TITLE: Srgba = Srgba::new(0.564705, 0.564705, 0.564705, 1.0);
         pub const FONT_COLOR_CONTENT: Srgba = Srgba::new(0.75294, 0.75294, 0.75294, 1.0);
 
-        pub const MANA_BAR_COLOR: Srgba = Srgba::new(0.0, 0.0, 0.6, 1.0);
+        pub const MANA_BAR_COLOR: Srgba = Srgba::new(0.0, 0.0, 0.7, 1.0);
     }
 }
 

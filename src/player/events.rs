@@ -10,6 +10,7 @@ use crate::core::{Appearances, GameState, InstanceManager, ItemConfigs};
 
 use crate::game_ui::GameUiAssets;
 use crate::items::{InventorySlot, Item};
+use crate::map::Map;
 use crate::network::events::{IventorySlotUpdated, PlayerCapacityUpdated, SpawnPlayer};
 use crate::player::components::{Player, PlayerInventory};
 
@@ -27,6 +28,7 @@ pub fn spawn_player(
     mut meshes: ResMut<Assets<Mesh>>,
     mut buffers: ResMut<Assets<ShaderStorageBuffer>>,
     mut instances: ResMut<InstanceManager<ActorInstance>>,
+    mut map: ResMut<Map>,
     ui_assets: Res<GameUiAssets>,
     appearances: Res<Appearances>,
     item_configs: Res<ItemConfigs>,
@@ -44,6 +46,7 @@ pub fn spawn_player(
         &time,
         event.outfit.0,
         event.outfit.1,
+        event.facing,
         event.speed,
         ADDON_1_FLAG | ADDON_2_FLAG,
         event.position.clone(),
@@ -52,7 +55,10 @@ pub fn spawn_player(
         Some(event.mana.clone()),
     );
 
-    commands.entity(entity).insert(Player);
+    map.add_agent(event.agent_id, entity);
+    commands.entity(entity).insert(Player {
+        agent_id: event.agent_id,
+    });
 
     let mut inventory = HashMap::new();
     if let Some(item_id) = event.inventory_head {

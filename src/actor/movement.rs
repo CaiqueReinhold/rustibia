@@ -2,11 +2,11 @@ use std::time::Duration;
 
 use bevy::prelude::*;
 
-use crate::actor::components::{Actor, FacingDirection};
+use crate::actor::components::Actor;
 use crate::actor::WalkingDirection;
 use crate::conf::z_order::ACTOR_Z_OFFSET;
 use crate::map::{Map, Position};
-use crate::player::components::Player;
+use crate::network::events::AgentChangedDirection;
 
 #[derive(Component, Debug)]
 pub struct Moving {
@@ -20,15 +20,10 @@ pub struct MoveActor {
     pub direction: WalkingDirection,
 }
 
-#[derive(Event, Debug)]
-pub struct ActorChangeDirection {
-    pub direction: FacingDirection,
-}
-
 pub fn on_actor_move(
     event: On<MoveActor>,
     mut commands: Commands,
-    mut player_q: Query<(Entity, &mut Actor, &Position), With<Player>>,
+    mut player_q: Query<(Entity, &mut Actor, &Position)>,
     map: Res<Map>,
 ) {
     let Ok((entity, mut actor, position)) = player_q.single_mut() else {
@@ -50,11 +45,16 @@ pub fn on_actor_move(
 }
 
 pub fn on_actor_change_direction(
-    event: On<ActorChangeDirection>,
-    mut player: Single<&mut Actor, With<Player>>,
+    event: On<AgentChangedDirection>,
+    map: Res<Map>,
+    mut agent_q: Query<&mut Actor>,
 ) {
-    if player.direction != event.direction {
-        player.direction = event.direction;
+    if let Some(agent_entity) = map.get_agent(event.agent_id) {
+        if let Ok(mut agent) = agent_q.get_mut(agent_entity) {
+            if agent.direction != event.facing {
+                agent.direction = event.facing;
+            }
+        }
     }
 }
 

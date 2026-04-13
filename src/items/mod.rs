@@ -35,6 +35,7 @@ impl Plugin for ItemsPlugin {
                 Update,
                 (
                     instancing::process_tile_changed,
+                    ui_item::animate_ui_items,
                     ui_item::move_dragged_item,
                     container::container_content_changed,
                     inventory::update_inventory_ui,

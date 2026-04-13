@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use crate::{
-    actor::{Health, Mana},
+    actor::{AgentId, FacingDirection, Health, Mana},
     conf::map::{TILES_X, TILES_Y},
     core::{OutfitId, TextMessageType},
     items::{ContainerId, InventorySlot, ItemId},
@@ -17,7 +17,9 @@ pub struct LoginError;
 
 #[derive(Event, Debug)]
 pub struct SpawnPlayer {
+    pub agent_id: AgentId,
     pub position: Position,
+    pub facing: FacingDirection,
     pub name: String,
     pub _level: u16,
     pub health: Health,
@@ -107,6 +109,12 @@ pub struct PlayerCapacityUpdated {
     pub capacity: u32,
 }
 
+#[derive(Event, Debug)]
+pub struct AgentChangedDirection {
+    pub agent_id: AgentId,
+    pub facing: FacingDirection,
+}
+
 pub fn route_event(msg: ServerMessage, commands: &mut Commands) {
     match msg {
         ServerMessage::Pong => {
@@ -114,7 +122,9 @@ pub fn route_event(msg: ServerMessage, commands: &mut Commands) {
         }
         ServerMessage::LoginError => commands.trigger(LoginError),
         ServerMessage::DescribePlayer {
+            agent_id,
             position,
+            facing,
             name,
             level,
             health,
@@ -134,7 +144,9 @@ pub fn route_event(msg: ServerMessage, commands: &mut Commands) {
             inventory_trinket,
         } => {
             commands.trigger(SpawnPlayer {
+                agent_id,
                 position,
+                facing,
                 name,
                 _level: level,
                 health,
@@ -216,6 +228,9 @@ pub fn route_event(msg: ServerMessage, commands: &mut Commands) {
         }
         ServerMessage::PlayerCapacityUpdated { capacity } => {
             commands.trigger(PlayerCapacityUpdated { capacity });
+        }
+        ServerMessage::AgentChangedDirection { agent_id, facing } => {
+            commands.trigger(AgentChangedDirection { agent_id, facing });
         }
     }
 }

@@ -3,8 +3,8 @@ use std::time::Duration;
 use bevy::prelude::*;
 
 use crate::{
-    actor::{ActorChangeDirection, FacingDirection, WalkingDirection},
-    player::movement::MovePlayer,
+    actor::{FacingDirection, WalkingDirection},
+    player::movement::{ChangePlayerDirection, MovePlayer},
 };
 
 #[derive(Clone, Debug)]
@@ -179,7 +179,7 @@ fn route_action(action: &PlayerAction, commands: &mut Commands) {
     match action {
         PlayerAction::Move(dir) => commands.trigger(MovePlayer { direction: *dir }),
         PlayerAction::ChangeDirection(dir) => {
-            commands.trigger(ActorChangeDirection { direction: *dir })
+            commands.trigger(ChangePlayerDirection { direction: *dir })
         }
     }
 }

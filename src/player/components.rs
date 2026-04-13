@@ -2,10 +2,15 @@ use std::sync::Arc;
 
 use bevy::{platform::collections::HashMap, prelude::*};
 
-use crate::items::{InventorySlot, Item};
+use crate::{
+    actor::AgentId,
+    items::{InventorySlot, Item},
+};
 
 #[derive(Component)]
-pub struct Player;
+pub struct Player {
+    pub agent_id: AgentId,
+}
 
 #[derive(Resource, Debug)]
 pub struct PlayerInventory {

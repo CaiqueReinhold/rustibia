@@ -3,7 +3,7 @@ use bytes::{Buf, BufMut, BytesMut};
 use thiserror::Error;
 
 use crate::{
-    actor::{Health, Mana, WalkingDirection},
+    actor::{AgentId, FacingDirection, Health, Mana, WalkingDirection},
     conf::map::{STACK_MAX_VISIBLE_ITEMS, TILES_X, TILES_Y},
     core::{OutfitId, TextMessageType},
     items::{ContainerId, InventorySlot, ItemId},
@@ -21,6 +21,7 @@ const MSG_MOVE_ITEM: u8 = 4;
 const MSG_USE_ITEM: u8 = 5;
 const MSG_CLOSE_CONTAINER: u8 = 6;
 const MSG_OPEN_PARENT_CONTAINER: u8 = 7;
+const MSG_CHANGE_DIRECTION: u8 = 8;
 
 #[derive(Clone, Debug)]
 pub enum ClientMessage {
@@ -51,6 +52,9 @@ pub enum ClientMessage {
     OpenParentContainer {
         container_id: ContainerId,
     },
+    ChangeDirection {
+        direction: FacingDirection,
+    },
 }
 
 // server
@@ -71,13 +75,16 @@ const MSG_CONTAINER_CLOSED: u8 = 13;
 const MSG_PLAYER_WALK_DENIED: u8 = 14;
 const MSG_INVETORY_SLOT_UPDATED: u8 = 15;
 const MSG_PLAYER_CAPACITY_UPDATED: u8 = 16;
+const MSG_ACTOR_DIRECTION_CHANGED: u8 = 17;
 
 #[derive(Clone, Debug)]
 pub enum ServerMessage {
     Pong,
     LoginError,
     DescribePlayer {
+        agent_id: AgentId,
         position: Position,
+        facing: FacingDirection,
         name: String,
         level: u16,
         health: Health,
@@ -139,6 +146,10 @@ pub enum ServerMessage {
     PlayerCapacityUpdated {
         capacity: u32,
     },
+    AgentChangedDirection {
+        agent_id: AgentId,
+        facing: FacingDirection,
+    },
 }
 
 #[derive(Error, Debug)]
@@ -172,7 +183,9 @@ impl Decoder for GameMessageCodec {
             MSG_PONG => Ok(Some(ServerMessage::Pong)),
             MSG_LOGIN_ERROR => Ok(Some(ServerMessage::LoginError)),
             MSG_DESCRIBE_PLAYER => {
+                let agent_id = buf.get_u16_le();
                 let position = decode_position(buf);
+                let facing = decode_facing(buf)?;
                 let name_len = buf.get_u16_le() as usize;
                 let name = String::from_utf8_lossy(&buf[..name_len]).into_owned();
                 buf.advance(name_len);
@@ -203,7 +216,9 @@ impl Decoder for GameMessageCodec {
                 let inventory_ring = decode_optional_item(buf);
                 let inventory_trinket = decode_optional_item(buf);
                 Ok(Some(ServerMessage::DescribePlayer {
+                    agent_id,
                     position,
+                    facing,
                     name,
                     level,
                     health,
@@ -304,6 +319,10 @@ impl Decoder for GameMessageCodec {
                 let capacity = buf.get_u32_le();
                 Ok(Some(ServerMessage::PlayerCapacityUpdated { capacity }))
             }
+            MSG_ACTOR_DIRECTION_CHANGED => Ok(Some(ServerMessage::AgentChangedDirection {
+                agent_id: buf.get_u16_le(),
+                facing: decode_facing(buf)?,
+            })),
             _ => Err(MessageDecodeError::WrongSequence),
         }
     }
@@ -344,6 +363,16 @@ fn decode_position(buf: &mut BytesMut) -> Position {
         x: buf.get_u32_le(),
         y: buf.get_u32_le(),
         z: buf.get_u32_le(),
+    }
+}
+
+fn decode_facing(buf: &mut BytesMut) -> Result<FacingDirection, MessageDecodeError> {
+    match buf.get_u8() {
+        1 => Ok(FacingDirection::North),
+        2 => Ok(FacingDirection::East),
+        3 => Ok(FacingDirection::South),
+        4 => Ok(FacingDirection::West),
+        _ => Err(MessageDecodeError::WrongSequence),
     }
 }
 
@@ -433,6 +462,10 @@ impl Encoder for GameMessageCodec {
                 dst.put_u8(MSG_OPEN_PARENT_CONTAINER);
                 dst.put_u16_le(container_id);
             }
+            ClientMessage::ChangeDirection { direction } => {
+                dst.put_u8(MSG_CHANGE_DIRECTION);
+                encode_facing(&direction, dst);
+            }
         }
 
         let payload_len = (dst.len() - len_offset - 2) as u16;
@@ -458,6 +491,16 @@ fn encode_direction(d: &WalkingDirection, dst: &mut BytesMut) {
         WalkingDirection::NorthWest => 0x05,
         WalkingDirection::SouthEast => 0x06,
         WalkingDirection::SouthWest => 0x07,
+    };
+    dst.put_u8(value);
+}
+
+fn encode_facing(d: &FacingDirection, dst: &mut BytesMut) {
+    let value = match d {
+        FacingDirection::North => 1,
+        FacingDirection::East => 2,
+        FacingDirection::South => 3,
+        FacingDirection::West => 4,
     };
     dst.put_u8(value);
 }

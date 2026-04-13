@@ -9,7 +9,9 @@ use bevy::ui::{UiTransform, Val2};
 use bevy_text_outline::TextOutline;
 
 use crate::actor::components::Actor;
-use crate::actor::{ActorHud, DisplayName, Health, HealthState, Hud, HudBar, Mana};
+use crate::actor::{
+    ActorHud, DisplayName, FacingDirection, Health, HealthState, Hud, HudBar, Mana,
+};
 use crate::conf::actor::{HUD_BAR_HEIGHT, HUD_BAR_WIDTH};
 use crate::conf::ui::ui_colors;
 use crate::conf::z_order::ACTOR_Z_OFFSET;
@@ -57,6 +59,7 @@ pub fn spawn_actor(
     time: &Time,
     outfit_id: OutfitId,
     outfit_colors: (u8, u8, u8, u8),
+    facing: FacingDirection,
     speed: u16,
     addons: u8,
     position: Position,
@@ -88,7 +91,7 @@ pub fn spawn_actor(
     };
 
     let actor = Actor {
-        // outfit_id,
+        direction: facing,
         addons,
         outfit_colors,
         speed,

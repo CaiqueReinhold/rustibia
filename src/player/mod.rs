@@ -44,6 +44,8 @@ impl Plugin for PlayerPlugin {
             .add_observer(movement::on_ack_walk)
             .add_observer(movement::on_player_position)
             .add_observer(movement::on_walk_denied)
+            .add_observer(movement::player_changed_direction_ack)
+            .add_observer(movement::on_player_change_direction)
             .add_observer(events::spawn_player)
             .add_observer(events::on_slot_update)
             .add_observer(events::on_capacity_update);

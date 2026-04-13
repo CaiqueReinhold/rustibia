@@ -75,8 +75,8 @@ pub fn spawn_top_panel(commands: &mut Commands, ui_assets: &GameUiAssets) -> Ent
         .id();
     commands.entity(panel_inner).add_child(bars_container);
 
-    let health = spawn_ui_bar(bars_container, commands, true, ui_assets);
-    let mana = spawn_ui_bar(bars_container, commands, false, ui_assets);
+    let health = spawn_ui_bar(bars_container, commands, true, ui_assets, 1.0);
+    let mana = spawn_ui_bar(bars_container, commands, false, ui_assets, 0.3);
 
     commands.insert_resource(BarEntities {
         health,
@@ -92,6 +92,7 @@ fn spawn_ui_bar(
     commands: &mut Commands,
     add_health_state: bool,
     ui_assets: &GameUiAssets,
+    alpha: f32,
 ) -> Entity {
     let hud_bar = commands
         .spawn((
@@ -108,6 +109,7 @@ fn spawn_ui_bar(
                     tile_y: false,
                     stretch_value: 1.0,
                 },
+                color: Srgba::new(1.0, 1.0, 1.0, alpha).into(),
                 ..default()
             },
         ))

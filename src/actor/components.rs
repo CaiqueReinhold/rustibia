@@ -5,6 +5,8 @@ use crate::conf::{
     server::TICK_DURATION_MS,
 };
 
+pub type AgentId = u16;
+
 #[derive(Debug, Clone, Copy, Default)]
 pub enum Mounted {
     #[default]
