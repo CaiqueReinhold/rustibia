@@ -35,7 +35,7 @@ fn read_item_config(config: &Value) -> Option<Arc<ItemConfig>> {
     // } else {
     //     Some(config["name"].as_str()?.to_string())
     // };
-    // let minimap_color = None;
+    let minimap_color = config["minimap_color"].as_u64().map(|v| v as u8);
     let friction = Some(config["ground_speed"].as_u64()? as u8);
     let slot = if config["slot"].is_null() {
         None
@@ -98,6 +98,6 @@ fn read_item_config(config: &Value) -> Option<Arc<ItemConfig>> {
         flags,
         friction,
         slot,
-        // minimap_color,
+        minimap_color,
     }))
 }

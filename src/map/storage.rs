@@ -74,22 +74,26 @@ impl Map {
         Some((item, index))
     }
 
-    pub fn get_tile_friction(&self, pos: &Position) -> u8 {
-        let tile = match self.tiles.get(pos) {
-            Some(t) => t,
-            None => return 100,
-        };
+    pub fn get_tile_friction(&self, pos: &Position) -> Option<u8> {
+        let tile = self.tiles.get(pos)?;
 
         tile.items
             .iter()
             .find(|i| i.config.has_flag(ItemFlag::Ground))
             .and_then(|i| i.config.friction)
-            .unwrap_or_default()
     }
 
     pub fn get_items(&self, pos: &Position) -> Option<impl Iterator<Item = &Item>> {
         let tile = self.tiles.get(pos)?;
         Some(tile.items.iter().map(|i| i.as_ref()))
+    }
+
+    pub fn get_minimap_color(&self, pos: &Position) -> Option<u8> {
+        let tile = self.tiles.get(pos)?;
+        tile.items
+            .iter()
+            .rev()
+            .find_map(|it| it.config.minimap_color)
     }
 }
 

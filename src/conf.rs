@@ -70,3 +70,38 @@ pub mod server {
     pub const TICK_DURATION_MS: u32 = 50;
     pub const SERVER_ADDRESS: &str = "127.0.0.1:5555";
 }
+
+pub mod minimap {
+    pub const IMAGE_SIZE: u32 = 2048;
+    /// Tiles visible per axis at each zoom level (index 0 = most zoomed in).
+    pub const ZOOM_LEVELS: [u32; 5] = [20, 40, 80, 160, 320];
+    pub const DEFAULT_ZOOM: usize = 2; // 80×80 tiles
+}
+
+pub mod paths {
+    use std::path::PathBuf;
+
+    /// Returns the root data directory for persistent game data.
+    ///
+    /// - Linux:   `~/.local/share/Rustibia`
+    /// - Windows: `%APPDATA%\Rustibia`
+    pub fn data_dir() -> PathBuf {
+        #[cfg(target_os = "linux")]
+        {
+            let home = std::env::var("HOME").unwrap_or_else(|_| ".".to_string());
+            PathBuf::from(home)
+                .join(".local")
+                .join("share")
+                .join("Rustibia")
+        }
+        #[cfg(target_os = "windows")]
+        {
+            let appdata = std::env::var("APPDATA").unwrap_or_else(|_| ".".to_string());
+            PathBuf::from(appdata).join("Rustibia")
+        }
+        #[cfg(not(any(target_os = "linux", target_os = "windows")))]
+        {
+            PathBuf::from("data")
+        }
+    }
+}

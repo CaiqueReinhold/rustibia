@@ -7,7 +7,7 @@ use crate::{
     conf::map::{TILES_X, TILES_Y},
     core::ItemConfigs,
     items::{ChangedTileQueue, Item},
-    map::{Map, Position},
+    map::{minimap::MinimapData, Map, Position},
     network::{
         events::{DescribeMap, TileChanged},
         ItemStack,
@@ -77,7 +77,13 @@ fn iter_expansion(
     }
 }
 
-fn update_tile(tile: &ItemStack, position: &Position, map: &mut Map, config: &ItemConfigs) {
+fn update_tile(
+    tile: &ItemStack,
+    position: &Position,
+    map: &mut Map,
+    config: &ItemConfigs,
+    minimap: &mut MinimapData,
+) {
     let mut items = Vec::with_capacity(8);
     for item in tile {
         if item.is_none() {
@@ -87,7 +93,14 @@ fn update_tile(tile: &ItemStack, position: &Position, map: &mut Map, config: &It
         let config = config.items.get(&item_id).unwrap();
         items.push(Arc::new(Item::new(config.clone(), amount as u32)));
     }
+
     map.replace_tile(items, position);
+
+    minimap.update_tile(
+        position,
+        map.get_minimap_color(position).unwrap_or(0),
+        map.get_tile_friction(position).unwrap_or(0),
+    );
 }
 
 pub(super) fn on_describe_map(
@@ -96,10 +109,11 @@ pub(super) fn on_describe_map(
     player_pos: Single<&Position, With<Player>>,
     mut map: ResMut<Map>,
     mut queue: ResMut<ChangedTileQueue>,
+    mut minimap: ResMut<MinimapData>,
 ) {
     for (i, position) in iter_viewport(&player_pos).enumerate() {
         let tile = event.tiles[i];
-        update_tile(&tile, &position, &mut map, &config);
+        update_tile(&tile, &position, &mut map, &config, &mut minimap);
         queue.changed_positions.push_back(position);
     }
 }
@@ -108,12 +122,13 @@ pub fn on_player_walk_ack(
     queue: &mut ChangedTileQueue,
     map: &mut Map,
     config: &ItemConfigs,
+    minimap: &mut MinimapData,
     player_pos: &Position,
     direction: WalkingDirection,
     tiles: &[ItemStack],
 ) {
     for (i, position) in iter_expansion(player_pos, &direction).enumerate() {
-        update_tile(&tiles[i], &position, map, config);
+        update_tile(&tiles[i], &position, map, config, minimap);
         queue.changed_positions.push_back(position);
     }
 }
@@ -123,7 +138,14 @@ pub(super) fn on_tile_changed(
     config: Res<ItemConfigs>,
     mut map: ResMut<Map>,
     mut queue: ResMut<ChangedTileQueue>,
+    mut minimap: ResMut<MinimapData>,
 ) {
-    update_tile(&event.items, &event.position, &mut map, &config);
+    update_tile(
+        &event.items,
+        &event.position,
+        &mut map,
+        &config,
+        &mut minimap,
+    );
     queue.changed_positions.push_back(event.position.clone());
 }

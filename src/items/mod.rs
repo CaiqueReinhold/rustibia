@@ -8,7 +8,7 @@ use crate::{
 mod container;
 mod events;
 mod instancing;
-mod inventory;
+pub mod inventory;
 mod item;
 mod material;
 mod ui_item;

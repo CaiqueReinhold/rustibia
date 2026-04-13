@@ -8,7 +8,7 @@ use crate::{
     conf::map::TILE_SIZE,
     core::{ItemConfigs, TextMessageType},
     items::ChangedTileQueue,
-    map::{self, Map, Position},
+    map::{self, Map, MinimapData, Position},
     network::{
         events::{
             AgentChangedDirection, PlayerPosition, PlayerWalk, PlayerWalkDenied, ShowTextMessage,
@@ -114,6 +114,7 @@ pub fn on_ack_walk(
     mut map: ResMut<Map>,
     mut tile_queue: ResMut<ChangedTileQueue>,
     config: Res<ItemConfigs>,
+    mut minimap: ResMut<MinimapData>,
 ) {
     if move_queue.predicted_pos.as_ref() != Some(&event.position) {
         move_queue.moves.clear();
@@ -127,6 +128,7 @@ pub fn on_ack_walk(
         &mut tile_queue,
         &mut map,
         &config,
+        &mut minimap,
         &source_pos,
         direction,
         &event.tiles,

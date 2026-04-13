@@ -87,11 +87,10 @@ pub enum ItemFlag {
 #[derive(Debug, Eq)]
 pub struct ItemConfig {
     pub id: ItemId,
-    // pub name: Option<String>,
     pub flags: Vec<ItemFlag>,
     pub friction: Option<u8>,
     pub slot: Option<InventorySlot>,
-    // pub minimap_color: Option<u8>,
+    pub minimap_color: Option<u8>,
 }
 
 impl ItemConfig {

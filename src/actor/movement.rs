@@ -33,7 +33,7 @@ pub fn on_actor_move(
     let start_position = position.clone();
     let facing = event.direction.facing();
     let end_position = start_position.clone() + event.direction;
-    let tile_modifier = map.get_tile_friction(&end_position);
+    let tile_modifier = map.get_tile_friction(&end_position).unwrap_or(0);
     let step_time_ms = actor.get_step_duration(tile_modifier, event.direction.is_diagonal());
 
     actor.direction = facing;
