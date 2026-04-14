@@ -37,7 +37,7 @@ impl Plugin for GameUiPlugin {
             .add_systems(Startup, assets::setup_game_ui_assets)
             .add_systems(
                 Update,
-                toppanel::update_bar_ratio.run_if(in_state(GameState::InGame)),
+                toppanel::update_bar.run_if(in_state(GameState::InGame)),
             )
             .add_systems(
                 Update,

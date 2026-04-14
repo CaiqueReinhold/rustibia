@@ -10,9 +10,10 @@ pub struct TopPanel;
 
 #[derive(Resource)]
 pub struct BarEntities {
-    pub health: Entity,
-    pub mana: Entity,
-    // pub experience: Entity,
+    pub health_bar: Entity,
+    pub health_text: Entity,
+    pub mana_bar: Entity,
+    pub mana_text: Entity,
 }
 
 pub fn spawn_top_panel(commands: &mut Commands, ui_assets: &GameUiAssets) -> Entity {
@@ -75,12 +76,14 @@ pub fn spawn_top_panel(commands: &mut Commands, ui_assets: &GameUiAssets) -> Ent
         .id();
     commands.entity(panel_inner).add_child(bars_container);
 
-    let health = spawn_ui_bar(bars_container, commands, true, ui_assets, 1.0);
-    let mana = spawn_ui_bar(bars_container, commands, false, ui_assets, 0.3);
+    let (health_bar, health_text) = spawn_ui_bar(bars_container, commands, true, ui_assets, 1.0);
+    let (mana_bar, mana_text) = spawn_ui_bar(bars_container, commands, false, ui_assets, 0.3);
 
     commands.insert_resource(BarEntities {
-        health,
-        mana,
+        health_bar,
+        health_text,
+        mana_bar,
+        mana_text,
         // experience,
     });
 
@@ -93,10 +96,11 @@ fn spawn_ui_bar(
     add_health_state: bool,
     ui_assets: &GameUiAssets,
     alpha: f32,
-) -> Entity {
+) -> (Entity, Entity) {
     let hud_bar = commands
         .spawn((
             Node {
+                position_type: PositionType::Absolute,
                 width: Val::Percent(100.0),
                 height: Val::Percent(100.0),
                 ..default()
@@ -122,6 +126,22 @@ fn spawn_ui_bar(
             .insert(BackgroundColor(ui_colors::MANA_BAR_COLOR.into()));
     }
 
+    let text = commands
+        .spawn((
+            Node {
+                width: Val::Percent(100.0),
+                ..default()
+            },
+            Text::new(""),
+            TextFont {
+                font: ui_assets.font.clone(),
+                font_size: 12.0,
+                ..default()
+            },
+            TextLayout::new_with_justify(Justify::Center),
+        ))
+        .id();
+
     let bar = commands
         .spawn((
             Node {
@@ -138,24 +158,34 @@ fn spawn_ui_bar(
             },
         ))
         .add_child(hud_bar)
+        .add_child(text)
         .id();
     commands.entity(parent).add_child(bar);
 
-    hud_bar
+    (hud_bar, text)
 }
 
-pub fn update_bar_ratio(
+pub fn update_bar(
     bars: Res<BarEntities>,
     player: Single<(&Health, &Mana), (With<Player>, Or<(Changed<Health>, Changed<Mana>)>)>,
     mut bar_q: Query<&mut HudBar>,
+    mut text_q: Query<&mut Text>,
 ) {
     let (health, mana) = *player;
 
-    if let Ok(mut health_bar) = bar_q.get_mut(bars.health) {
+    if let Ok(mut health_bar) = bar_q.get_mut(bars.health_bar) {
         health_bar.ratio = health.ratio();
     }
 
-    if let Ok(mut mana_bar) = bar_q.get_mut(bars.mana) {
+    if let Ok(mut health_text) = text_q.get_mut(bars.health_text) {
+        health_text.0 = format!("{}/{}", health.current, health.max);
+    }
+
+    if let Ok(mut mana_bar) = bar_q.get_mut(bars.mana_bar) {
         mana_bar.ratio = mana.ratio();
+    }
+
+    if let Ok(mut mana_text) = text_q.get_mut(bars.mana_text) {
+        mana_text.0 = format!("{}/{}", mana.current, mana.max);
     }
 }

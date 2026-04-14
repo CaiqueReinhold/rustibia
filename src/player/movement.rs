@@ -7,7 +7,7 @@ use crate::{
     camera::GameCamera,
     conf::map::TILE_SIZE,
     core::{ItemConfigs, TextMessageType},
-    items::ChangedTileQueue,
+    items::{ChangedTileQueue, ItemDragEnded},
     map::{self, Map, MinimapData, Position},
     network::{
         events::{
@@ -15,7 +15,11 @@ use crate::{
         },
         ClientMessage, SendMessage,
     },
-    player::components::Player,
+    player::{
+        components::Player,
+        interaction::{PendingUseAck, PendingWalkAction, WalkAction},
+        pathfinding::{compute_path, compute_path_to_adjacent, is_adjacent, AutoWalkTarget},
+    },
 };
 
 #[derive(Debug)]
@@ -32,6 +36,15 @@ pub struct MovementQueue {
     predicted_pos: Option<Position>,
 }
 
+impl MovementQueue {
+    pub fn set_auto_walk_path(&mut self, directions: impl IntoIterator<Item = WalkingDirection>) {
+        self.moves.clear();
+        for dir in directions {
+            self.moves.push_back(Movement::Walk(dir));
+        }
+    }
+}
+
 #[derive(Event, Debug)]
 pub struct MovePlayer {
     pub direction: WalkingDirection,
@@ -42,12 +55,15 @@ pub struct ChangePlayerDirection {
     pub direction: FacingDirection,
 }
 
-pub fn on_player_walk(event: On<MovePlayer>, mut queue: ResMut<MovementQueue>) {
-    if !queue.moves.is_empty() {
-        queue.moves.pop_back();
-    }
-
+pub fn on_player_walk(
+    event: On<MovePlayer>,
+    mut queue: ResMut<MovementQueue>,
+    mut commands: Commands,
+) {
+    queue.moves.clear();
     queue.moves.push_back(Movement::Walk(event.direction));
+    commands.remove_resource::<AutoWalkTarget>();
+    commands.remove_resource::<PendingWalkAction>();
 }
 
 pub fn on_player_change_direction(
@@ -142,8 +158,13 @@ pub fn on_walk_denied(
     mut move_queue: ResMut<MovementQueue>,
     mut commands: Commands,
     player: Single<(Entity, &Position), With<Player>>,
+    auto_walk_target: Option<Res<AutoWalkTarget>>,
+    pending_walk_action: Option<Res<PendingWalkAction>>,
+    minimap: Res<MinimapData>,
 ) {
     move_queue.moves.clear();
+
+    let mut confirmed_pos: Option<Position> = None;
 
     if let Some(direction) = move_queue.pending_walk_ack {
         if let Some(predicted_pos) = &move_queue.predicted_pos {
@@ -151,13 +172,48 @@ pub fn on_walk_denied(
             let player_pos = predicted_pos.clone() - direction;
             commands.entity(entity).insert(Moving {
                 start: position.clone(),
-                end: player_pos,
+                end: player_pos.clone(),
                 timer: Timer::new(Duration::from_millis(1), TimerMode::Once),
             });
+            confirmed_pos = Some(player_pos);
         }
     }
     move_queue.pending_walk_ack = None;
     move_queue.predicted_pos = None;
+
+    // Deferred-action recalculation takes priority
+    if let Some(pending) = &pending_walk_action {
+        if let Some(from) = &confirmed_pos {
+            match compute_path_to_adjacent(from, &pending.item_pos, &minimap) {
+                Some(steps) => move_queue.set_auto_walk_path(steps),
+                None => {
+                    commands.remove_resource::<PendingWalkAction>();
+                    commands.remove_resource::<AutoWalkTarget>();
+                    commands.trigger(ShowTextMessage {
+                        text: "There is no way.".to_string(),
+                        _message_type: TextMessageType::ActionDenied,
+                    });
+                }
+            }
+        }
+        // Always return — don't let the AutoWalkTarget branch also recalculate
+        // (PendingWalkAction implies an AutoWalkTarget pointing to item_pos; double-recalculating
+        // would compute a path TO the item tile rather than TO an adjacent tile)
+        return;
+    }
+
+    if let (Some(target), Some(from)) = (auto_walk_target, confirmed_pos) {
+        match compute_path(&from, &target.0, &minimap) {
+            Some(steps) => move_queue.set_auto_walk_path(steps),
+            None => {
+                commands.remove_resource::<AutoWalkTarget>();
+                commands.trigger(ShowTextMessage {
+                    text: "There is no way.".to_string(),
+                    _message_type: TextMessageType::ActionDenied,
+                });
+            }
+        }
+    }
 }
 
 pub fn on_player_position(
@@ -207,4 +263,39 @@ pub fn center_on_player(
 
     let target = player_transform.translation + Vec3::new(TILE_SIZE / 2.0, -(TILE_SIZE / 2.0), 0.0);
     camera_transform.translation = Vec3::new(target.x.round(), target.y.round(), target.z);
+}
+
+pub fn fire_pending_action(
+    mut commands: Commands,
+    queue: Res<MovementQueue>,
+    pending: Option<Res<PendingWalkAction>>,
+    player_q: Single<&Position, With<Player>>,
+) {
+    let Some(pending) = pending else { return };
+
+    if !queue.moves.is_empty()
+        || queue.pending_walk_ack.is_some()
+        || queue.pending_turn_ack
+    {
+        return;
+    }
+
+    let player_pos = *player_q;
+    if !(is_adjacent(player_pos, &pending.item_pos) || player_pos == &pending.item_pos) {
+        return;
+    }
+
+    match &pending.action {
+        WalkAction::UseItem { msg, target_window_id } => {
+            commands.trigger(SendMessage { msg: msg.clone() });
+            commands.insert_resource(PendingUseAck { target_window_id: *target_window_id });
+        }
+        WalkAction::MoveItem { msg } => {
+            commands.trigger(SendMessage { msg: msg.clone() });
+            commands.trigger(ItemDragEnded);
+        }
+    }
+
+    commands.remove_resource::<PendingWalkAction>();
+    commands.remove_resource::<AutoWalkTarget>();
 }

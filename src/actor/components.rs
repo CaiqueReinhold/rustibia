@@ -42,7 +42,7 @@ impl Actor {
 
         let mut tile_speed = (1000.0 * (tile_friction as f32) / move_speed).floor();
         if is_diagonal {
-            tile_speed /= 2.0;
+            tile_speed *= 2.5;
         }
         let tile_speed_tick =
             (tile_speed / (TICK_DURATION_MS as f32)).ceil() * (TICK_DURATION_MS as f32);

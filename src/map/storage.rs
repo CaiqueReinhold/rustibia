@@ -77,6 +77,10 @@ impl Map {
     pub fn get_tile_friction(&self, pos: &Position) -> Option<u8> {
         let tile = self.tiles.get(pos)?;
 
+        if !self.can_walk(pos) {
+            return None;
+        }
+
         tile.items
             .iter()
             .find(|i| i.config.has_flag(ItemFlag::Ground))
@@ -94,6 +98,16 @@ impl Map {
             .iter()
             .rev()
             .find_map(|it| it.config.minimap_color)
+    }
+
+    pub fn avoid(&self, pos: &Position) -> bool {
+        let Some(tile) = self.tiles.get(pos) else {
+            return true;
+        };
+
+        tile.items
+            .iter()
+            .any(|it| it.config.has_flag(ItemFlag::Avoid))
     }
 }
 

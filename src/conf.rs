@@ -74,7 +74,7 @@ pub mod server {
 pub mod minimap {
     pub const IMAGE_SIZE: u32 = 2048;
     /// Tiles visible per axis at each zoom level (index 0 = most zoomed in).
-    pub const ZOOM_LEVELS: [u32; 5] = [20, 40, 80, 160, 320];
+    pub const ZOOM_LEVELS: [u32; 4] = [20, 40, 80, 160];
     pub const DEFAULT_ZOOM: usize = 2; // 80×80 tiles
 }
 

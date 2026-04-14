@@ -96,10 +96,16 @@ fn update_tile(
 
     map.replace_tile(items, position);
 
+    let friction = if map.avoid(position) {
+        0
+    } else {
+        map.get_tile_friction(position).unwrap_or(0)
+    };
+
     minimap.update_tile(
         position,
         map.get_minimap_color(position).unwrap_or(0),
-        map.get_tile_friction(position).unwrap_or(0),
+        friction,
     );
 }
 

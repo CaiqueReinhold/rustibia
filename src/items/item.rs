@@ -82,6 +82,7 @@ pub enum ItemFlag {
     FullBank,
     Bottom,
     Usable,
+    Avoid,
 }
 
 #[derive(Debug, Eq)]

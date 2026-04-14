@@ -10,7 +10,8 @@ const TILES_PER_CHUNK: usize = (CHUNK_SIZE * CHUNK_SIZE) as usize;
 #[derive(Clone, Copy, Default, Debug)]
 pub struct MinimapTile {
     pub color: u8,
-    pub friction: u8,
+    /// `None` = unvisited, `Some(0)` = confirmed impassable, `Some(n)` = passable with friction n
+    pub friction: Option<u8>,
 }
 
 #[derive(Hash, Eq, PartialEq, Clone, Copy, Debug)]
@@ -51,28 +52,23 @@ impl MinimapData {
     }
 
     pub fn update_tile(&mut self, pos: &Position, color: u8, friction: u8) {
+        let new_friction = Some(friction);
         let (key, offset) = Self::key_and_offset(pos);
         let chunk = self.chunks.entry(key).or_insert_with(MinimapChunk::new);
         let tile = &mut chunk.tiles[offset];
-        if tile.color != color || tile.friction != friction {
+        if tile.color != color || tile.friction != new_friction {
             tile.color = color;
-            tile.friction = friction;
+            tile.friction = new_friction;
             chunk.dirty = true;
             chunk.gpu_dirty = true;
         }
     }
 
-    // pub fn get_tile(&self, pos: &Position) -> Option<MinimapTile> {
-    //     let (key, offset) = Self::key_and_offset(pos);
-    //     let chunk = self.chunks.get(&key)?;
-    //     let tile = chunk.tiles[offset];
-    //     // (0, 0) is the unvisited sentinel — ground tiles always have non-zero color
-    //     if tile.color == 0 && tile.friction == 0 {
-    //         None
-    //     } else {
-    //         Some(tile)
-    //     }
-    // }
+    pub fn get_tile(&self, pos: &Position) -> Option<MinimapTile> {
+        let (key, offset) = Self::key_and_offset(pos);
+        let chunk = self.chunks.get(&key)?;
+        Some(chunk.tiles[offset])
+    }
 
     pub fn drain_gpu_dirty(&mut self, z: u32) -> Vec<(ChunkKey, Vec<MinimapTile>)> {
         let keys: Vec<ChunkKey> = self
@@ -127,11 +123,12 @@ fn chunk_path(key: &ChunkKey) -> PathBuf {
 }
 
 // Interleaved layout: [color_0, friction_0, color_1, friction_1, ...]
+// friction byte: 0xFF = None (unvisited), other = Some(value)
 fn serialize_chunk(tiles: &[MinimapTile]) -> Vec<u8> {
     let mut bytes = Vec::with_capacity(tiles.len() * 2);
     for tile in tiles {
         bytes.push(tile.color);
-        bytes.push(tile.friction);
+        bytes.push(tile.friction.unwrap_or(0xFF));
     }
     bytes
 }
@@ -140,9 +137,14 @@ fn deserialize_chunk(bytes: &[u8]) -> Vec<MinimapTile> {
     let mut tiles = vec![MinimapTile::default(); TILES_PER_CHUNK];
     let count = (bytes.len() / 2).min(TILES_PER_CHUNK);
     for i in 0..count {
+        let friction_byte = bytes[i * 2 + 1];
         tiles[i] = MinimapTile {
             color: bytes[i * 2],
-            friction: bytes[i * 2 + 1],
+            friction: if friction_byte == 0xFF {
+                None
+            } else {
+                Some(friction_byte)
+            },
         };
     }
     tiles

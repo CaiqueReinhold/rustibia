@@ -92,6 +92,9 @@ fn read_item_config(config: &Value) -> Option<Arc<ItemConfig>> {
     if config["usable"].as_bool()? {
         flags.push(ItemFlag::Usable);
     }
+    if config["avoid"].as_bool()? {
+        flags.push(ItemFlag::Avoid);
+    }
     Some(Arc::new(ItemConfig {
         id,
         // name,

@@ -5,6 +5,7 @@ mod events;
 mod interaction;
 mod keyboard;
 mod movement;
+pub mod pathfinding;
 
 pub use interaction::{ItemDragState, MouseHoverState, PendingUseAck};
 
@@ -27,7 +28,9 @@ impl Plugin for PlayerPlugin {
             )
             .add_systems(
                 Update,
-                movement::process_move_queue.run_if(in_state(GameState::InGame)),
+                (movement::process_move_queue, movement::fire_pending_action)
+                    .chain()
+                    .run_if(in_state(GameState::InGame)),
             )
             .add_systems(
                 PostUpdate,
