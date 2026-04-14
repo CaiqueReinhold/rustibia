@@ -3,7 +3,7 @@ use std::{collections::VecDeque, time::Duration};
 use bevy::prelude::*;
 
 use crate::{
-    actor::{FacingDirection, MoveActor, Moving, WalkingDirection},
+    actor::{FacingDirection, MoveActor, Moving, UpdateElevation, WalkingDirection},
     camera::GameCamera,
     conf::map::TILE_SIZE,
     core::{ItemConfigs, TextMessageType},
@@ -144,6 +144,7 @@ pub fn on_ack_walk(
     let direction = move_queue.pending_walk_ack.unwrap();
     let source_pos = event.position.clone() - direction;
     map::events::on_player_walk_ack(
+        &mut commands,
         &mut tile_queue,
         &mut map,
         &config,
@@ -278,6 +279,17 @@ pub fn update_player_elevation(
     };
 }
 
+pub fn on_update_elevation_player(
+    event: On<UpdateElevation>,
+    player_position: Single<&Position, With<Player>>,
+    mut player_elevation: ResMut<PlayerElevation>,
+    map: Res<Map>,
+) {
+    if event.pos == **player_position {
+        player_elevation.0 = map.get_elevation(&event.pos) as f32;
+    }
+}
+
 pub fn center_on_player(
     player_q: Single<&Transform, With<Player>>,
     camera_q: Single<&mut Transform, (With<GameCamera>, Without<Player>)>,
@@ -285,8 +297,6 @@ pub fn center_on_player(
 ) {
     let player_transform = *player_q;
     let mut camera_transform = camera_q;
-
-    info!("trans: {}", player_transform.translation);
 
     let target = player_transform.translation
         + Vec3::new(TILE_SIZE / 2.0, -(TILE_SIZE / 2.0), 0.0)

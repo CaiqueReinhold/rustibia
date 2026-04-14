@@ -20,6 +20,11 @@ pub struct MoveActor {
     pub direction: WalkingDirection,
 }
 
+#[derive(Event, Debug)]
+pub struct UpdateElevation {
+    pub pos: Position,
+}
+
 pub fn on_actor_move(
     event: On<MoveActor>,
     mut commands: Commands,
@@ -90,7 +95,6 @@ pub fn move_actor(
             let start_elevation = map.get_elevation(&moving.start);
             vec3(-(start_elevation as f32), start_elevation as f32, 0.0)
         };
-        info!("applyed elevation: {}", elevation);
         let end = moving.end.to_world();
         let interpolated = start.lerp(end, moving.timer.fraction()) + elevation;
         transform.translation = Vec3::new(
@@ -98,5 +102,19 @@ pub fn move_actor(
             interpolated.y.round(),
             f32::lerp(start.z, end.z, moving.timer.fraction()) + ACTOR_Z_OFFSET,
         );
+    }
+}
+
+pub fn on_update_elevation(
+    event: On<UpdateElevation>,
+    mut moving_q: Query<(&mut Transform, &Position), With<Actor>>,
+    map: Res<Map>,
+) {
+    let elevation = map.get_elevation(&event.pos);
+    for (mut transform, position) in moving_q.iter_mut() {
+        if *position == event.pos {
+            transform.translation =
+                position.to_world_with_elevation(elevation) + vec3(0.0, 0.0, ACTOR_Z_OFFSET);
+        }
     }
 }

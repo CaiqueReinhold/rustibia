@@ -13,7 +13,7 @@ pub mod movement;
 pub use crate::actor::components::*;
 pub use crate::actor::instancing::{spawn_actor, LoadedMaterials};
 pub use crate::actor::material::{ActorInstance, ActorMaterial};
-pub use crate::actor::movement::{MoveActor, Moving};
+pub use crate::actor::movement::{MoveActor, Moving, UpdateElevation};
 
 pub struct ActorPlugin;
 
@@ -57,7 +57,8 @@ impl Plugin for ActorPlugin {
             )
             .add_observer(instancing::on_remove_actor)
             .add_observer(movement::on_actor_move)
-            .add_observer(movement::on_actor_change_direction);
+            .add_observer(movement::on_actor_change_direction)
+            .add_observer(movement::on_update_elevation);
 
         #[cfg(feature = "debug")]
         app.add_systems(Update, (instancing::actor_rect,));

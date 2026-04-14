@@ -3,7 +3,7 @@ use std::sync::Arc;
 use bevy::prelude::*;
 
 use crate::{
-    actor::WalkingDirection,
+    actor::{UpdateElevation, WalkingDirection},
     conf::map::{TILES_X, TILES_Y},
     core::ItemConfigs,
     items::{ChangedTileQueue, Item},
@@ -83,6 +83,7 @@ fn update_tile(
     map: &mut Map,
     config: &ItemConfigs,
     minimap: &mut MinimapData,
+    commands: &mut Commands,
 ) {
     let mut items = Vec::with_capacity(8);
     for item in tile {
@@ -94,7 +95,15 @@ fn update_tile(
         items.push(Arc::new(Item::new(config.clone(), amount as u32)));
     }
 
+    let old_elevation = map.get_elevation(position);
     map.replace_tile(items, position);
+    let new_elevation = map.get_elevation(position);
+
+    if old_elevation != new_elevation {
+        commands.trigger(UpdateElevation {
+            pos: position.clone(),
+        });
+    }
 
     let friction = if map.avoid(position) {
         0
@@ -111,6 +120,7 @@ fn update_tile(
 
 pub(super) fn on_describe_map(
     event: On<DescribeMap>,
+    mut commands: Commands,
     config: Res<ItemConfigs>,
     player_pos: Single<&Position, With<Player>>,
     mut map: ResMut<Map>,
@@ -119,12 +129,20 @@ pub(super) fn on_describe_map(
 ) {
     for (i, position) in iter_viewport(&player_pos).enumerate() {
         let tile = event.tiles[i];
-        update_tile(&tile, &position, &mut map, &config, &mut minimap);
+        update_tile(
+            &tile,
+            &position,
+            &mut map,
+            &config,
+            &mut minimap,
+            &mut commands,
+        );
         queue.changed_positions.push_back(position);
     }
 }
 
 pub fn on_player_walk_ack(
+    commands: &mut Commands,
     queue: &mut ChangedTileQueue,
     map: &mut Map,
     config: &ItemConfigs,
@@ -134,7 +152,7 @@ pub fn on_player_walk_ack(
     tiles: &[ItemStack],
 ) {
     for (i, position) in iter_expansion(player_pos, &direction).enumerate() {
-        update_tile(&tiles[i], &position, map, config, minimap);
+        update_tile(&tiles[i], &position, map, config, minimap, commands);
         queue.changed_positions.push_back(position);
     }
 }
@@ -145,6 +163,7 @@ pub(super) fn on_tile_changed(
     mut map: ResMut<Map>,
     mut queue: ResMut<ChangedTileQueue>,
     mut minimap: ResMut<MinimapData>,
+    mut commands: Commands,
 ) {
     update_tile(
         &event.items,
@@ -152,6 +171,7 @@ pub(super) fn on_tile_changed(
         &mut map,
         &config,
         &mut minimap,
+        &mut commands,
     );
     queue.changed_positions.push_back(event.position.clone());
 }
