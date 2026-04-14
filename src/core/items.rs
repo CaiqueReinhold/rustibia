@@ -30,11 +30,6 @@ pub fn read_item_configs() -> HashMap<ItemId, Arc<ItemConfig>> {
 
 fn read_item_config(config: &Value) -> Option<Arc<ItemConfig>> {
     let id = config["id"].as_u64()? as ItemId;
-    // let name = if config["name"].is_null() {
-    //     None
-    // } else {
-    //     Some(config["name"].as_str()?.to_string())
-    // };
     let minimap_color = config["minimap_color"].as_u64().map(|v| v as u8);
     let friction = Some(config["ground_speed"].as_u64()? as u8);
     let slot = if config["slot"].is_null() {
@@ -57,6 +52,11 @@ fn read_item_config(config: &Value) -> Option<Arc<ItemConfig>> {
                 return None;
             }
         })
+    };
+    let elevation = if config["elevation"].is_null() {
+        None
+    } else {
+        Some(config["elevation"].as_u64()? as u8)
     };
     let mut flags: Vec<ItemFlag> = Vec::new();
     if config["is_ground"].as_bool()? {
@@ -102,5 +102,6 @@ fn read_item_config(config: &Value) -> Option<Arc<ItemConfig>> {
         friction,
         slot,
         minimap_color,
+        elevation,
     }))
 }

@@ -109,6 +109,18 @@ impl Map {
             .iter()
             .any(|it| it.config.has_flag(ItemFlag::Avoid))
     }
+
+    pub fn get_elevation(&self, pos: &Position) -> u8 {
+        let Some(tile) = self.tiles.get(pos) else {
+            return 0;
+        };
+
+        tile.items
+            .iter()
+            .filter_map(|it| it.config.elevation)
+            .take(3)
+            .sum()
+    }
 }
 
 pub(super) fn init_map(mut commands: Commands) {

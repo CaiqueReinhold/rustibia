@@ -62,6 +62,7 @@ pub fn move_actor(
     mut commands: Commands,
     mut moving_q: Query<(Entity, &mut Transform, &mut Moving), With<Actor>>,
     mut actor_q: Query<&mut Actor>,
+    map: Res<Map>,
     time: Res<Time>,
 ) {
     for (entity, mut transform, mut moving) in moving_q.iter_mut() {
@@ -75,17 +76,27 @@ pub fn move_actor(
                 .insert(moving.end.clone())
                 .remove::<Moving>();
 
-            transform.translation = moving.end.to_world() + Vec3::new(0.0, 0.0, ACTOR_Z_OFFSET);
+            let elevation = map.get_elevation(&moving.end);
+            transform.translation =
+                moving.end.to_world_with_elevation(elevation) + vec3(0.0, 0.0, ACTOR_Z_OFFSET);
             return;
         }
 
         let start = moving.start.to_world();
+        let elevation = if moving.timer.fraction() > 0.5 {
+            let end_elevation = map.get_elevation(&moving.end);
+            vec3(-(end_elevation as f32), end_elevation as f32, 0.0)
+        } else {
+            let start_elevation = map.get_elevation(&moving.start);
+            vec3(-(start_elevation as f32), start_elevation as f32, 0.0)
+        };
+        info!("applyed elevation: {}", elevation);
         let end = moving.end.to_world();
-        let interpolated = start.lerp(end, moving.timer.fraction());
+        let interpolated = start.lerp(end, moving.timer.fraction()) + elevation;
         transform.translation = Vec3::new(
             interpolated.x.round(),
             interpolated.y.round(),
-            f32::max(end.z, start.z) + ACTOR_Z_OFFSET,
+            f32::lerp(start.z, end.z, moving.timer.fraction()) + ACTOR_Z_OFFSET,
         );
     }
 }

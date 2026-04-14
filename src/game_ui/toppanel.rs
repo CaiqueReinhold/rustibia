@@ -135,7 +135,7 @@ fn spawn_ui_bar(
             Text::new(""),
             TextFont {
                 font: ui_assets.font.clone(),
-                font_size: 12.0,
+                font_size: 11.0,
                 ..default()
             },
             TextLayout::new_with_justify(Justify::Center),

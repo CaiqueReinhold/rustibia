@@ -18,6 +18,7 @@ impl Plugin for PlayerPlugin {
         app.init_resource::<interaction::MouseHoverState>()
             .init_resource::<keyboard::Keybinds>()
             .init_resource::<movement::MovementQueue>()
+            .init_resource::<movement::PlayerElevation>()
             .add_systems(Startup, keyboard::init_repeat_state)
             .add_systems(
                 PreUpdate,
@@ -33,8 +34,14 @@ impl Plugin for PlayerPlugin {
                     .run_if(in_state(GameState::InGame)),
             )
             .add_systems(
+                Update,
+                movement::update_player_elevation
+                    .run_if(in_state(GameState::InGame))
+                    .after(crate::actor::movement::move_actor),
+            )
+            .add_systems(
                 PostUpdate,
-                movement::center_on_player.run_if(in_state(GameState::InGame)),
+                (movement::center_on_player.run_if(in_state(GameState::InGame)),),
             )
             .add_systems(
                 Update,

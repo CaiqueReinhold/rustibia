@@ -8,7 +8,7 @@ mod components;
 mod hud;
 mod instancing;
 mod material;
-mod movement;
+pub mod movement;
 
 pub use crate::actor::components::*;
 pub use crate::actor::instancing::{spawn_actor, LoadedMaterials};

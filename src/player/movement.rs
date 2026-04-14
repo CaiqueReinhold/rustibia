@@ -45,6 +45,9 @@ impl MovementQueue {
     }
 }
 
+#[derive(Resource, Default, Debug)]
+pub struct PlayerElevation(f32);
+
 #[derive(Event, Debug)]
 pub struct MovePlayer {
     pub direction: WalkingDirection,
@@ -254,14 +257,40 @@ pub fn player_changed_direction_ack(
     }
 }
 
+pub fn update_player_elevation(
+    player_q: Single<
+        (&Position, Option<&Moving>),
+        (With<Player>, Or<(Changed<Position>, Changed<Moving>)>),
+    >,
+    mut player_elevation: ResMut<PlayerElevation>,
+    map: Res<Map>,
+) {
+    let (pos, moving) = *player_q;
+    if let Some(moving) = moving {
+        let current_elevation = if moving.timer.fraction() > 0.5 {
+            map.get_elevation(&moving.end) as f32
+        } else {
+            map.get_elevation(&moving.start) as f32
+        };
+        player_elevation.0 = current_elevation;
+    } else {
+        player_elevation.0 = map.get_elevation(pos) as f32;
+    };
+}
+
 pub fn center_on_player(
     player_q: Single<&Transform, With<Player>>,
     camera_q: Single<&mut Transform, (With<GameCamera>, Without<Player>)>,
+    player_elevation: Res<PlayerElevation>,
 ) {
     let player_transform = *player_q;
     let mut camera_transform = camera_q;
 
-    let target = player_transform.translation + Vec3::new(TILE_SIZE / 2.0, -(TILE_SIZE / 2.0), 0.0);
+    info!("trans: {}", player_transform.translation);
+
+    let target = player_transform.translation
+        + Vec3::new(TILE_SIZE / 2.0, -(TILE_SIZE / 2.0), 0.0)
+        + Vec3::new(player_elevation.0, -player_elevation.0, 0.0);
     camera_transform.translation = Vec3::new(target.x.round(), target.y.round(), target.z);
 }
 
@@ -273,10 +302,7 @@ pub fn fire_pending_action(
 ) {
     let Some(pending) = pending else { return };
 
-    if !queue.moves.is_empty()
-        || queue.pending_walk_ack.is_some()
-        || queue.pending_turn_ack
-    {
+    if !queue.moves.is_empty() || queue.pending_walk_ack.is_some() || queue.pending_turn_ack {
         return;
     }
 
@@ -286,9 +312,14 @@ pub fn fire_pending_action(
     }
 
     match &pending.action {
-        WalkAction::UseItem { msg, target_window_id } => {
+        WalkAction::UseItem {
+            msg,
+            target_window_id,
+        } => {
             commands.trigger(SendMessage { msg: msg.clone() });
-            commands.insert_resource(PendingUseAck { target_window_id: *target_window_id });
+            commands.insert_resource(PendingUseAck {
+                target_window_id: *target_window_id,
+            });
         }
         WalkAction::MoveItem { msg } => {
             commands.trigger(SendMessage { msg: msg.clone() });

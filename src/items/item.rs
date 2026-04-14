@@ -92,6 +92,7 @@ pub struct ItemConfig {
     pub friction: Option<u8>,
     pub slot: Option<InventorySlot>,
     pub minimap_color: Option<u8>,
+    pub elevation: Option<u8>,
 }
 
 impl ItemConfig {

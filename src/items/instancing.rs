@@ -1,5 +1,5 @@
 use crate::{
-    conf::z_order::TOP_Z_OFFSET,
+    conf::z_order::{GROUND_PASS_OFFSET, TOP_Z_OFFSET},
     core::{Appearances, InstanceManager, SpriteAnimation, SpriteConfig},
     items::{
         item::ItemFlag,
@@ -79,6 +79,8 @@ pub fn process_tile_changed(
             let parent = commands
                 .spawn((Transform::from_xyz(world_pos.x, world_pos.y, world_pos.z),))
                 .id();
+
+            let mut elevation = 0.0;
             for (i, item) in items.enumerate() {
                 let item_entity = spawn_item(
                     item,
@@ -92,8 +94,16 @@ pub fn process_tile_changed(
                     &mut meshes,
                     &mut buffers,
                     &time,
+                    elevation,
                 );
                 commands.entity(parent).add_child(item_entity);
+
+                if let Some(item_elev) = item.config.elevation {
+                    elevation += item_elev as f32;
+                    if elevation >= 24.0 {
+                        elevation = 24.0;
+                    }
+                }
             }
             stacks.occupied_tiles.insert(position.clone(), parent);
         }
@@ -112,6 +122,7 @@ fn spawn_item(
     meshes: &mut Assets<Mesh>,
     buffers: &mut Assets<ShaderStorageBuffer>,
     time: &Time,
+    elevation: f32,
 ) -> Entity {
     let sprite = appearances.get_item(item.config.id);
 
@@ -143,10 +154,14 @@ fn spawn_item(
         item.get_patterns(position, sprite),
     );
 
-    let mut translation = Vec3::new(0.0, 0.0, 0.001 * stack_index as f32);
-    if item.config.has_flag(ItemFlag::Top) {
-        translation.z = TOP_Z_OFFSET;
-    }
+    let z = if item.config.has_flag(ItemFlag::Top) {
+        TOP_Z_OFFSET
+    } else if item.config.has_flag(ItemFlag::Ground) || item.config.has_flag(ItemFlag::Border) {
+        GROUND_PASS_OFFSET + 0.001 * stack_index as f32
+    } else {
+        0.001 * stack_index as f32
+    };
+    let translation = Vec3::new(-elevation, elevation, z);
     let entity = commands
         .spawn((
             SpawnedItem,

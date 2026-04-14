@@ -35,6 +35,10 @@ impl Position {
         )
     }
 
+    pub fn to_world_with_elevation(&self, elevation: u8) -> Vec3 {
+        self.to_world() + Vec3::new(-(elevation as f32), elevation as f32, 0.0)
+    }
+
     pub fn delta(&self, x: i32, y: i32) -> Self {
         Position {
             x: ((self.x as i32) + x) as u32,
