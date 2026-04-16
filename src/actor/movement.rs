@@ -6,13 +6,18 @@ use crate::actor::components::Actor;
 use crate::actor::WalkingDirection;
 use crate::conf::z_order::ACTOR_Z_OFFSET;
 use crate::map::{Map, Position};
-use crate::network::events::AgentChangedDirection;
+use crate::network::events::{AgentChangedDirection, TeleportAgent};
 
 #[derive(Component, Debug)]
 pub struct Moving {
     pub start: Position,
     pub end: Position,
     pub timer: Timer,
+}
+
+#[derive(Component, Debug)]
+pub struct ShouldTeleport {
+    pub position: Position,
 }
 
 #[derive(Event, Debug)]
@@ -40,6 +45,11 @@ pub fn on_actor_move(
     let end_position = start_position.clone() + event.direction;
     let tile_modifier = map.get_tile_friction(&end_position).unwrap_or(0);
     let step_time_ms = actor.get_step_duration(tile_modifier, event.direction.is_diagonal());
+
+    info!(
+        "move from {} to {}. Tile friction: {}. step_time_ms: {}",
+        start_position, end_position, tile_modifier, step_time_ms
+    );
 
     actor.direction = facing;
     commands.entity(entity).insert(Moving {
@@ -115,6 +125,33 @@ pub fn on_update_elevation(
         if *position == event.pos {
             transform.translation =
                 position.to_world_with_elevation(elevation) + vec3(0.0, 0.0, ACTOR_Z_OFFSET);
+        }
+    }
+}
+
+pub fn on_teleport_agent(event: On<TeleportAgent>, mut commands: Commands, map: Res<Map>) {
+    if let Some(agent) = map.get_agent(event.agent_id) {
+        commands.entity(agent).insert(ShouldTeleport {
+            position: event.position.clone(),
+        });
+    }
+}
+
+pub fn teleport_agents(
+    mut commands: Commands,
+    mut agents_q: Query<(Entity, &ShouldTeleport, &mut Transform, Option<&Moving>)>,
+    map: Res<Map>,
+) {
+    for (entity, teleport, mut transform, moving) in agents_q.iter_mut() {
+        if moving.is_none() {
+            let elevation = map.get_elevation(&teleport.position);
+            info!("translation before {}", transform.translation);
+            transform.translation = teleport.position.to_world_with_elevation(elevation);
+            info!("translation after {}", transform.translation);
+            commands
+                .entity(entity)
+                .insert(teleport.position.clone())
+                .remove::<ShouldTeleport>();
         }
     }
 }

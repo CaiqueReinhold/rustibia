@@ -375,15 +375,6 @@ pub fn actor_rect(actors_q: Query<(&Transform, &Actor, Option<&Moving>)>, mut gi
             Vec2::splat(64.0),
             Color::srgb(0.0, 0.5, 1.0),
         );
-        gizmos.rect_2d(
-            pos.translation.truncate()
-                + Vec2::new(
-                    (64.0 - actor.box_size[moving]) / 4.0,
-                    -((64.0 - actor.box_size[moving]) / 4.0),
-                ),
-            Vec2::splat(actor.box_size[moving]),
-            Color::srgb(0.8, 0.5, 1.0),
-        );
 
         let mesh_start = pos.translation.truncate();
         let iso =

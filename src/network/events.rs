@@ -41,13 +41,15 @@ pub struct SpawnPlayer {
 
 #[derive(Event, Debug)]
 pub struct DescribeMap {
+    pub center: Position,
+    pub floor: u8,
     pub tiles: Box<[ItemStack; TILES_X * TILES_Y]>,
 }
 
 #[derive(Event, Debug)]
 pub struct PlayerWalk {
     pub position: Position,
-    pub tiles: Box<[ItemStack]>,
+    pub tiles: Vec<(u8, Box<[ItemStack]>)>,
 }
 
 #[derive(Event, Debug)]
@@ -115,6 +117,12 @@ pub struct AgentChangedDirection {
     pub facing: FacingDirection,
 }
 
+#[derive(Event, Debug)]
+pub struct TeleportAgent {
+    pub agent_id: AgentId,
+    pub position: Position,
+}
+
 pub fn route_event(msg: ServerMessage, commands: &mut Commands) {
     match msg {
         ServerMessage::Pong => {
@@ -166,8 +174,16 @@ pub fn route_event(msg: ServerMessage, commands: &mut Commands) {
                 inventory_trinket,
             });
         }
-        ServerMessage::DescribeMap { tiles } => {
-            commands.trigger(DescribeMap { tiles });
+        ServerMessage::DescribeMap {
+            tiles,
+            floor,
+            center,
+        } => {
+            commands.trigger(DescribeMap {
+                tiles,
+                floor,
+                center,
+            });
         }
         ServerMessage::PlayerWalkAck { position, tiles } => {
             commands.trigger(PlayerWalk { position, tiles });
@@ -231,6 +247,30 @@ pub fn route_event(msg: ServerMessage, commands: &mut Commands) {
         }
         ServerMessage::AgentChangedDirection { agent_id, facing } => {
             commands.trigger(AgentChangedDirection { agent_id, facing });
+        }
+        ServerMessage::RemoveAgent { agent_id } => {
+            todo!();
+        }
+        ServerMessage::MoveAgent {
+            agent_id,
+            direction,
+            from,
+        } => {
+            todo!();
+        }
+        ServerMessage::SpawnAgent {
+            agent_id,
+            outfit,
+            position,
+            facing,
+            name,
+            life,
+            speed,
+        } => {
+            todo!();
+        }
+        ServerMessage::TeleportAgent { agent_id, position } => {
+            commands.trigger(TeleportAgent { agent_id, position });
         }
     }
 }

@@ -54,8 +54,8 @@ fn setup_minimap(
 
     let mut image = Image::new_fill(
         Extent3d {
-            width: IMAGE_SIZE,
-            height: IMAGE_SIZE,
+            width: IMAGE_SIZE as u32,
+            height: IMAGE_SIZE as u32,
             depth_or_array_layers: 1,
         },
         TextureDimension::D2,
@@ -71,10 +71,8 @@ fn setup_minimap(
 
     let window_id = WindowId::new();
     let zoom_tiles = ZOOM_LEVELS[DEFAULT_ZOOM] as f32;
-    // Interior width = SIDE_PANEL_WIDTH minus 2px border on each side
     let window_height = 120.0 + 20.0 + 4.0; // image + button row + border
 
-    // Zoom-in button ("+")
     let zoom_in_btn = commands
         .spawn((
             Node {
@@ -109,7 +107,6 @@ fn setup_minimap(
         })
         .id();
 
-    // Zoom-out button ("−")
     let zoom_out_btn = commands
         .spawn((
             Node {
@@ -144,7 +141,6 @@ fn setup_minimap(
         })
         .id();
 
-    // Button row
     let button_row = commands
         .spawn(Node {
             width: Val::Percent(100.0),
@@ -159,7 +155,6 @@ fn setup_minimap(
         .add_children(&[zoom_in_btn, zoom_out_btn])
         .id();
 
-    // White cross marker — always centered (player is always at rect center)
     let cross_h = commands
         .spawn((
             Node {
@@ -188,7 +183,6 @@ fn setup_minimap(
         ))
         .id();
 
-    // Minimap image node
     let image_node = commands
         .spawn((
             MinimapImageNode,
@@ -210,7 +204,6 @@ fn setup_minimap(
         .add_children(&[cross_h, cross_v])
         .id();
 
-    // Content container
     let content = commands
         .spawn(Node {
             width: Val::Percent(100.0),
@@ -263,7 +256,7 @@ fn update_minimap_image(
     zoom: Option<Res<MinimapZoom>>,
     player_q: Single<&Position, With<Player>>,
     mut image_node_q: Query<&mut ImageNode, With<MinimapImageNode>>,
-    mut prev_floor: Local<Option<u32>>,
+    mut prev_floor: Local<Option<u8>>,
 ) {
     let Some(handle) = image_handle else {
         return;
@@ -275,7 +268,6 @@ fn update_minimap_image(
     let player = player_q.into_inner();
     let current_z = player.z;
 
-    // Update ImageNode rect to keep the player centered
     if let Ok(mut img) = image_node_q.single_mut() {
         img.rect = Some(player_centered_rect(player, &zoom));
     }
@@ -299,8 +291,8 @@ fn update_minimap_image(
     };
 
     for (key, tiles) in dirty {
-        for ly in 0..64u32 {
-            for lx in 0..64u32 {
+        for ly in 0..64 {
+            for lx in 0..64 {
                 let tile = tiles[(ly * 64 + lx) as usize];
                 let px = key.cx * 64 + lx;
                 let py = key.cy * 64 + ly;
@@ -323,7 +315,6 @@ fn player_centered_rect(player: &Position, zoom: &MinimapZoom) -> Rect {
     let half = tiles / 2.0;
     let cx = player.x as f32;
     let cy = player.y as f32;
-    // Clamp so the rect never goes outside the image while keeping its size constant
     let max_origin = (IMAGE_SIZE as f32 - tiles).max(0.0);
     let min_x = (cx - half).max(0.0).min(max_origin);
     let min_y = (cy - half).max(0.0).min(max_origin);

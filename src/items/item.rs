@@ -20,7 +20,7 @@ pub enum InventorySlot {
 }
 
 impl InventorySlot {
-    pub fn as_id(&self) -> u32 {
+    pub fn as_id(&self) -> u16 {
         match self {
             InventorySlot::BothHands => 0,
             InventorySlot::Head => 1,
@@ -83,6 +83,7 @@ pub enum ItemFlag {
     Bottom,
     Usable,
     Avoid,
+    BlockSight,
 }
 
 #[derive(Debug, Eq)]
@@ -136,9 +137,9 @@ impl Item {
             }
         }
 
-        let x = pos.x % sprite.pattern_x;
-        let y = pos.y % sprite.pattern_y;
-        let z = pos.z % sprite.pattern_z;
+        let x = pos.x as u32 % sprite.pattern_x;
+        let y = pos.y as u32 % sprite.pattern_y;
+        let z = pos.z as u32 % sprite.pattern_z;
         (x, y, z)
     }
 }

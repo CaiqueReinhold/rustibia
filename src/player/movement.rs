@@ -200,9 +200,6 @@ pub fn on_walk_denied(
                 }
             }
         }
-        // Always return — don't let the AutoWalkTarget branch also recalculate
-        // (PendingWalkAction implies an AutoWalkTarget pointing to item_pos; double-recalculating
-        // would compute a path TO the item tile rather than TO an adjacent tile)
         return;
     }
 
@@ -226,9 +223,6 @@ pub fn on_player_position(
     mut queue: ResMut<MovementQueue>,
     player: Single<(Entity, &Position, Option<&Moving>), With<Player>>,
 ) {
-    // receiving player position message means walk was denied by server
-    // or client requested position because was out of sync
-    // in any case there's a pending ack
     queue.pending_walk_ack = None;
     queue.predicted_pos = None;
 
@@ -240,7 +234,6 @@ pub fn on_player_position(
         Duration::from_millis(1)
     };
 
-    // just add moving so placement, z ordering and moving state is handled by actor move system
     commands.entity(entity).insert(Moving {
         start: position.clone(),
         end: event.position.clone(),
@@ -301,7 +294,7 @@ pub fn center_on_player(
     let target = player_transform.translation
         + Vec3::new(TILE_SIZE / 2.0, -(TILE_SIZE / 2.0), 0.0)
         + Vec3::new(player_elevation.0, -player_elevation.0, 0.0);
-    camera_transform.translation = Vec3::new(target.x.round(), target.y.round(), target.z);
+    camera_transform.translation = Vec3::new(target.x.round(), target.y.round(), 1000.0);
 }
 
 pub fn fire_pending_action(

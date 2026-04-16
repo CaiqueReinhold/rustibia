@@ -4,7 +4,7 @@ use bevy::{prelude::*, tasks::IoTaskPool};
 
 use crate::map::Position;
 
-const CHUNK_SIZE: u32 = 64;
+const CHUNK_SIZE: u16 = 64;
 const TILES_PER_CHUNK: usize = (CHUNK_SIZE * CHUNK_SIZE) as usize;
 
 #[derive(Clone, Copy, Default, Debug)]
@@ -16,9 +16,9 @@ pub struct MinimapTile {
 
 #[derive(Hash, Eq, PartialEq, Clone, Copy, Debug)]
 pub struct ChunkKey {
-    pub cx: u32,
-    pub cy: u32,
-    pub z: u32,
+    pub cx: u16,
+    pub cy: u16,
+    pub z: u8,
 }
 
 struct MinimapChunk {
@@ -70,7 +70,7 @@ impl MinimapData {
         Some(chunk.tiles[offset])
     }
 
-    pub fn drain_gpu_dirty(&mut self, z: u32) -> Vec<(ChunkKey, Vec<MinimapTile>)> {
+    pub fn drain_gpu_dirty(&mut self, z: u8) -> Vec<(ChunkKey, Vec<MinimapTile>)> {
         let keys: Vec<ChunkKey> = self
             .chunks
             .iter()
@@ -88,7 +88,7 @@ impl MinimapData {
         result
     }
 
-    pub fn mark_floor_gpu_dirty(&mut self, z: u32) {
+    pub fn mark_floor_gpu_dirty(&mut self, z: u8) {
         for (key, chunk) in self.chunks.iter_mut() {
             if key.z == z {
                 chunk.gpu_dirty = true;
@@ -150,10 +150,10 @@ fn deserialize_chunk(bytes: &[u8]) -> Vec<MinimapTile> {
     tiles
 }
 
-fn parse_chunk_name(stem: &str) -> Option<(u32, u32)> {
+fn parse_chunk_name(stem: &str) -> Option<(u16, u16)> {
     let mut parts = stem.splitn(2, '_');
-    let cx = parts.next()?.parse::<u32>().ok()?;
-    let cy = parts.next()?.parse::<u32>().ok()?;
+    let cx = parts.next()?.parse::<u16>().ok()?;
+    let cy = parts.next()?.parse::<u16>().ok()?;
     Some((cx, cy))
 }
 
@@ -175,7 +175,7 @@ pub(super) fn load_from_disk(mut minimap: ResMut<MinimapData>) {
 
     for floor_entry in floor_entries.flatten() {
         let file_name = floor_entry.file_name();
-        let Ok(z) = file_name.to_string_lossy().parse::<u32>() else {
+        let Ok(z) = file_name.to_string_lossy().parse::<u8>() else {
             continue;
         };
 

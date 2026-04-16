@@ -6,7 +6,7 @@ use crate::{
         material::{ItemInstance, ItemMaterial},
         Item, ItemId,
     },
-    map::{Map, Position},
+    map::{FloorEntities, Map, Position},
 };
 use bevy::{asset::RenderAssetUsages, render::storage::ShaderStorageBuffer};
 use bevy::{mesh::MeshTag, prelude::*};
@@ -16,7 +16,7 @@ use std::collections::{HashMap, VecDeque};
 pub struct SpawnedItem;
 
 #[derive(Resource, Debug, Default)]
-pub struct ItemStacks {
+pub struct ItemState {
     pub occupied_tiles: HashMap<Position, Entity>,
 }
 
@@ -32,10 +32,7 @@ pub struct ChangedTileQueue {
     pub changed_positions: VecDeque<Position>,
 }
 
-pub fn init_material_buffer(
-    mut commands: Commands,
-    mut buffers: ResMut<Assets<ShaderStorageBuffer>>,
-) {
+pub fn setup_resources(mut commands: Commands, mut buffers: ResMut<Assets<ShaderStorageBuffer>>) {
     let loaded_materials = LoadedMaterials {
         materials: HashMap::new(),
         lookups: HashMap::new(),
@@ -59,7 +56,7 @@ pub fn on_remove_item(
 pub fn process_tile_changed(
     mut queue: ResMut<ChangedTileQueue>,
     mut commands: Commands,
-    mut stacks: ResMut<ItemStacks>,
+    mut state: ResMut<ItemState>,
     mut instances: ResMut<InstanceManager<ItemInstance>>,
     mut loaded_materials: ResMut<LoadedMaterials>,
     mut materials: ResMut<Assets<ItemMaterial>>,
@@ -68,17 +65,27 @@ pub fn process_tile_changed(
     map: Res<Map>,
     appearances: Res<Appearances>,
     time: Res<Time>,
+    floor_entities: Res<FloorEntities>,
 ) {
     while let Some(position) = queue.changed_positions.pop_front() {
-        if let Some(entity) = stacks.occupied_tiles.remove(&position) {
+        if let Some(entity) = state.occupied_tiles.remove(&position) {
+            commands
+                .entity(floor_entities.floors[position.z as usize])
+                .detach_child(entity);
             commands.entity(entity).despawn();
         }
 
         if let Some(items) = map.get_items(&position) {
             let world_pos = position.to_world();
             let parent = commands
-                .spawn((Transform::from_xyz(world_pos.x, world_pos.y, world_pos.z),))
+                .spawn((
+                    Transform::from_xyz(world_pos.x, world_pos.y, world_pos.z),
+                    Visibility::Inherited,
+                ))
                 .id();
+            commands
+                .entity(floor_entities.floors[position.z as usize])
+                .add_child(parent);
 
             let mut elevation = 0.0;
             for (i, item) in items.enumerate() {
@@ -105,7 +112,7 @@ pub fn process_tile_changed(
                     }
                 }
             }
-            stacks.occupied_tiles.insert(position.clone(), parent);
+            state.occupied_tiles.insert(position.clone(), parent);
         }
     }
 }
@@ -125,6 +132,7 @@ fn spawn_item(
     elevation: f32,
 ) -> Entity {
     let sprite = appearances.get_item(item.config.id);
+    let sheet = appearances.get_sheet(&sprite.group);
 
     if !loaded_materials.materials.contains_key(&sprite.group) {
         init_material(
@@ -161,7 +169,17 @@ fn spawn_item(
     } else {
         0.001 * stack_index as f32
     };
-    let translation = Vec3::new(-elevation, elevation, z);
+    let shift_x = if sheet.sprite_size.x <= 32.0 {
+        16.0
+    } else {
+        0.0
+    };
+    let shift_y = if sheet.sprite_size.y <= 32.0 {
+        -16.0
+    } else {
+        0.0
+    };
+    let translation = Vec3::new(-elevation + shift_x, elevation + shift_y, z);
     let entity = commands
         .spawn((
             SpawnedItem,
@@ -169,6 +187,7 @@ fn spawn_item(
             MeshMaterial2d(material.clone()),
             MeshTag(index),
             Transform::from_translation(translation),
+            Visibility::Inherited,
         ))
         .id();
     entity
@@ -204,7 +223,6 @@ fn init_instance(
         instance.bbox_min = Vec2::new(0.0, 0.0);
         instance.bbox_size = Vec2::new(32.0, 32.0);
     }
-    instance.bounding_square = sprite.box_size;
 }
 
 fn init_material(
@@ -216,6 +234,8 @@ fn init_material(
     appearances: &Appearances,
     time: &Time,
 ) {
+    let sheet = appearances.get_sheet(group);
+
     let mut lookup_map: HashMap<ItemId, u32> = HashMap::new();
     let mut animation_frame_lookup: Vec<u32> = Vec::new();
 
@@ -224,16 +244,16 @@ fn init_material(
         animation_frame_lookup.extend_from_slice(config.sprite_ids.as_slice());
     }
 
-    let sheet = appearances.get_sheet(group);
     let material_handle = materials.add(ItemMaterial {
         texture: sheet.texture.clone(),
         time_offset: time.elapsed_secs(),
         atlas_grid: sheet.grid_size,
+        mesh_size: sheet.sprite_size,
         sprite_lookup: buffers.add(ShaderStorageBuffer::from(&animation_frame_lookup)),
         instances: loaded_materials.buffer.clone(),
     });
 
-    let mesh = Mesh::from(Rectangle::new(64.0, 64.0));
+    let mesh = Mesh::from(Rectangle::new(sheet.sprite_size.x, sheet.sprite_size.y));
     let mesh_handle = meshes.add(mesh);
     loaded_materials
         .materials

@@ -8,6 +8,7 @@ use serde_json::*;
 use crate::items::ItemId;
 
 pub type OutfitId = u16;
+pub type OutfitColors = (u8, u8, u8, u8);
 
 #[derive(Debug)]
 pub struct OutfitSprite {
@@ -61,6 +62,7 @@ impl Appearances {
 pub struct SpriteSheet {
     pub texture: Handle<Image>,
     pub grid_size: Vec2,
+    pub sprite_size: Vec2,
 }
 
 // #[derive(Debug)]
@@ -228,8 +230,12 @@ pub fn read_sprite_sheets(a_server: &AssetServer) -> HashMap<String, SpriteSheet
 
     for sheet in sheets.as_array().unwrap().iter() {
         let grid_size = Vec2::new(
-            sheet["atlas_grid"][0].as_u64().unwrap() as f32,
-            sheet["atlas_grid"][1].as_u64().unwrap() as f32,
+            sheet["grid_size"][0].as_u64().unwrap() as f32,
+            sheet["grid_size"][1].as_u64().unwrap() as f32,
+        );
+        let sprite_size = Vec2::new(
+            sheet["sprite_size"][0].as_u64().unwrap() as f32,
+            sheet["sprite_size"][1].as_u64().unwrap() as f32,
         );
         let sheet_name = sheet["sheet_name"].as_str().unwrap().to_string();
         let group = sheet["group"].as_str().unwrap().to_string();
@@ -241,6 +247,7 @@ pub fn read_sprite_sheets(a_server: &AssetServer) -> HashMap<String, SpriteSheet
             SpriteSheet {
                 texture: handle,
                 grid_size,
+                sprite_size,
             },
         );
     }

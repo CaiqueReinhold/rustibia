@@ -1,1 +1,3998 @@
-[{"atlas_grid": [32, 17], "sheet_name": "ground-0-0.png", "group": "ground-0-0"}, {"atlas_grid": [32, 17], "sheet_name": "item-0-0.png", "group": "item-0-0"}, {"atlas_grid": [32, 16], "sheet_name": "item-1-0.png", "group": "item-1-0"}, {"atlas_grid": [32, 16], "sheet_name": "border-0-0.png", "group": "border-0-0"}, {"atlas_grid": [32, 10], "sheet_name": "ground-1-0.png", "group": "ground-1-0"}, {"atlas_grid": [32, 17], "sheet_name": "item-0-1.png", "group": "item-0-1"}, {"atlas_grid": [32, 16], "sheet_name": "ground-0-1.png", "group": "ground-0-1"}, {"atlas_grid": [32, 16], "sheet_name": "item-0-2.png", "group": "item-0-2"}, {"atlas_grid": [32, 16], "sheet_name": "border-1-0.png", "group": "border-1-0"}, {"atlas_grid": [32, 16], "sheet_name": "item-1-1.png", "group": "item-1-1"}, {"atlas_grid": [32, 16], "sheet_name": "item-0-3.png", "group": "item-0-3"}, {"atlas_grid": [32, 16], "sheet_name": "item-1-2.png", "group": "item-1-2"}, {"atlas_grid": [32, 17], "sheet_name": "item-1-3.png", "group": "item-1-3"}, {"atlas_grid": [32, 16], "sheet_name": "item-0-4.png", "group": "item-0-4"}, {"atlas_grid": [32, 16], "sheet_name": "item-0-5.png", "group": "item-0-5"}, {"atlas_grid": [32, 16], "sheet_name": "item-0-6.png", "group": "item-0-6"}, {"atlas_grid": [32, 17], "sheet_name": "ground-0-2.png", "group": "ground-0-2"}, {"atlas_grid": [32, 16], "sheet_name": "item-1-4.png", "group": "item-1-4"}, {"atlas_grid": [32, 17], "sheet_name": "border-0-1.png", "group": "border-0-1"}, {"atlas_grid": [32, 17], "sheet_name": "border-0-2.png", "group": "border-0-2"}, {"atlas_grid": [32, 17], "sheet_name": "item-0-7.png", "group": "item-0-7"}, {"atlas_grid": [32, 16], "sheet_name": "item-1-5.png", "group": "item-1-5"}, {"atlas_grid": [32, 16], "sheet_name": "ground-0-3.png", "group": "ground-0-3"}, {"atlas_grid": [32, 16], "sheet_name": "item-0-8.png", "group": "item-0-8"}, {"atlas_grid": [32, 16], "sheet_name": "item-1-6.png", "group": "item-1-6"}, {"atlas_grid": [32, 17], "sheet_name": "border-0-3.png", "group": "border-0-3"}, {"atlas_grid": [32, 16], "sheet_name": "border-0-4.png", "group": "border-0-4"}, {"atlas_grid": [32, 16], "sheet_name": "item-1-7.png", "group": "item-1-7"}, {"atlas_grid": [32, 17], "sheet_name": "item-0-9.png", "group": "item-0-9"}, {"atlas_grid": [32, 17], "sheet_name": "item-1-8.png", "group": "item-1-8"}, {"atlas_grid": [32, 19], "sheet_name": "item-0-10.png", "group": "item-0-10"}, {"atlas_grid": [32, 16], "sheet_name": "ground-0-4.png", "group": "ground-0-4"}, {"atlas_grid": [32, 17], "sheet_name": "item-1-9.png", "group": "item-1-9"}, {"atlas_grid": [32, 16], "sheet_name": "item-1-10.png", "group": "item-1-10"}, {"atlas_grid": [32, 17], "sheet_name": "item-0-11.png", "group": "item-0-11"}, {"atlas_grid": [32, 16], "sheet_name": "border-0-5.png", "group": "border-0-5"}, {"atlas_grid": [32, 16], "sheet_name": "item-1-11.png", "group": "item-1-11"}, {"atlas_grid": [32, 17], "sheet_name": "item-0-12.png", "group": "item-0-12"}, {"atlas_grid": [32, 16], "sheet_name": "item-1-12.png", "group": "item-1-12"}, {"atlas_grid": [32, 16], "sheet_name": "item-1-13.png", "group": "item-1-13"}, {"atlas_grid": [32, 17], "sheet_name": "border-0-6.png", "group": "border-0-6"}, {"atlas_grid": [32, 16], "sheet_name": "item-0-13.png", "group": "item-0-13"}, {"atlas_grid": [32, 16], "sheet_name": "ground-0-5.png", "group": "ground-0-5"}, {"atlas_grid": [32, 16], "sheet_name": "item-1-14.png", "group": "item-1-14"}, {"atlas_grid": [32, 16], "sheet_name": "item-0-14.png", "group": "item-0-14"}, {"atlas_grid": [32, 17], "sheet_name": "border-0-7.png", "group": "border-0-7"}, {"atlas_grid": [32, 17], "sheet_name": "item-1-15.png", "group": "item-1-15"}, {"atlas_grid": [32, 17], "sheet_name": "item-1-16.png", "group": "item-1-16"}, {"atlas_grid": [32, 16], "sheet_name": "item-0-15.png", "group": "item-0-15"}, {"atlas_grid": [32, 16], "sheet_name": "border-0-8.png", "group": "border-0-8"}, {"atlas_grid": [32, 16], "sheet_name": "item-1-17.png", "group": "item-1-17"}, {"atlas_grid": [32, 16], "sheet_name": "ground-0-6.png", "group": "ground-0-6"}, {"atlas_grid": [32, 17], "sheet_name": "border-0-9.png", "group": "border-0-9"}, {"atlas_grid": [32, 16], "sheet_name": "item-1-18.png", "group": "item-1-18"}, {"atlas_grid": [32, 17], "sheet_name": "item-0-16.png", "group": "item-0-16"}, {"atlas_grid": [32, 16], "sheet_name": "item-1-19.png", "group": "item-1-19"}, {"atlas_grid": [32, 17], "sheet_name": "border-1-1.png", "group": "border-1-1"}, {"atlas_grid": [32, 17], "sheet_name": "item-1-20.png", "group": "item-1-20"}, {"atlas_grid": [32, 16], "sheet_name": "border-0-10.png", "group": "border-0-10"}, {"atlas_grid": [32, 16], "sheet_name": "item-1-21.png", "group": "item-1-21"}, {"atlas_grid": [32, 16], "sheet_name": "item-0-17.png", "group": "item-0-17"}, {"atlas_grid": [32, 16], "sheet_name": "item-1-22.png", "group": "item-1-22"}, {"atlas_grid": [32, 17], "sheet_name": "ground-0-7.png", "group": "ground-0-7"}, {"atlas_grid": [32, 17], "sheet_name": "border-0-11.png", "group": "border-0-11"}, {"atlas_grid": [32, 17], "sheet_name": "item-1-23.png", "group": "item-1-23"}, {"atlas_grid": [32, 17], "sheet_name": "item-0-18.png", "group": "item-0-18"}, {"atlas_grid": [32, 16], "sheet_name": "item-1-24.png", "group": "item-1-24"}, {"atlas_grid": [32, 17], "sheet_name": "item-0-19.png", "group": "item-0-19"}, {"atlas_grid": [32, 18], "sheet_name": "ground-0-8.png", "group": "ground-0-8"}, {"atlas_grid": [32, 16], "sheet_name": "item-1-25.png", "group": "item-1-25"}, {"atlas_grid": [32, 16], "sheet_name": "border-0-12.png", "group": "border-0-12"}, {"atlas_grid": [32, 17], "sheet_name": "item-0-20.png", "group": "item-0-20"}, {"atlas_grid": [32, 16], "sheet_name": "item-0-21.png", "group": "item-0-21"}, {"atlas_grid": [32, 17], "sheet_name": "ground-0-9.png", "group": "ground-0-9"}, {"atlas_grid": [32, 16], "sheet_name": "item-0-22.png", "group": "item-0-22"}, {"atlas_grid": [32, 16], "sheet_name": "item-1-26.png", "group": "item-1-26"}, {"atlas_grid": [32, 17], "sheet_name": "item-1-27.png", "group": "item-1-27"}, {"atlas_grid": [32, 17], "sheet_name": "item-1-28.png", "group": "item-1-28"}, {"atlas_grid": [32, 17], "sheet_name": "item-0-23.png", "group": "item-0-23"}, {"atlas_grid": [32, 17], "sheet_name": "border-0-13.png", "group": "border-0-13"}, {"atlas_grid": [32, 17], "sheet_name": "item-0-24.png", "group": "item-0-24"}, {"atlas_grid": [32, 17], "sheet_name": "item-0-25.png", "group": "item-0-25"}, {"atlas_grid": [32, 16], "sheet_name": "item-1-29.png", "group": "item-1-29"}, {"atlas_grid": [32, 17], "sheet_name": "ground-0-10.png", "group": "ground-0-10"}, {"atlas_grid": [32, 17], "sheet_name": "item-1-30.png", "group": "item-1-30"}, {"atlas_grid": [32, 17], "sheet_name": "item-1-31.png", "group": "item-1-31"}, {"atlas_grid": [32, 17], "sheet_name": "item-0-26.png", "group": "item-0-26"}, {"atlas_grid": [32, 16], "sheet_name": "item-1-32.png", "group": "item-1-32"}, {"atlas_grid": [32, 17], "sheet_name": "border-0-14.png", "group": "border-0-14"}, {"atlas_grid": [32, 17], "sheet_name": "item-1-33.png", "group": "item-1-33"}, {"atlas_grid": [32, 16], "sheet_name": "item-0-27.png", "group": "item-0-27"}, {"atlas_grid": [32, 17], "sheet_name": "item-1-34.png", "group": "item-1-34"}, {"atlas_grid": [32, 17], "sheet_name": "border-0-15.png", "group": "border-0-15"}, {"atlas_grid": [32, 17], "sheet_name": "item-1-35.png", "group": "item-1-35"}, {"atlas_grid": [32, 17], "sheet_name": "item-0-28.png", "group": "item-0-28"}, {"atlas_grid": [32, 16], "sheet_name": "item-1-36.png", "group": "item-1-36"}, {"atlas_grid": [32, 17], "sheet_name": "item-1-37.png", "group": "item-1-37"}, {"atlas_grid": [32, 17], "sheet_name": "item-0-29.png", "group": "item-0-29"}, {"atlas_grid": [32, 16], "sheet_name": "border-1-2.png", "group": "border-1-2"}, {"atlas_grid": [32, 16], "sheet_name": "item-1-38.png", "group": "item-1-38"}, {"atlas_grid": [32, 17], "sheet_name": "item-1-39.png", "group": "item-1-39"}, {"atlas_grid": [32, 17], "sheet_name": "item-0-30.png", "group": "item-0-30"}, {"atlas_grid": [32, 16], "sheet_name": "item-1-40.png", "group": "item-1-40"}, {"atlas_grid": [32, 17], "sheet_name": "item-0-31.png", "group": "item-0-31"}, {"atlas_grid": [32, 17], "sheet_name": "item-1-41.png", "group": "item-1-41"}, {"atlas_grid": [32, 17], "sheet_name": "border-0-16.png", "group": "border-0-16"}, {"atlas_grid": [32, 17], "sheet_name": "item-1-42.png", "group": "item-1-42"}, {"atlas_grid": [32, 17], "sheet_name": "ground-0-11.png", "group": "ground-0-11"}, {"atlas_grid": [32, 17], "sheet_name": "border-0-17.png", "group": "border-0-17"}, {"atlas_grid": [32, 17], "sheet_name": "ground-0-12.png", "group": "ground-0-12"}, {"atlas_grid": [32, 17], "sheet_name": "border-0-18.png", "group": "border-0-18"}, {"atlas_grid": [32, 17], "sheet_name": "item-1-43.png", "group": "item-1-43"}, {"atlas_grid": [32, 17], "sheet_name": "item-0-32.png", "group": "item-0-32"}, {"atlas_grid": [32, 17], "sheet_name": "item-1-44.png", "group": "item-1-44"}, {"atlas_grid": [32, 17], "sheet_name": "item-0-33.png", "group": "item-0-33"}, {"atlas_grid": [32, 17], "sheet_name": "item-0-34.png", "group": "item-0-34"}, {"atlas_grid": [32, 16], "sheet_name": "item-1-45.png", "group": "item-1-45"}, {"atlas_grid": [32, 17], "sheet_name": "item-0-35.png", "group": "item-0-35"}, {"atlas_grid": [32, 17], "sheet_name": "item-1-46.png", "group": "item-1-46"}, {"atlas_grid": [32, 17], "sheet_name": "ground-0-13.png", "group": "ground-0-13"}, {"atlas_grid": [32, 17], "sheet_name": "border-0-19.png", "group": "border-0-19"}, {"atlas_grid": [32, 17], "sheet_name": "border-0-20.png", "group": "border-0-20"}, {"atlas_grid": [32, 17], "sheet_name": "border-0-21.png", "group": "border-0-21"}, {"atlas_grid": [32, 17], "sheet_name": "border-0-22.png", "group": "border-0-22"}, {"atlas_grid": [32, 18], "sheet_name": "border-0-23.png", "group": "border-0-23"}, {"atlas_grid": [32, 16], "sheet_name": "ground-0-14.png", "group": "ground-0-14"}, {"atlas_grid": [32, 17], "sheet_name": "border-0-24.png", "group": "border-0-24"}, {"atlas_grid": [32, 16], "sheet_name": "item-0-36.png", "group": "item-0-36"}, {"atlas_grid": [32, 17], "sheet_name": "border-0-25.png", "group": "border-0-25"}, {"atlas_grid": [32, 17], "sheet_name": "border-0-26.png", "group": "border-0-26"}, {"atlas_grid": [32, 17], "sheet_name": "item-0-37.png", "group": "item-0-37"}, {"atlas_grid": [32, 17], "sheet_name": "border-0-27.png", "group": "border-0-27"}, {"atlas_grid": [32, 17], "sheet_name": "item-1-47.png", "group": "item-1-47"}, {"atlas_grid": [32, 16], "sheet_name": "border-0-28.png", "group": "border-0-28"}, {"atlas_grid": [32, 17], "sheet_name": "item-1-48.png", "group": "item-1-48"}, {"atlas_grid": [32, 16], "sheet_name": "item-0-38.png", "group": "item-0-38"}, {"atlas_grid": [32, 17], "sheet_name": "item-1-49.png", "group": "item-1-49"}, {"atlas_grid": [32, 16], "sheet_name": "border-1-3.png", "group": "border-1-3"}, {"atlas_grid": [32, 17], "sheet_name": "item-1-50.png", "group": "item-1-50"}, {"atlas_grid": [32, 16], "sheet_name": "border-0-29.png", "group": "border-0-29"}, {"atlas_grid": [32, 16], "sheet_name": "item-1-51.png", "group": "item-1-51"}, {"atlas_grid": [32, 16], "sheet_name": "item-0-39.png", "group": "item-0-39"}, {"atlas_grid": [32, 17], "sheet_name": "ground-0-15.png", "group": "ground-0-15"}, {"atlas_grid": [32, 17], "sheet_name": "item-1-52.png", "group": "item-1-52"}, {"atlas_grid": [32, 16], "sheet_name": "border-0-30.png", "group": "border-0-30"}, {"atlas_grid": [32, 17], "sheet_name": "item-1-53.png", "group": "item-1-53"}, {"atlas_grid": [32, 19], "sheet_name": "item-0-40.png", "group": "item-0-40"}, {"atlas_grid": [32, 16], "sheet_name": "item-1-54.png", "group": "item-1-54"}, {"atlas_grid": [32, 16], "sheet_name": "item-0-41.png", "group": "item-0-41"}, {"atlas_grid": [32, 16], "sheet_name": "item-1-55.png", "group": "item-1-55"}, {"atlas_grid": [32, 16], "sheet_name": "item-1-56.png", "group": "item-1-56"}, {"atlas_grid": [32, 17], "sheet_name": "ground-0-16.png", "group": "ground-0-16"}, {"atlas_grid": [32, 17], "sheet_name": "border-0-31.png", "group": "border-0-31"}, {"atlas_grid": [32, 17], "sheet_name": "item-0-42.png", "group": "item-0-42"}, {"atlas_grid": [32, 16], "sheet_name": "item-0-43.png", "group": "item-0-43"}, {"atlas_grid": [32, 17], "sheet_name": "item-1-57.png", "group": "item-1-57"}, {"atlas_grid": [32, 17], "sheet_name": "item-1-58.png", "group": "item-1-58"}, {"atlas_grid": [32, 17], "sheet_name": "item-0-44.png", "group": "item-0-44"}, {"atlas_grid": [32, 17], "sheet_name": "item-1-59.png", "group": "item-1-59"}, {"atlas_grid": [32, 9], "sheet_name": "ground-0-17.png", "group": "ground-0-17"}, {"atlas_grid": [32, 16], "sheet_name": "border-0-32.png", "group": "border-0-32"}, {"atlas_grid": [32, 17], "sheet_name": "item-1-60.png", "group": "item-1-60"}, {"atlas_grid": [32, 4], "sheet_name": "border-1-4.png", "group": "border-1-4"}, {"atlas_grid": [32, 17], "sheet_name": "item-1-61.png", "group": "item-1-61"}, {"atlas_grid": [32, 17], "sheet_name": "item-0-45.png", "group": "item-0-45"}, {"atlas_grid": [32, 16], "sheet_name": "item-1-62.png", "group": "item-1-62"}, {"atlas_grid": [32, 10], "sheet_name": "item-0-46.png", "group": "item-0-46"}, {"atlas_grid": [32, 11], "sheet_name": "item-1-63.png", "group": "item-1-63"}, {"atlas_grid": [32, 32], "sheet_name": "outfit-4-1-1-1-1-1.png", "group": "outfit-4-1-1-1-1-1"}, {"atlas_grid": [32, 32], "sheet_name": "outfit-4-1-1-1-2-1.png", "group": "outfit-4-1-1-1-2-1"}, {"atlas_grid": [32, 31], "sheet_name": "outfit-4-1-1-2-2-1.png", "group": "outfit-4-1-1-2-2-1"}, {"atlas_grid": [32, 32], "sheet_name": "outfit-4-1-1-1-1-2.png", "group": "outfit-4-1-1-1-1-2"}, {"atlas_grid": [32, 32], "sheet_name": "outfit-4-1-2-2-1-1.png", "group": "outfit-4-1-2-2-1-1"}, {"atlas_grid": [32, 32], "sheet_name": "outfit-4-1-1-1-2-2.png", "group": "outfit-4-1-1-1-2-2"}, {"atlas_grid": [32, 32], "sheet_name": "outfit-4-3-2-2-2-1.png", "group": "outfit-4-3-2-2-2-1"}, {"atlas_grid": [32, 30], "sheet_name": "outfit-4-3-2-2-2-2.png", "group": "outfit-4-3-2-2-2-2"}, {"atlas_grid": [32, 29], "sheet_name": "outfit-4-3-2-2-2-3.png", "group": "outfit-4-3-2-2-2-3"}, {"atlas_grid": [32, 32], "sheet_name": "outfit-4-3-2-2-2-4.png", "group": "outfit-4-3-2-2-2-4"}, {"atlas_grid": [32, 29], "sheet_name": "outfit-4-3-2-2-2-5.png", "group": "outfit-4-3-2-2-2-5"}, {"atlas_grid": [32, 30], "sheet_name": "outfit-4-3-2-2-2-6.png", "group": "outfit-4-3-2-2-2-6"}, {"atlas_grid": [32, 29], "sheet_name": "outfit-4-3-2-2-2-7.png", "group": "outfit-4-3-2-2-2-7"}, {"atlas_grid": [32, 31], "sheet_name": "outfit-4-3-2-2-2-8.png", "group": "outfit-4-3-2-2-2-8"}, {"atlas_grid": [32, 30], "sheet_name": "outfit-4-3-2-2-2-9.png", "group": "outfit-4-3-2-2-2-9"}, {"atlas_grid": [32, 31], "sheet_name": "outfit-4-3-2-2-2-10.png", "group": "outfit-4-3-2-2-2-10"}, {"atlas_grid": [32, 15], "sheet_name": "outfit-4-1-1-2-1-1.png", "group": "outfit-4-1-1-2-1-1"}, {"atlas_grid": [32, 32], "sheet_name": "outfit-4-1-1-1-2-3.png", "group": "outfit-4-1-1-1-2-3"}, {"atlas_grid": [32, 32], "sheet_name": "outfit-4-1-1-1-1-3.png", "group": "outfit-4-1-1-1-1-3"}, {"atlas_grid": [32, 32], "sheet_name": "outfit-4-3-2-2-2-11.png", "group": "outfit-4-3-2-2-2-11"}, {"atlas_grid": [32, 32], "sheet_name": "outfit-4-1-1-1-2-4.png", "group": "outfit-4-1-1-1-2-4"}, {"atlas_grid": [32, 8], "sheet_name": "outfit-4-2-1-1-2-1.png", "group": "outfit-4-2-1-1-2-1"}, {"atlas_grid": [32, 23], "sheet_name": "outfit-4-3-2-2-2-12.png", "group": "outfit-4-3-2-2-2-12"}, {"atlas_grid": [32, 32], "sheet_name": "outfit-4-3-2-2-2-13.png", "group": "outfit-4-3-2-2-2-13"}, {"atlas_grid": [32, 22], "sheet_name": "outfit-4-3-2-2-2-14.png", "group": "outfit-4-3-2-2-2-14"}, {"atlas_grid": [32, 32], "sheet_name": "outfit-4-1-1-1-2-5.png", "group": "outfit-4-1-1-1-2-5"}, {"atlas_grid": [32, 27], "sheet_name": "outfit-4-3-2-2-2-15.png", "group": "outfit-4-3-2-2-2-15"}, {"atlas_grid": [32, 9], "sheet_name": "outfit-4-1-2-2-2-1.png", "group": "outfit-4-1-2-2-2-1"}, {"atlas_grid": [32, 29], "sheet_name": "outfit-4-3-2-2-2-16.png", "group": "outfit-4-3-2-2-2-16"}, {"atlas_grid": [32, 28], "sheet_name": "outfit-4-3-2-2-2-17.png", "group": "outfit-4-3-2-2-2-17"}, {"atlas_grid": [32, 32], "sheet_name": "outfit-4-1-1-1-2-6.png", "group": "outfit-4-1-1-1-2-6"}, {"atlas_grid": [32, 32], "sheet_name": "outfit-4-1-1-1-2-7.png", "group": "outfit-4-1-1-1-2-7"}, {"atlas_grid": [32, 32], "sheet_name": "outfit-4-3-2-2-2-18.png", "group": "outfit-4-3-2-2-2-18"}, {"atlas_grid": [32, 32], "sheet_name": "outfit-4-3-2-2-2-19.png", "group": "outfit-4-3-2-2-2-19"}, {"atlas_grid": [32, 24], "sheet_name": "outfit-4-3-2-2-2-20.png", "group": "outfit-4-3-2-2-2-20"}, {"atlas_grid": [32, 32], "sheet_name": "outfit-4-1-1-1-2-8.png", "group": "outfit-4-1-1-1-2-8"}, {"atlas_grid": [32, 22], "sheet_name": "outfit-4-3-2-2-2-21.png", "group": "outfit-4-3-2-2-2-21"}, {"atlas_grid": [32, 24], "sheet_name": "outfit-4-3-2-2-2-22.png", "group": "outfit-4-3-2-2-2-22"}, {"atlas_grid": [32, 25], "sheet_name": "outfit-4-3-1-1-2-1.png", "group": "outfit-4-3-1-1-2-1"}, {"atlas_grid": [32, 23], "sheet_name": "outfit-4-3-2-2-2-23.png", "group": "outfit-4-3-2-2-2-23"}, {"atlas_grid": [32, 32], "sheet_name": "outfit-4-1-1-1-2-9.png", "group": "outfit-4-1-1-1-2-9"}, {"atlas_grid": [32, 24], "sheet_name": "outfit-4-3-2-2-2-24.png", "group": "outfit-4-3-2-2-2-24"}, {"atlas_grid": [32, 32], "sheet_name": "outfit-4-3-2-2-2-25.png", "group": "outfit-4-3-2-2-2-25"}, {"atlas_grid": [32, 32], "sheet_name": "outfit-4-1-1-1-2-10.png", "group": "outfit-4-1-1-1-2-10"}, {"atlas_grid": [32, 24], "sheet_name": "outfit-4-3-2-2-2-26.png", "group": "outfit-4-3-2-2-2-26"}, {"atlas_grid": [32, 24], "sheet_name": "outfit-4-3-2-2-2-27.png", "group": "outfit-4-3-2-2-2-27"}, {"atlas_grid": [32, 24], "sheet_name": "outfit-4-3-2-2-2-28.png", "group": "outfit-4-3-2-2-2-28"}, {"atlas_grid": [32, 30], "sheet_name": "outfit-4-3-2-2-2-29.png", "group": "outfit-4-3-2-2-2-29"}, {"atlas_grid": [32, 29], "sheet_name": "outfit-4-3-2-2-2-30.png", "group": "outfit-4-3-2-2-2-30"}, {"atlas_grid": [32, 32], "sheet_name": "outfit-4-1-1-1-2-11.png", "group": "outfit-4-1-1-1-2-11"}, {"atlas_grid": [32, 27], "sheet_name": "outfit-4-3-2-2-2-31.png", "group": "outfit-4-3-2-2-2-31"}, {"atlas_grid": [32, 26], "sheet_name": "outfit-4-3-2-2-2-32.png", "group": "outfit-4-3-2-2-2-32"}, {"atlas_grid": [32, 28], "sheet_name": "outfit-4-3-2-2-2-33.png", "group": "outfit-4-3-2-2-2-33"}, {"atlas_grid": [32, 25], "sheet_name": "outfit-4-3-2-2-2-34.png", "group": "outfit-4-3-2-2-2-34"}, {"atlas_grid": [32, 25], "sheet_name": "outfit-4-3-2-2-2-35.png", "group": "outfit-4-3-2-2-2-35"}, {"atlas_grid": [32, 32], "sheet_name": "outfit-4-1-1-1-2-12.png", "group": "outfit-4-1-1-1-2-12"}, {"atlas_grid": [32, 27], "sheet_name": "outfit-4-3-2-2-2-36.png", "group": "outfit-4-3-2-2-2-36"}, {"atlas_grid": [32, 27], "sheet_name": "outfit-4-3-2-2-2-37.png", "group": "outfit-4-3-2-2-2-37"}, {"atlas_grid": [32, 32], "sheet_name": "outfit-4-3-2-2-2-38.png", "group": "outfit-4-3-2-2-2-38"}, {"atlas_grid": [32, 28], "sheet_name": "outfit-4-3-1-2-2-1.png", "group": "outfit-4-3-1-2-2-1"}, {"atlas_grid": [32, 32], "sheet_name": "outfit-4-3-2-2-2-39.png", "group": "outfit-4-3-2-2-2-39"}, {"atlas_grid": [32, 25], "sheet_name": "outfit-4-3-2-2-2-40.png", "group": "outfit-4-3-2-2-2-40"}, {"atlas_grid": [32, 32], "sheet_name": "outfit-4-1-1-1-2-13.png", "group": "outfit-4-1-1-1-2-13"}, {"atlas_grid": [32, 30], "sheet_name": "outfit-4-3-2-2-2-41.png", "group": "outfit-4-3-2-2-2-41"}, {"atlas_grid": [32, 30], "sheet_name": "outfit-4-3-1-2-2-2.png", "group": "outfit-4-3-1-2-2-2"}, {"atlas_grid": [32, 29], "sheet_name": "outfit-4-3-2-2-2-42.png", "group": "outfit-4-3-2-2-2-42"}, {"atlas_grid": [32, 25], "sheet_name": "outfit-4-3-2-2-2-43.png", "group": "outfit-4-3-2-2-2-43"}, {"atlas_grid": [32, 32], "sheet_name": "outfit-4-1-1-1-2-14.png", "group": "outfit-4-1-1-1-2-14"}, {"atlas_grid": [32, 23], "sheet_name": "outfit-4-3-2-2-2-44.png", "group": "outfit-4-3-2-2-2-44"}, {"atlas_grid": [32, 25], "sheet_name": "outfit-4-3-2-2-2-45.png", "group": "outfit-4-3-2-2-2-45"}, {"atlas_grid": [32, 26], "sheet_name": "outfit-4-3-2-2-2-46.png", "group": "outfit-4-3-2-2-2-46"}, {"atlas_grid": [32, 16], "sheet_name": "outfit-4-1-1-1-1-4.png", "group": "outfit-4-1-1-1-1-4"}, {"atlas_grid": [32, 32], "sheet_name": "outfit-4-1-1-1-2-15.png", "group": "outfit-4-1-1-1-2-15"}, {"atlas_grid": [1, 1], "sheet_name": "outfit-1-1-1-1-1-1.png", "group": "outfit-1-1-1-1-1-1"}, {"atlas_grid": [1, 1], "sheet_name": "outfit-1-1-1-1-2-1.png", "group": "outfit-1-1-1-1-2-1"}, {"atlas_grid": [32, 26], "sheet_name": "outfit-4-3-2-2-2-47.png", "group": "outfit-4-3-2-2-2-47"}, {"atlas_grid": [32, 26], "sheet_name": "outfit-4-3-2-2-2-48.png", "group": "outfit-4-3-2-2-2-48"}, {"atlas_grid": [32, 29], "sheet_name": "outfit-4-3-2-2-2-49.png", "group": "outfit-4-3-2-2-2-49"}, {"atlas_grid": [32, 31], "sheet_name": "outfit-4-3-2-2-2-50.png", "group": "outfit-4-3-2-2-2-50"}, {"atlas_grid": [32, 32], "sheet_name": "outfit-4-1-1-1-2-16.png", "group": "outfit-4-1-1-1-2-16"}, {"atlas_grid": [32, 27], "sheet_name": "outfit-4-3-2-2-2-51.png", "group": "outfit-4-3-2-2-2-51"}, {"atlas_grid": [32, 30], "sheet_name": "outfit-4-3-2-2-2-52.png", "group": "outfit-4-3-2-2-2-52"}, {"atlas_grid": [32, 23], "sheet_name": "outfit-4-3-2-2-2-53.png", "group": "outfit-4-3-2-2-2-53"}, {"atlas_grid": [32, 30], "sheet_name": "outfit-4-1-1-2-2-2.png", "group": "outfit-4-1-1-2-2-2"}, {"atlas_grid": [32, 24], "sheet_name": "outfit-4-3-2-2-2-54.png", "group": "outfit-4-3-2-2-2-54"}, {"atlas_grid": [32, 32], "sheet_name": "outfit-4-1-1-1-2-17.png", "group": "outfit-4-1-1-1-2-17"}, {"atlas_grid": [32, 31], "sheet_name": "outfit-4-3-1-2-2-3.png", "group": "outfit-4-3-1-2-2-3"}, {"atlas_grid": [32, 32], "sheet_name": "outfit-4-3-2-2-2-55.png", "group": "outfit-4-3-2-2-2-55"}, {"atlas_grid": [32, 28], "sheet_name": "outfit-4-3-2-2-2-56.png", "group": "outfit-4-3-2-2-2-56"}, {"atlas_grid": [32, 32], "sheet_name": "outfit-4-1-1-1-2-18.png", "group": "outfit-4-1-1-1-2-18"}, {"atlas_grid": [32, 26], "sheet_name": "outfit-4-3-2-2-2-57.png", "group": "outfit-4-3-2-2-2-57"}, {"atlas_grid": [32, 30], "sheet_name": "outfit-4-3-1-2-2-4.png", "group": "outfit-4-3-1-2-2-4"}, {"atlas_grid": [32, 26], "sheet_name": "outfit-4-3-2-2-2-58.png", "group": "outfit-4-3-2-2-2-58"}, {"atlas_grid": [32, 27], "sheet_name": "outfit-4-3-2-2-2-59.png", "group": "outfit-4-3-2-2-2-59"}, {"atlas_grid": [32, 32], "sheet_name": "outfit-4-3-2-2-2-60.png", "group": "outfit-4-3-2-2-2-60"}, {"atlas_grid": [32, 25], "sheet_name": "outfit-4-3-2-2-2-61.png", "group": "outfit-4-3-2-2-2-61"}, {"atlas_grid": [32, 25], "sheet_name": "outfit-4-3-2-2-2-62.png", "group": "outfit-4-3-2-2-2-62"}, {"atlas_grid": [32, 28], "sheet_name": "outfit-4-3-2-2-2-63.png", "group": "outfit-4-3-2-2-2-63"}, {"atlas_grid": [32, 9], "sheet_name": "outfit-4-3-2-2-1-1.png", "group": "outfit-4-3-2-2-1-1"}, {"atlas_grid": [32, 25], "sheet_name": "outfit-4-3-2-2-2-64.png", "group": "outfit-4-3-2-2-2-64"}, {"atlas_grid": [32, 32], "sheet_name": "outfit-4-1-1-1-2-19.png", "group": "outfit-4-1-1-1-2-19"}, {"atlas_grid": [32, 31], "sheet_name": "outfit-4-1-1-2-2-3.png", "group": "outfit-4-1-1-2-2-3"}, {"atlas_grid": [32, 27], "sheet_name": "outfit-4-3-2-2-2-65.png", "group": "outfit-4-3-2-2-2-65"}, {"atlas_grid": [32, 26], "sheet_name": "outfit-4-3-2-2-2-66.png", "group": "outfit-4-3-2-2-2-66"}, {"atlas_grid": [32, 27], "sheet_name": "outfit-4-3-2-2-2-67.png", "group": "outfit-4-3-2-2-2-67"}, {"atlas_grid": [32, 31], "sheet_name": "outfit-4-3-2-2-2-68.png", "group": "outfit-4-3-2-2-2-68"}, {"atlas_grid": [32, 31], "sheet_name": "outfit-4-3-1-2-2-5.png", "group": "outfit-4-3-1-2-2-5"}, {"atlas_grid": [32, 32], "sheet_name": "outfit-4-1-1-1-2-20.png", "group": "outfit-4-1-1-1-2-20"}, {"atlas_grid": [32, 27], "sheet_name": "outfit-4-3-2-2-2-69.png", "group": "outfit-4-3-2-2-2-69"}, {"atlas_grid": [32, 24], "sheet_name": "outfit-4-3-2-2-2-70.png", "group": "outfit-4-3-2-2-2-70"}, {"atlas_grid": [32, 26], "sheet_name": "outfit-4-3-2-2-2-71.png", "group": "outfit-4-3-2-2-2-71"}, {"atlas_grid": [32, 32], "sheet_name": "outfit-4-3-2-2-2-72.png", "group": "outfit-4-3-2-2-2-72"}, {"atlas_grid": [32, 32], "sheet_name": "outfit-4-1-1-1-2-21.png", "group": "outfit-4-1-1-1-2-21"}, {"atlas_grid": [32, 30], "sheet_name": "outfit-4-3-2-2-2-73.png", "group": "outfit-4-3-2-2-2-73"}, {"atlas_grid": [32, 31], "sheet_name": "outfit-4-3-2-2-2-74.png", "group": "outfit-4-3-2-2-2-74"}, {"atlas_grid": [32, 30], "sheet_name": "outfit-4-3-1-2-2-6.png", "group": "outfit-4-3-1-2-2-6"}, {"atlas_grid": [32, 25], "sheet_name": "outfit-4-3-2-2-2-75.png", "group": "outfit-4-3-2-2-2-75"}, {"atlas_grid": [32, 32], "sheet_name": "outfit-4-3-2-2-2-76.png", "group": "outfit-4-3-2-2-2-76"}, {"atlas_grid": [32, 32], "sheet_name": "outfit-4-1-1-1-2-22.png", "group": "outfit-4-1-1-1-2-22"}, {"atlas_grid": [32, 24], "sheet_name": "outfit-4-3-2-2-2-77.png", "group": "outfit-4-3-2-2-2-77"}, {"atlas_grid": [32, 30], "sheet_name": "outfit-4-3-2-2-2-78.png", "group": "outfit-4-3-2-2-2-78"}, {"atlas_grid": [32, 32], "sheet_name": "outfit-4-3-2-2-2-79.png", "group": "outfit-4-3-2-2-2-79"}, {"atlas_grid": [32, 29], "sheet_name": "outfit-4-3-2-2-2-80.png", "group": "outfit-4-3-2-2-2-80"}, {"atlas_grid": [32, 32], "sheet_name": "outfit-4-3-1-2-2-7.png", "group": "outfit-4-3-1-2-2-7"}, {"atlas_grid": [32, 32], "sheet_name": "outfit-4-1-1-1-2-23.png", "group": "outfit-4-1-1-1-2-23"}, {"atlas_grid": [32, 30], "sheet_name": "outfit-4-3-2-2-2-81.png", "group": "outfit-4-3-2-2-2-81"}, {"atlas_grid": [32, 32], "sheet_name": "outfit-4-3-2-2-2-82.png", "group": "outfit-4-3-2-2-2-82"}, {"atlas_grid": [32, 23], "sheet_name": "outfit-4-3-2-2-2-83.png", "group": "outfit-4-3-2-2-2-83"}, {"atlas_grid": [32, 31], "sheet_name": "outfit-4-1-1-1-2-24.png", "group": "outfit-4-1-1-1-2-24"}, {"atlas_grid": [32, 29], "sheet_name": "outfit-4-3-2-2-2-84.png", "group": "outfit-4-3-2-2-2-84"}, {"atlas_grid": [32, 26], "sheet_name": "outfit-4-3-2-2-2-85.png", "group": "outfit-4-3-2-2-2-85"}, {"atlas_grid": [32, 32], "sheet_name": "outfit-4-1-1-1-2-25.png", "group": "outfit-4-1-1-1-2-25"}, {"atlas_grid": [32, 29], "sheet_name": "outfit-4-3-2-2-2-86.png", "group": "outfit-4-3-2-2-2-86"}, {"atlas_grid": [32, 26], "sheet_name": "outfit-4-3-2-2-2-87.png", "group": "outfit-4-3-2-2-2-87"}, {"atlas_grid": [32, 30], "sheet_name": "outfit-4-3-2-2-2-88.png", "group": "outfit-4-3-2-2-2-88"}, {"atlas_grid": [32, 31], "sheet_name": "outfit-4-3-2-2-2-89.png", "group": "outfit-4-3-2-2-2-89"}, {"atlas_grid": [32, 30], "sheet_name": "outfit-4-3-2-2-2-90.png", "group": "outfit-4-3-2-2-2-90"}, {"atlas_grid": [32, 32], "sheet_name": "outfit-4-1-1-1-2-26.png", "group": "outfit-4-1-1-1-2-26"}, {"atlas_grid": [32, 26], "sheet_name": "outfit-4-3-2-2-2-91.png", "group": "outfit-4-3-2-2-2-91"}, {"atlas_grid": [32, 32], "sheet_name": "outfit-4-3-2-2-2-92.png", "group": "outfit-4-3-2-2-2-92"}, {"atlas_grid": [32, 31], "sheet_name": "outfit-4-3-2-2-2-93.png", "group": "outfit-4-3-2-2-2-93"}, {"atlas_grid": [32, 32], "sheet_name": "outfit-4-1-1-1-2-27.png", "group": "outfit-4-1-1-1-2-27"}, {"atlas_grid": [32, 32], "sheet_name": "outfit-4-3-2-2-2-94.png", "group": "outfit-4-3-2-2-2-94"}, {"atlas_grid": [32, 30], "sheet_name": "outfit-4-3-2-2-2-95.png", "group": "outfit-4-3-2-2-2-95"}, {"atlas_grid": [32, 24], "sheet_name": "outfit-4-3-2-2-2-96.png", "group": "outfit-4-3-2-2-2-96"}, {"atlas_grid": [32, 27], "sheet_name": "outfit-4-3-1-2-2-8.png", "group": "outfit-4-3-1-2-2-8"}, {"atlas_grid": [32, 32], "sheet_name": "outfit-4-1-1-1-2-28.png", "group": "outfit-4-1-1-1-2-28"}, {"atlas_grid": [32, 31], "sheet_name": "outfit-4-3-2-2-2-97.png", "group": "outfit-4-3-2-2-2-97"}, {"atlas_grid": [32, 29], "sheet_name": "outfit-4-3-2-2-2-98.png", "group": "outfit-4-3-2-2-2-98"}, {"atlas_grid": [32, 32], "sheet_name": "outfit-4-1-1-1-2-29.png", "group": "outfit-4-1-1-1-2-29"}, {"atlas_grid": [32, 26], "sheet_name": "outfit-4-3-2-2-2-99.png", "group": "outfit-4-3-2-2-2-99"}, {"atlas_grid": [32, 28], "sheet_name": "outfit-4-3-2-2-2-100.png", "group": "outfit-4-3-2-2-2-100"}, {"atlas_grid": [32, 27], "sheet_name": "outfit-4-3-2-2-2-101.png", "group": "outfit-4-3-2-2-2-101"}, {"atlas_grid": [32, 32], "sheet_name": "outfit-4-3-2-2-2-102.png", "group": "outfit-4-3-2-2-2-102"}, {"atlas_grid": [32, 29], "sheet_name": "outfit-4-3-2-2-2-103.png", "group": "outfit-4-3-2-2-2-103"}, {"atlas_grid": [32, 11], "sheet_name": "outfit-4-1-1-2-2-4.png", "group": "outfit-4-1-1-2-2-4"}, {"atlas_grid": [32, 17], "sheet_name": "outfit-4-3-1-2-2-9.png", "group": "outfit-4-3-1-2-2-9"}, {"atlas_grid": [32, 31], "sheet_name": "outfit-4-1-1-1-2-30.png", "group": "outfit-4-1-1-1-2-30"}, {"atlas_grid": [32, 30], "sheet_name": "outfit-4-3-2-2-2-104.png", "group": "outfit-4-3-2-2-2-104"}, {"atlas_grid": [32, 32], "sheet_name": "outfit-4-3-2-2-2-105.png", "group": "outfit-4-3-2-2-2-105"}, {"atlas_grid": [32, 7], "sheet_name": "outfit-4-1-1-1-2-31.png", "group": "outfit-4-1-1-1-2-31"}, {"atlas_grid": [32, 21], "sheet_name": "outfit-4-3-2-2-2-106.png", "group": "outfit-4-3-2-2-2-106"}]
+[
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "ground-32-32-0.png",
+        "group": "ground-32-32-0"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "item-32-32-0.png",
+        "group": "item-32-32-0"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            32,
+            64
+        ],
+        "sheet_name": "item-32-64-0.png",
+        "group": "item-32-64-0"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            64,
+            32
+        ],
+        "sheet_name": "item-64-32-0.png",
+        "group": "item-64-32-0"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "item-64-64-0.png",
+        "group": "item-64-64-0"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "border-32-32-0.png",
+        "group": "border-32-32-0"
+    },
+    {
+        "grid_size": [
+            32,
+            9
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "ground-64-64-0.png",
+        "group": "ground-64-64-0"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "item-32-32-1.png",
+        "group": "item-32-32-1"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "ground-32-32-1.png",
+        "group": "ground-32-32-1"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "item-32-32-2.png",
+        "group": "item-32-32-2"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "border-64-64-0.png",
+        "group": "border-64-64-0"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "item-64-64-1.png",
+        "group": "item-64-64-1"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "item-32-32-3.png",
+        "group": "item-32-32-3"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "item-64-64-2.png",
+        "group": "item-64-64-2"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "item-32-32-4.png",
+        "group": "item-32-32-4"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "item-32-32-5.png",
+        "group": "item-32-32-5"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "item-32-32-6.png",
+        "group": "item-32-32-6"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "ground-32-32-2.png",
+        "group": "ground-32-32-2"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "border-32-32-1.png",
+        "group": "border-32-32-1"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "border-32-32-2.png",
+        "group": "border-32-32-2"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "item-32-32-7.png",
+        "group": "item-32-32-7"
+    },
+    {
+        "grid_size": [
+            10,
+            1
+        ],
+        "sprite_size": [
+            32,
+            64
+        ],
+        "sheet_name": "ground-32-64-0.png",
+        "group": "ground-32-64-0"
+    },
+    {
+        "grid_size": [
+            10,
+            1
+        ],
+        "sprite_size": [
+            64,
+            32
+        ],
+        "sheet_name": "ground-64-32-0.png",
+        "group": "ground-64-32-0"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "item-64-64-3.png",
+        "group": "item-64-64-3"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "item-64-64-4.png",
+        "group": "item-64-64-4"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "ground-32-32-3.png",
+        "group": "ground-32-32-3"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "item-32-32-8.png",
+        "group": "item-32-32-8"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "border-32-32-3.png",
+        "group": "border-32-32-3"
+    },
+    {
+        "grid_size": [
+            32,
+            11
+        ],
+        "sprite_size": [
+            32,
+            64
+        ],
+        "sheet_name": "border-32-64-0.png",
+        "group": "border-32-64-0"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "border-32-32-4.png",
+        "group": "border-32-32-4"
+    },
+    {
+        "grid_size": [
+            32,
+            11
+        ],
+        "sprite_size": [
+            64,
+            32
+        ],
+        "sheet_name": "border-64-32-0.png",
+        "group": "border-64-32-0"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "item-64-64-5.png",
+        "group": "item-64-64-5"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "item-32-32-9.png",
+        "group": "item-32-32-9"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            32,
+            64
+        ],
+        "sheet_name": "item-32-64-1.png",
+        "group": "item-32-64-1"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            64,
+            32
+        ],
+        "sheet_name": "item-64-32-1.png",
+        "group": "item-64-32-1"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "item-64-64-6.png",
+        "group": "item-64-64-6"
+    },
+    {
+        "grid_size": [
+            32,
+            19
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "item-32-32-10.png",
+        "group": "item-32-32-10"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "ground-32-32-4.png",
+        "group": "ground-32-32-4"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "item-64-64-7.png",
+        "group": "item-64-64-7"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "item-32-32-11.png",
+        "group": "item-32-32-11"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "border-32-32-5.png",
+        "group": "border-32-32-5"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "item-64-64-8.png",
+        "group": "item-64-64-8"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "item-32-32-12.png",
+        "group": "item-32-32-12"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "item-64-64-9.png",
+        "group": "item-64-64-9"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            64
+        ],
+        "sheet_name": "item-32-64-2.png",
+        "group": "item-32-64-2"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "border-32-32-6.png",
+        "group": "border-32-32-6"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "item-32-32-13.png",
+        "group": "item-32-32-13"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            64,
+            32
+        ],
+        "sheet_name": "item-64-32-2.png",
+        "group": "item-64-32-2"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "ground-32-32-5.png",
+        "group": "ground-32-32-5"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "item-32-32-14.png",
+        "group": "item-32-32-14"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "border-32-32-7.png",
+        "group": "border-32-32-7"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "item-64-64-10.png",
+        "group": "item-64-64-10"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "item-64-64-11.png",
+        "group": "item-64-64-11"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "item-32-32-15.png",
+        "group": "item-32-32-15"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "border-32-32-8.png",
+        "group": "border-32-32-8"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "item-64-64-12.png",
+        "group": "item-64-64-12"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "ground-32-32-6.png",
+        "group": "ground-32-32-6"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "border-32-32-9.png",
+        "group": "border-32-32-9"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "item-64-64-13.png",
+        "group": "item-64-64-13"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "item-32-32-16.png",
+        "group": "item-32-32-16"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "item-64-64-14.png",
+        "group": "item-64-64-14"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "border-32-32-10.png",
+        "group": "border-32-32-10"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "item-64-64-15.png",
+        "group": "item-64-64-15"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "item-32-32-17.png",
+        "group": "item-32-32-17"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            32,
+            64
+        ],
+        "sheet_name": "item-32-64-3.png",
+        "group": "item-32-64-3"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "ground-32-32-7.png",
+        "group": "ground-32-32-7"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "border-32-32-11.png",
+        "group": "border-32-32-11"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            64,
+            32
+        ],
+        "sheet_name": "item-64-32-3.png",
+        "group": "item-64-32-3"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "item-64-64-16.png",
+        "group": "item-64-64-16"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "item-32-32-18.png",
+        "group": "item-32-32-18"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "item-64-64-17.png",
+        "group": "item-64-64-17"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "border-64-64-1.png",
+        "group": "border-64-64-1"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "item-32-32-19.png",
+        "group": "item-32-32-19"
+    },
+    {
+        "grid_size": [
+            32,
+            18
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "ground-32-32-8.png",
+        "group": "ground-32-32-8"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "item-64-64-18.png",
+        "group": "item-64-64-18"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "border-32-32-12.png",
+        "group": "border-32-32-12"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "item-32-32-20.png",
+        "group": "item-32-32-20"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "item-32-32-21.png",
+        "group": "item-32-32-21"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "ground-32-32-9.png",
+        "group": "ground-32-32-9"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "item-32-32-22.png",
+        "group": "item-32-32-22"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "item-64-64-19.png",
+        "group": "item-64-64-19"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "item-64-64-20.png",
+        "group": "item-64-64-20"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "item-32-32-23.png",
+        "group": "item-32-32-23"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "border-32-32-13.png",
+        "group": "border-32-32-13"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "item-32-32-24.png",
+        "group": "item-32-32-24"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "item-32-32-25.png",
+        "group": "item-32-32-25"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "item-64-64-21.png",
+        "group": "item-64-64-21"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "ground-32-32-10.png",
+        "group": "ground-32-32-10"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "item-64-64-22.png",
+        "group": "item-64-64-22"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            64
+        ],
+        "sheet_name": "item-32-64-4.png",
+        "group": "item-32-64-4"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            64,
+            32
+        ],
+        "sheet_name": "item-64-32-4.png",
+        "group": "item-64-32-4"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "item-64-64-23.png",
+        "group": "item-64-64-23"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "item-32-32-26.png",
+        "group": "item-32-32-26"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "border-32-32-14.png",
+        "group": "border-32-32-14"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "item-64-64-24.png",
+        "group": "item-64-64-24"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "item-32-32-27.png",
+        "group": "item-32-32-27"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "item-64-64-25.png",
+        "group": "item-64-64-25"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "border-32-32-15.png",
+        "group": "border-32-32-15"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "item-32-32-28.png",
+        "group": "item-32-32-28"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "item-64-64-26.png",
+        "group": "item-64-64-26"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "item-64-64-27.png",
+        "group": "item-64-64-27"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "item-32-32-29.png",
+        "group": "item-32-32-29"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "item-64-64-28.png",
+        "group": "item-64-64-28"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            32,
+            64
+        ],
+        "sheet_name": "item-32-64-5.png",
+        "group": "item-32-64-5"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "item-64-64-29.png",
+        "group": "item-64-64-29"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "item-32-32-30.png",
+        "group": "item-32-32-30"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            64,
+            32
+        ],
+        "sheet_name": "item-64-32-5.png",
+        "group": "item-64-32-5"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "item-64-64-30.png",
+        "group": "item-64-64-30"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "item-32-32-31.png",
+        "group": "item-32-32-31"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "item-64-64-31.png",
+        "group": "item-64-64-31"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "border-32-32-16.png",
+        "group": "border-32-32-16"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "ground-32-32-11.png",
+        "group": "ground-32-32-11"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "border-32-32-17.png",
+        "group": "border-32-32-17"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "ground-32-32-12.png",
+        "group": "ground-32-32-12"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "border-32-32-18.png",
+        "group": "border-32-32-18"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "item-64-64-32.png",
+        "group": "item-64-64-32"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "item-32-32-32.png",
+        "group": "item-32-32-32"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "item-64-64-33.png",
+        "group": "item-64-64-33"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "item-32-32-33.png",
+        "group": "item-32-32-33"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "item-32-32-34.png",
+        "group": "item-32-32-34"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "item-64-64-34.png",
+        "group": "item-64-64-34"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "item-32-32-35.png",
+        "group": "item-32-32-35"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "ground-32-32-13.png",
+        "group": "ground-32-32-13"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "border-32-32-19.png",
+        "group": "border-32-32-19"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "border-32-32-20.png",
+        "group": "border-32-32-20"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "border-32-32-21.png",
+        "group": "border-32-32-21"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "border-32-32-22.png",
+        "group": "border-32-32-22"
+    },
+    {
+        "grid_size": [
+            32,
+            18
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "border-32-32-23.png",
+        "group": "border-32-32-23"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "ground-32-32-14.png",
+        "group": "ground-32-32-14"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "border-32-32-24.png",
+        "group": "border-32-32-24"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "item-32-32-36.png",
+        "group": "item-32-32-36"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "border-32-32-25.png",
+        "group": "border-32-32-25"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "border-32-32-26.png",
+        "group": "border-32-32-26"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "item-32-32-37.png",
+        "group": "item-32-32-37"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "border-32-32-27.png",
+        "group": "border-32-32-27"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "item-64-64-35.png",
+        "group": "item-64-64-35"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "border-32-32-28.png",
+        "group": "border-32-32-28"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "item-64-64-36.png",
+        "group": "item-64-64-36"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "item-32-32-38.png",
+        "group": "item-32-32-38"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            64,
+            32
+        ],
+        "sheet_name": "item-64-32-6.png",
+        "group": "item-64-32-6"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "item-64-64-37.png",
+        "group": "item-64-64-37"
+    },
+    {
+        "grid_size": [
+            32,
+            15
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "border-64-64-2.png",
+        "group": "border-64-64-2"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            64
+        ],
+        "sheet_name": "item-32-64-6.png",
+        "group": "item-32-64-6"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "item-64-64-38.png",
+        "group": "item-64-64-38"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "border-32-32-29.png",
+        "group": "border-32-32-29"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "item-32-32-39.png",
+        "group": "item-32-32-39"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "item-64-64-39.png",
+        "group": "item-64-64-39"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "ground-32-32-15.png",
+        "group": "ground-32-32-15"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "item-64-64-40.png",
+        "group": "item-64-64-40"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "border-32-32-30.png",
+        "group": "border-32-32-30"
+    },
+    {
+        "grid_size": [
+            32,
+            19
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "item-32-32-40.png",
+        "group": "item-32-32-40"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "item-64-64-41.png",
+        "group": "item-64-64-41"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "item-32-32-41.png",
+        "group": "item-32-32-41"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "item-64-64-42.png",
+        "group": "item-64-64-42"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "item-64-64-43.png",
+        "group": "item-64-64-43"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "ground-32-32-16.png",
+        "group": "ground-32-32-16"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "border-32-32-31.png",
+        "group": "border-32-32-31"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "item-32-32-42.png",
+        "group": "item-32-32-42"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "item-32-32-43.png",
+        "group": "item-32-32-43"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "item-64-64-44.png",
+        "group": "item-64-64-44"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "item-32-32-44.png",
+        "group": "item-32-32-44"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "item-64-64-45.png",
+        "group": "item-64-64-45"
+    },
+    {
+        "grid_size": [
+            32,
+            9
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "ground-32-32-17.png",
+        "group": "ground-32-32-17"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "border-32-32-32.png",
+        "group": "border-32-32-32"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "item-64-64-46.png",
+        "group": "item-64-64-46"
+    },
+    {
+        "grid_size": [
+            32,
+            4
+        ],
+        "sprite_size": [
+            64,
+            32
+        ],
+        "sheet_name": "item-64-32-7.png",
+        "group": "item-64-32-7"
+    },
+    {
+        "grid_size": [
+            32,
+            3
+        ],
+        "sprite_size": [
+            32,
+            64
+        ],
+        "sheet_name": "item-32-64-7.png",
+        "group": "item-32-64-7"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "item-32-32-45.png",
+        "group": "item-32-32-45"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "item-64-64-47.png",
+        "group": "item-64-64-47"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "item-64-64-48.png",
+        "group": "item-64-64-48"
+    },
+    {
+        "grid_size": [
+            32,
+            10
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "item-32-32-46.png",
+        "group": "item-32-32-46"
+    },
+    {
+        "grid_size": [
+            32,
+            32
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-1-1-1-1-1.png",
+        "group": "outfit-4-1-1-1-1-1"
+    },
+    {
+        "grid_size": [
+            32,
+            32
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-1-1-1-2-1.png",
+        "group": "outfit-4-1-1-1-2-1"
+    },
+    {
+        "grid_size": [
+            32,
+            31
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-1-1-2-2-1.png",
+        "group": "outfit-4-1-1-2-2-1"
+    },
+    {
+        "grid_size": [
+            32,
+            32
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-1-1-1-1-2.png",
+        "group": "outfit-4-1-1-1-1-2"
+    },
+    {
+        "grid_size": [
+            32,
+            32
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-1-2-2-1-1.png",
+        "group": "outfit-4-1-2-2-1-1"
+    },
+    {
+        "grid_size": [
+            32,
+            32
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-1-1-1-2-2.png",
+        "group": "outfit-4-1-1-1-2-2"
+    },
+    {
+        "grid_size": [
+            32,
+            32
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-1.png",
+        "group": "outfit-4-3-2-2-2-1"
+    },
+    {
+        "grid_size": [
+            32,
+            30
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-2.png",
+        "group": "outfit-4-3-2-2-2-2"
+    },
+    {
+        "grid_size": [
+            32,
+            29
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-3.png",
+        "group": "outfit-4-3-2-2-2-3"
+    },
+    {
+        "grid_size": [
+            32,
+            32
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-4.png",
+        "group": "outfit-4-3-2-2-2-4"
+    },
+    {
+        "grid_size": [
+            32,
+            29
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-5.png",
+        "group": "outfit-4-3-2-2-2-5"
+    },
+    {
+        "grid_size": [
+            32,
+            30
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-6.png",
+        "group": "outfit-4-3-2-2-2-6"
+    },
+    {
+        "grid_size": [
+            32,
+            29
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-7.png",
+        "group": "outfit-4-3-2-2-2-7"
+    },
+    {
+        "grid_size": [
+            32,
+            31
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-8.png",
+        "group": "outfit-4-3-2-2-2-8"
+    },
+    {
+        "grid_size": [
+            32,
+            30
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-9.png",
+        "group": "outfit-4-3-2-2-2-9"
+    },
+    {
+        "grid_size": [
+            32,
+            31
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-10.png",
+        "group": "outfit-4-3-2-2-2-10"
+    },
+    {
+        "grid_size": [
+            32,
+            15
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-1-1-2-1-1.png",
+        "group": "outfit-4-1-1-2-1-1"
+    },
+    {
+        "grid_size": [
+            32,
+            32
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-1-1-1-2-3.png",
+        "group": "outfit-4-1-1-1-2-3"
+    },
+    {
+        "grid_size": [
+            32,
+            32
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-1-1-1-1-3.png",
+        "group": "outfit-4-1-1-1-1-3"
+    },
+    {
+        "grid_size": [
+            32,
+            32
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-11.png",
+        "group": "outfit-4-3-2-2-2-11"
+    },
+    {
+        "grid_size": [
+            32,
+            32
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-1-1-1-2-4.png",
+        "group": "outfit-4-1-1-1-2-4"
+    },
+    {
+        "grid_size": [
+            32,
+            8
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-2-1-1-2-1.png",
+        "group": "outfit-4-2-1-1-2-1"
+    },
+    {
+        "grid_size": [
+            32,
+            23
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-12.png",
+        "group": "outfit-4-3-2-2-2-12"
+    },
+    {
+        "grid_size": [
+            32,
+            32
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-13.png",
+        "group": "outfit-4-3-2-2-2-13"
+    },
+    {
+        "grid_size": [
+            32,
+            22
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-14.png",
+        "group": "outfit-4-3-2-2-2-14"
+    },
+    {
+        "grid_size": [
+            32,
+            32
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-1-1-1-2-5.png",
+        "group": "outfit-4-1-1-1-2-5"
+    },
+    {
+        "grid_size": [
+            32,
+            27
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-15.png",
+        "group": "outfit-4-3-2-2-2-15"
+    },
+    {
+        "grid_size": [
+            32,
+            9
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-1-2-2-2-1.png",
+        "group": "outfit-4-1-2-2-2-1"
+    },
+    {
+        "grid_size": [
+            32,
+            29
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-16.png",
+        "group": "outfit-4-3-2-2-2-16"
+    },
+    {
+        "grid_size": [
+            32,
+            28
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-17.png",
+        "group": "outfit-4-3-2-2-2-17"
+    },
+    {
+        "grid_size": [
+            32,
+            32
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-1-1-1-2-6.png",
+        "group": "outfit-4-1-1-1-2-6"
+    },
+    {
+        "grid_size": [
+            32,
+            32
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-1-1-1-2-7.png",
+        "group": "outfit-4-1-1-1-2-7"
+    },
+    {
+        "grid_size": [
+            32,
+            32
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-18.png",
+        "group": "outfit-4-3-2-2-2-18"
+    },
+    {
+        "grid_size": [
+            32,
+            32
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-19.png",
+        "group": "outfit-4-3-2-2-2-19"
+    },
+    {
+        "grid_size": [
+            32,
+            24
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-20.png",
+        "group": "outfit-4-3-2-2-2-20"
+    },
+    {
+        "grid_size": [
+            32,
+            32
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-1-1-1-2-8.png",
+        "group": "outfit-4-1-1-1-2-8"
+    },
+    {
+        "grid_size": [
+            32,
+            22
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-21.png",
+        "group": "outfit-4-3-2-2-2-21"
+    },
+    {
+        "grid_size": [
+            32,
+            24
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-22.png",
+        "group": "outfit-4-3-2-2-2-22"
+    },
+    {
+        "grid_size": [
+            32,
+            25
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-1-1-2-1.png",
+        "group": "outfit-4-3-1-1-2-1"
+    },
+    {
+        "grid_size": [
+            32,
+            23
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-23.png",
+        "group": "outfit-4-3-2-2-2-23"
+    },
+    {
+        "grid_size": [
+            32,
+            32
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-1-1-1-2-9.png",
+        "group": "outfit-4-1-1-1-2-9"
+    },
+    {
+        "grid_size": [
+            32,
+            24
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-24.png",
+        "group": "outfit-4-3-2-2-2-24"
+    },
+    {
+        "grid_size": [
+            32,
+            32
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-25.png",
+        "group": "outfit-4-3-2-2-2-25"
+    },
+    {
+        "grid_size": [
+            32,
+            32
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-1-1-1-2-10.png",
+        "group": "outfit-4-1-1-1-2-10"
+    },
+    {
+        "grid_size": [
+            32,
+            24
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-26.png",
+        "group": "outfit-4-3-2-2-2-26"
+    },
+    {
+        "grid_size": [
+            32,
+            24
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-27.png",
+        "group": "outfit-4-3-2-2-2-27"
+    },
+    {
+        "grid_size": [
+            32,
+            24
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-28.png",
+        "group": "outfit-4-3-2-2-2-28"
+    },
+    {
+        "grid_size": [
+            32,
+            30
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-29.png",
+        "group": "outfit-4-3-2-2-2-29"
+    },
+    {
+        "grid_size": [
+            32,
+            29
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-30.png",
+        "group": "outfit-4-3-2-2-2-30"
+    },
+    {
+        "grid_size": [
+            32,
+            32
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-1-1-1-2-11.png",
+        "group": "outfit-4-1-1-1-2-11"
+    },
+    {
+        "grid_size": [
+            32,
+            27
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-31.png",
+        "group": "outfit-4-3-2-2-2-31"
+    },
+    {
+        "grid_size": [
+            32,
+            26
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-32.png",
+        "group": "outfit-4-3-2-2-2-32"
+    },
+    {
+        "grid_size": [
+            32,
+            28
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-33.png",
+        "group": "outfit-4-3-2-2-2-33"
+    },
+    {
+        "grid_size": [
+            32,
+            25
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-34.png",
+        "group": "outfit-4-3-2-2-2-34"
+    },
+    {
+        "grid_size": [
+            32,
+            25
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-35.png",
+        "group": "outfit-4-3-2-2-2-35"
+    },
+    {
+        "grid_size": [
+            32,
+            32
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-1-1-1-2-12.png",
+        "group": "outfit-4-1-1-1-2-12"
+    },
+    {
+        "grid_size": [
+            32,
+            27
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-36.png",
+        "group": "outfit-4-3-2-2-2-36"
+    },
+    {
+        "grid_size": [
+            32,
+            27
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-37.png",
+        "group": "outfit-4-3-2-2-2-37"
+    },
+    {
+        "grid_size": [
+            32,
+            32
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-38.png",
+        "group": "outfit-4-3-2-2-2-38"
+    },
+    {
+        "grid_size": [
+            32,
+            28
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-1-2-2-1.png",
+        "group": "outfit-4-3-1-2-2-1"
+    },
+    {
+        "grid_size": [
+            32,
+            32
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-39.png",
+        "group": "outfit-4-3-2-2-2-39"
+    },
+    {
+        "grid_size": [
+            32,
+            25
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-40.png",
+        "group": "outfit-4-3-2-2-2-40"
+    },
+    {
+        "grid_size": [
+            32,
+            32
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-1-1-1-2-13.png",
+        "group": "outfit-4-1-1-1-2-13"
+    },
+    {
+        "grid_size": [
+            32,
+            30
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-41.png",
+        "group": "outfit-4-3-2-2-2-41"
+    },
+    {
+        "grid_size": [
+            32,
+            30
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-1-2-2-2.png",
+        "group": "outfit-4-3-1-2-2-2"
+    },
+    {
+        "grid_size": [
+            32,
+            29
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-42.png",
+        "group": "outfit-4-3-2-2-2-42"
+    },
+    {
+        "grid_size": [
+            32,
+            25
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-43.png",
+        "group": "outfit-4-3-2-2-2-43"
+    },
+    {
+        "grid_size": [
+            32,
+            32
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-1-1-1-2-14.png",
+        "group": "outfit-4-1-1-1-2-14"
+    },
+    {
+        "grid_size": [
+            32,
+            23
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-44.png",
+        "group": "outfit-4-3-2-2-2-44"
+    },
+    {
+        "grid_size": [
+            32,
+            25
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-45.png",
+        "group": "outfit-4-3-2-2-2-45"
+    },
+    {
+        "grid_size": [
+            32,
+            26
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-46.png",
+        "group": "outfit-4-3-2-2-2-46"
+    },
+    {
+        "grid_size": [
+            32,
+            16
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-1-1-1-1-4.png",
+        "group": "outfit-4-1-1-1-1-4"
+    },
+    {
+        "grid_size": [
+            32,
+            32
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-1-1-1-2-15.png",
+        "group": "outfit-4-1-1-1-2-15"
+    },
+    {
+        "grid_size": [
+            1,
+            1
+        ],
+        "sprite_size": [
+            32,
+            32
+        ],
+        "sheet_name": "outfit-1-1-1-1-1-1.png",
+        "group": "outfit-1-1-1-1-1-1"
+    },
+    {
+        "grid_size": [
+            1,
+            1
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-1-1-1-1-2-1.png",
+        "group": "outfit-1-1-1-1-2-1"
+    },
+    {
+        "grid_size": [
+            32,
+            26
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-47.png",
+        "group": "outfit-4-3-2-2-2-47"
+    },
+    {
+        "grid_size": [
+            32,
+            26
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-48.png",
+        "group": "outfit-4-3-2-2-2-48"
+    },
+    {
+        "grid_size": [
+            32,
+            29
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-49.png",
+        "group": "outfit-4-3-2-2-2-49"
+    },
+    {
+        "grid_size": [
+            32,
+            31
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-50.png",
+        "group": "outfit-4-3-2-2-2-50"
+    },
+    {
+        "grid_size": [
+            32,
+            32
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-1-1-1-2-16.png",
+        "group": "outfit-4-1-1-1-2-16"
+    },
+    {
+        "grid_size": [
+            32,
+            27
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-51.png",
+        "group": "outfit-4-3-2-2-2-51"
+    },
+    {
+        "grid_size": [
+            32,
+            30
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-52.png",
+        "group": "outfit-4-3-2-2-2-52"
+    },
+    {
+        "grid_size": [
+            32,
+            23
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-53.png",
+        "group": "outfit-4-3-2-2-2-53"
+    },
+    {
+        "grid_size": [
+            32,
+            30
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-1-1-2-2-2.png",
+        "group": "outfit-4-1-1-2-2-2"
+    },
+    {
+        "grid_size": [
+            32,
+            24
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-54.png",
+        "group": "outfit-4-3-2-2-2-54"
+    },
+    {
+        "grid_size": [
+            32,
+            32
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-1-1-1-2-17.png",
+        "group": "outfit-4-1-1-1-2-17"
+    },
+    {
+        "grid_size": [
+            32,
+            31
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-1-2-2-3.png",
+        "group": "outfit-4-3-1-2-2-3"
+    },
+    {
+        "grid_size": [
+            32,
+            32
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-55.png",
+        "group": "outfit-4-3-2-2-2-55"
+    },
+    {
+        "grid_size": [
+            32,
+            28
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-56.png",
+        "group": "outfit-4-3-2-2-2-56"
+    },
+    {
+        "grid_size": [
+            32,
+            32
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-1-1-1-2-18.png",
+        "group": "outfit-4-1-1-1-2-18"
+    },
+    {
+        "grid_size": [
+            32,
+            26
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-57.png",
+        "group": "outfit-4-3-2-2-2-57"
+    },
+    {
+        "grid_size": [
+            32,
+            30
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-1-2-2-4.png",
+        "group": "outfit-4-3-1-2-2-4"
+    },
+    {
+        "grid_size": [
+            32,
+            26
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-58.png",
+        "group": "outfit-4-3-2-2-2-58"
+    },
+    {
+        "grid_size": [
+            32,
+            27
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-59.png",
+        "group": "outfit-4-3-2-2-2-59"
+    },
+    {
+        "grid_size": [
+            32,
+            32
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-60.png",
+        "group": "outfit-4-3-2-2-2-60"
+    },
+    {
+        "grid_size": [
+            32,
+            25
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-61.png",
+        "group": "outfit-4-3-2-2-2-61"
+    },
+    {
+        "grid_size": [
+            32,
+            25
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-62.png",
+        "group": "outfit-4-3-2-2-2-62"
+    },
+    {
+        "grid_size": [
+            32,
+            28
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-63.png",
+        "group": "outfit-4-3-2-2-2-63"
+    },
+    {
+        "grid_size": [
+            32,
+            9
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-1-1.png",
+        "group": "outfit-4-3-2-2-1-1"
+    },
+    {
+        "grid_size": [
+            32,
+            25
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-64.png",
+        "group": "outfit-4-3-2-2-2-64"
+    },
+    {
+        "grid_size": [
+            32,
+            32
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-1-1-1-2-19.png",
+        "group": "outfit-4-1-1-1-2-19"
+    },
+    {
+        "grid_size": [
+            32,
+            31
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-1-1-2-2-3.png",
+        "group": "outfit-4-1-1-2-2-3"
+    },
+    {
+        "grid_size": [
+            32,
+            27
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-65.png",
+        "group": "outfit-4-3-2-2-2-65"
+    },
+    {
+        "grid_size": [
+            32,
+            26
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-66.png",
+        "group": "outfit-4-3-2-2-2-66"
+    },
+    {
+        "grid_size": [
+            32,
+            27
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-67.png",
+        "group": "outfit-4-3-2-2-2-67"
+    },
+    {
+        "grid_size": [
+            32,
+            31
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-68.png",
+        "group": "outfit-4-3-2-2-2-68"
+    },
+    {
+        "grid_size": [
+            32,
+            31
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-1-2-2-5.png",
+        "group": "outfit-4-3-1-2-2-5"
+    },
+    {
+        "grid_size": [
+            32,
+            32
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-1-1-1-2-20.png",
+        "group": "outfit-4-1-1-1-2-20"
+    },
+    {
+        "grid_size": [
+            32,
+            27
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-69.png",
+        "group": "outfit-4-3-2-2-2-69"
+    },
+    {
+        "grid_size": [
+            32,
+            24
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-70.png",
+        "group": "outfit-4-3-2-2-2-70"
+    },
+    {
+        "grid_size": [
+            32,
+            26
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-71.png",
+        "group": "outfit-4-3-2-2-2-71"
+    },
+    {
+        "grid_size": [
+            32,
+            32
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-72.png",
+        "group": "outfit-4-3-2-2-2-72"
+    },
+    {
+        "grid_size": [
+            32,
+            32
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-1-1-1-2-21.png",
+        "group": "outfit-4-1-1-1-2-21"
+    },
+    {
+        "grid_size": [
+            32,
+            30
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-73.png",
+        "group": "outfit-4-3-2-2-2-73"
+    },
+    {
+        "grid_size": [
+            32,
+            31
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-74.png",
+        "group": "outfit-4-3-2-2-2-74"
+    },
+    {
+        "grid_size": [
+            32,
+            30
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-1-2-2-6.png",
+        "group": "outfit-4-3-1-2-2-6"
+    },
+    {
+        "grid_size": [
+            32,
+            25
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-75.png",
+        "group": "outfit-4-3-2-2-2-75"
+    },
+    {
+        "grid_size": [
+            32,
+            32
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-76.png",
+        "group": "outfit-4-3-2-2-2-76"
+    },
+    {
+        "grid_size": [
+            32,
+            32
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-1-1-1-2-22.png",
+        "group": "outfit-4-1-1-1-2-22"
+    },
+    {
+        "grid_size": [
+            32,
+            24
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-77.png",
+        "group": "outfit-4-3-2-2-2-77"
+    },
+    {
+        "grid_size": [
+            32,
+            30
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-78.png",
+        "group": "outfit-4-3-2-2-2-78"
+    },
+    {
+        "grid_size": [
+            32,
+            32
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-79.png",
+        "group": "outfit-4-3-2-2-2-79"
+    },
+    {
+        "grid_size": [
+            32,
+            29
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-80.png",
+        "group": "outfit-4-3-2-2-2-80"
+    },
+    {
+        "grid_size": [
+            32,
+            32
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-1-2-2-7.png",
+        "group": "outfit-4-3-1-2-2-7"
+    },
+    {
+        "grid_size": [
+            32,
+            32
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-1-1-1-2-23.png",
+        "group": "outfit-4-1-1-1-2-23"
+    },
+    {
+        "grid_size": [
+            32,
+            30
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-81.png",
+        "group": "outfit-4-3-2-2-2-81"
+    },
+    {
+        "grid_size": [
+            32,
+            32
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-82.png",
+        "group": "outfit-4-3-2-2-2-82"
+    },
+    {
+        "grid_size": [
+            32,
+            23
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-83.png",
+        "group": "outfit-4-3-2-2-2-83"
+    },
+    {
+        "grid_size": [
+            32,
+            31
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-1-1-1-2-24.png",
+        "group": "outfit-4-1-1-1-2-24"
+    },
+    {
+        "grid_size": [
+            32,
+            29
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-84.png",
+        "group": "outfit-4-3-2-2-2-84"
+    },
+    {
+        "grid_size": [
+            32,
+            26
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-85.png",
+        "group": "outfit-4-3-2-2-2-85"
+    },
+    {
+        "grid_size": [
+            32,
+            32
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-1-1-1-2-25.png",
+        "group": "outfit-4-1-1-1-2-25"
+    },
+    {
+        "grid_size": [
+            32,
+            29
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-86.png",
+        "group": "outfit-4-3-2-2-2-86"
+    },
+    {
+        "grid_size": [
+            32,
+            26
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-87.png",
+        "group": "outfit-4-3-2-2-2-87"
+    },
+    {
+        "grid_size": [
+            32,
+            30
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-88.png",
+        "group": "outfit-4-3-2-2-2-88"
+    },
+    {
+        "grid_size": [
+            32,
+            31
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-89.png",
+        "group": "outfit-4-3-2-2-2-89"
+    },
+    {
+        "grid_size": [
+            32,
+            30
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-90.png",
+        "group": "outfit-4-3-2-2-2-90"
+    },
+    {
+        "grid_size": [
+            32,
+            32
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-1-1-1-2-26.png",
+        "group": "outfit-4-1-1-1-2-26"
+    },
+    {
+        "grid_size": [
+            32,
+            26
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-91.png",
+        "group": "outfit-4-3-2-2-2-91"
+    },
+    {
+        "grid_size": [
+            32,
+            32
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-92.png",
+        "group": "outfit-4-3-2-2-2-92"
+    },
+    {
+        "grid_size": [
+            32,
+            31
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-93.png",
+        "group": "outfit-4-3-2-2-2-93"
+    },
+    {
+        "grid_size": [
+            32,
+            32
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-1-1-1-2-27.png",
+        "group": "outfit-4-1-1-1-2-27"
+    },
+    {
+        "grid_size": [
+            32,
+            32
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-94.png",
+        "group": "outfit-4-3-2-2-2-94"
+    },
+    {
+        "grid_size": [
+            32,
+            30
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-95.png",
+        "group": "outfit-4-3-2-2-2-95"
+    },
+    {
+        "grid_size": [
+            32,
+            24
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-96.png",
+        "group": "outfit-4-3-2-2-2-96"
+    },
+    {
+        "grid_size": [
+            32,
+            27
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-1-2-2-8.png",
+        "group": "outfit-4-3-1-2-2-8"
+    },
+    {
+        "grid_size": [
+            32,
+            32
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-1-1-1-2-28.png",
+        "group": "outfit-4-1-1-1-2-28"
+    },
+    {
+        "grid_size": [
+            32,
+            31
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-97.png",
+        "group": "outfit-4-3-2-2-2-97"
+    },
+    {
+        "grid_size": [
+            32,
+            29
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-98.png",
+        "group": "outfit-4-3-2-2-2-98"
+    },
+    {
+        "grid_size": [
+            32,
+            32
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-1-1-1-2-29.png",
+        "group": "outfit-4-1-1-1-2-29"
+    },
+    {
+        "grid_size": [
+            32,
+            26
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-99.png",
+        "group": "outfit-4-3-2-2-2-99"
+    },
+    {
+        "grid_size": [
+            32,
+            28
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-100.png",
+        "group": "outfit-4-3-2-2-2-100"
+    },
+    {
+        "grid_size": [
+            32,
+            27
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-101.png",
+        "group": "outfit-4-3-2-2-2-101"
+    },
+    {
+        "grid_size": [
+            32,
+            32
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-102.png",
+        "group": "outfit-4-3-2-2-2-102"
+    },
+    {
+        "grid_size": [
+            32,
+            29
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-103.png",
+        "group": "outfit-4-3-2-2-2-103"
+    },
+    {
+        "grid_size": [
+            32,
+            11
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-1-1-2-2-4.png",
+        "group": "outfit-4-1-1-2-2-4"
+    },
+    {
+        "grid_size": [
+            32,
+            17
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-1-2-2-9.png",
+        "group": "outfit-4-3-1-2-2-9"
+    },
+    {
+        "grid_size": [
+            32,
+            31
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-1-1-1-2-30.png",
+        "group": "outfit-4-1-1-1-2-30"
+    },
+    {
+        "grid_size": [
+            32,
+            30
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-104.png",
+        "group": "outfit-4-3-2-2-2-104"
+    },
+    {
+        "grid_size": [
+            32,
+            32
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-105.png",
+        "group": "outfit-4-3-2-2-2-105"
+    },
+    {
+        "grid_size": [
+            32,
+            7
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-1-1-1-2-31.png",
+        "group": "outfit-4-1-1-1-2-31"
+    },
+    {
+        "grid_size": [
+            32,
+            21
+        ],
+        "sprite_size": [
+            64,
+            64
+        ],
+        "sheet_name": "outfit-4-3-2-2-2-106.png",
+        "group": "outfit-4-3-2-2-2-106"
+    }
+]

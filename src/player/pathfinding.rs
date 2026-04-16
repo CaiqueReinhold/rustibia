@@ -52,7 +52,7 @@ fn successors(pos: &Position, minimap: &MinimapData) -> Vec<(Position, u32)> {
 }
 
 fn heuristic(pos: &Position, goal: &Position) -> u32 {
-    pos.x.abs_diff(goal.x).max(pos.y.abs_diff(goal.y))
+    pos.x.abs_diff(goal.x).max(pos.y.abs_diff(goal.y)) as u32
 }
 
 /// Returns true if `a` and `b` are exactly 1 tile apart (8-directional) on the same Z floor.
@@ -115,11 +115,7 @@ pub fn compute_path_to_adjacent(
         return None;
     }
 
-    Some(
-        path.windows(2)
-            .map(|w| pos_to_dir(&w[0], &w[1]))
-            .collect(),
-    )
+    Some(path.windows(2).map(|w| pos_to_dir(&w[0], &w[1])).collect())
 }
 
 fn pos_to_dir(from: &Position, to: &Position) -> WalkingDirection {

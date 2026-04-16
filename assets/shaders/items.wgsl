@@ -12,8 +12,6 @@ struct ItemInstance {
     value_x: u32,
     value_y: u32,
     value_z: u32,
-    bounding_square: f32,
-    _pad: f32,
     bbox_min: vec2<f32>,
     bbox_size: vec2<f32>,
 }
@@ -36,6 +34,9 @@ var<storage, read> sprite_lookup: array<u32>;
 @group(#{MATERIAL_BIND_GROUP}) @binding(5)
 var<storage, read> instances: array<ItemInstance>;
 
+@group(#{MATERIAL_BIND_GROUP}) @binding(6)
+var<uniform> mesh_size: vec2<f32>;
+
 struct VertexOutput {
     @builtin(position) position: vec4<f32>,
     @location(0) world_position: vec4<f32>,
@@ -50,18 +51,13 @@ struct Vertex {
 
 fn calculate_world_pos(
     position: vec3<f32>,
-    mesh_size: f32,
-    square: f32,
     bbox_min: vec2<f32>,
     bbox_size: vec2<f32>,
     instance_index: u32
 ) -> vec4<f32> {
-    let local01 = (position.xy + mesh_size * 0.5) / mesh_size;
-    let scaled = (local01 - vec2<f32>(0.5)) * bbox_size;
-    let bbox_center = vec2<f32>(
-        bbox_min.x + bbox_size.x * 0.5 - square * 0.5,
-        square * 0.5 - (bbox_min.y + bbox_size.y * 0.5)
-    );
+    let local01 = position.xy / mesh_size;
+    var scaled = local01 * bbox_size;
+    let bbox_center = (bbox_min * 2.0 + bbox_size - mesh_size) * vec2<f32>(0.5, -0.5);
     let final_local = scaled + bbox_center;
 
     var world_from_local =
@@ -74,12 +70,11 @@ fn calculate_world_pos(
 
 fn adjust_uv_to_bbox(
     uv: vec2<f32>,
-    square: f32,
     bbox_min: vec2<f32>,
     bbox_size: vec2<f32>
 ) -> vec2<f32> {
-    let bbox_min_n = bbox_min / square;
-    let bbox_size_n = bbox_size / square;
+    let bbox_min_n = bbox_min / mesh_size;
+    let bbox_size_n = bbox_size / mesh_size;
     return bbox_min_n + uv * bbox_size_n;
 }
 
@@ -93,13 +88,13 @@ fn get_animation_phase(instance: ItemInstance) -> u32 {
     return phase;
 }
 
-fn atlas_uv(base_uv: vec2<f32>, index: u32, mesh_size: f32) -> vec2<f32> {
+fn atlas_uv(base_uv: vec2<f32>, index: u32) -> vec2<f32> {
     let cols = u32(atlas_grid.x);
     let rows = u32(atlas_grid.y);
 
     let tile_size = vec2<f32>(
-        1.0 / atlas_grid.x,
-        1.0 / atlas_grid.y
+        1 / atlas_grid.x,
+        1 / atlas_grid.y
     );
 
     let col = index % cols;
@@ -140,24 +135,17 @@ fn vertex(vertex: Vertex) -> VertexOutput {
 
     let inst_index = mesh_functions::get_tag(vertex.instance_index);
     let inst = instances[inst_index];
-    let square = inst.bounding_square;
     let bbox_min = inst.bbox_min;
     let bbox_size = inst.bbox_size;
 
     out.world_position = calculate_world_pos(
         vertex.position,
-        64.0,
-        square,
         bbox_min,
         bbox_size,
         vertex.instance_index
     );
     out.position = mesh_functions::mesh2d_position_world_to_clip(out.world_position);
-    var mesh_size = 32.0;
-    if (square > 32.0) {
-        mesh_size = 64.0;
-    }
-    let base_uv = adjust_uv_to_bbox(vertex.uv, mesh_size, bbox_min, bbox_size);
+    let base_uv = adjust_uv_to_bbox(vertex.uv, bbox_min, bbox_size);
     let phase = get_animation_phase(inst);
     let lookup_index = compute_index(
         phase,
@@ -169,7 +157,7 @@ fn vertex(vertex: Vertex) -> VertexOutput {
         inst.pattern_z,
     ) + inst.lookup_offset;
     let atlas_index = sprite_lookup[lookup_index];
-    out.uv = atlas_uv(base_uv, atlas_index, mesh_size);
+    out.uv = atlas_uv(base_uv, atlas_index);
     
     return out;
 }

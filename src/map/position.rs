@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+use std::fmt::Display;
 use std::ops::{Add, Sub};
 
 use crate::actor::WalkingDirection;
@@ -8,29 +9,37 @@ use crate::conf::z_order::{FLOOR_Z_MULTIPLIER, POSITION_Z_MULTIPLIER};
 
 #[derive(Component, Hash, PartialEq, Eq, Clone, Debug)]
 pub struct Position {
-    pub x: u32,
-    pub y: u32,
-    pub z: u32,
+    pub x: u16,
+    pub y: u16,
+    pub z: u8,
+}
+
+impl Display for Position {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Tile({}, {}, {})", self.x, self.y, self.z)
+    }
 }
 
 impl Position {
-    // pub fn new(x: u32, y: u32, z: u32) -> Self {
-    //     Position { x, y, z }
-    // }
+    pub fn new(x: u16, y: u16, z: u8) -> Self {
+        Position { x, y, z }
+    }
 
-    pub fn from_world(world_pos: Vec2, z: u32) -> Self {
+    pub fn from_world(world_pos: Vec2, z: u8) -> Self {
+        let floor_offset = ((7 - z) * 32) as f32;
         Position {
-            x: (world_pos.x / TILE_SIZE).floor() as u32,
-            y: (world_pos.y.abs() / TILE_SIZE).floor() as u32,
+            x: ((world_pos.x + floor_offset) / TILE_SIZE).floor() as u16,
+            y: ((world_pos.y.abs() - floor_offset) / TILE_SIZE).floor() as u16,
             z,
         }
     }
 
     pub fn to_world(&self) -> Vec3 {
+        let floor_offset = ((7 - self.z as i32) * 32) as f32;
         Vec3::new(
-            (self.x as f32) * TILE_SIZE,
-            -(self.y as f32) * TILE_SIZE,
-            (self.z as f32 * FLOOR_Z_MULTIPLIER)
+            ((self.x as f32) * TILE_SIZE) - floor_offset,
+            (-(self.y as f32) * TILE_SIZE) + floor_offset,
+            ((15 - self.z) as f32 * FLOOR_Z_MULTIPLIER)
                 + ((self.x as f32) + (self.y as f32)) * POSITION_Z_MULTIPLIER,
         )
     }
@@ -41,8 +50,8 @@ impl Position {
 
     pub fn delta(&self, x: i32, y: i32) -> Self {
         Position {
-            x: ((self.x as i32) + x) as u32,
-            y: ((self.y as i32) + y) as u32,
+            x: ((self.x as i32) + x) as u16,
+            y: ((self.y as i32) + y) as u16,
             z: self.z,
         }
     }
@@ -81,32 +90,3 @@ impl Sub<WalkingDirection> for Position {
         }
     }
 }
-
-// #[derive(Component, Debug, Hash, Eq, PartialEq, Clone, Default)]
-// pub struct ChunkPosition {
-//     pub cx: u32,
-//     pub cy: u32,
-//     pub z: u32,
-// }
-
-// impl ChunkPosition {
-//     pub fn new(cx: u32, cy: u32, z: u32) -> Self {
-//         ChunkPosition { cx, cy, z }
-//     }
-
-//     pub fn from_tile(tile_pos: &Position) -> Self {
-//         Self {
-//             cx: tile_pos.x / CHUNK_SIZE,
-//             cy: tile_pos.y / CHUNK_SIZE,
-//             z: tile_pos.z,
-//         }
-//     }
-
-//     pub fn start_position(&self) -> Position {
-//         Position {
-//             x: self.cx * CHUNK_SIZE,
-//             y: self.cy * CHUNK_SIZE,
-//             z: self.z,
-//         }
-//     }
-// }

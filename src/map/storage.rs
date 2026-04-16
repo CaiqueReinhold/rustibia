@@ -121,6 +121,33 @@ impl Map {
             .take(3)
             .sum()
     }
+
+    pub fn is_ground(&self, pos: &Position) -> bool {
+        let Some(tile) = self.tiles.get(pos) else {
+            return false;
+        };
+        tile.items
+            .iter()
+            .any(|it| it.config.has_flag(ItemFlag::Ground) || it.config.has_flag(ItemFlag::Border))
+    }
+
+    pub fn is_bottom(&self, pos: &Position) -> bool {
+        let Some(tile) = self.tiles.get(pos) else {
+            return false;
+        };
+        tile.items
+            .iter()
+            .any(|it| it.config.has_flag(ItemFlag::Bottom))
+    }
+
+    pub fn block_sight(&self, pos: &Position) -> bool {
+        let Some(tile) = self.tiles.get(pos) else {
+            return false;
+        };
+        tile.items
+            .iter()
+            .any(|it| it.config.has_flag(ItemFlag::BlockSight))
+    }
 }
 
 pub(super) fn init_map(mut commands: Commands) {

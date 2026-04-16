@@ -6,7 +6,7 @@ use crate::{
     conf::ui::{z_index::DRAGGED_ITEM_UI_Z, UI_ITEM_SIZE},
     core::{Appearances, SpriteAnimation},
     items::{
-        instancing::ItemStacks, Item, ItemDragEnded, ItemDragStarted, ItemMoveCanceled,
+        instancing::ItemState, Item, ItemDragEnded, ItemDragStarted, ItemMoveCanceled,
         ItemMoveConfirmed, ItemPlacement,
     },
     player::MouseHoverState,
@@ -87,10 +87,7 @@ pub fn spawn_ui_item(
 /// Mirrors the GPU `get_animation_phase` logic from `items.wgsl`:
 /// `phase = floor(time / phase_duration) % phase_count`
 /// then `atlas_index = sprite_ids[phase]`.
-pub fn animate_ui_items(
-    time: Res<Time>,
-    mut query: Query<(&UiItemAnimation, &mut ImageNode)>,
-) {
+pub fn animate_ui_items(time: Res<Time>, mut query: Query<(&UiItemAnimation, &mut ImageNode)>) {
     let elapsed = time.elapsed_secs();
     for (anim, mut image_node) in &mut query {
         if anim.phase_duration == 0.0 || anim.phase_count <= 1 {
@@ -109,7 +106,7 @@ pub fn item_drag_started(
     appearances: Res<Appearances>,
     mut texture_atlases: ResMut<Assets<TextureAtlasLayout>>,
     hover_state: Res<MouseHoverState>,
-    stacks: Res<ItemStacks>,
+    state: Res<ItemState>,
     stack_item_q: Query<&Children>,
     drag_item_q: Query<Entity, With<UiItemDragging>>,
 ) {
@@ -118,7 +115,7 @@ pub fn item_drag_started(
     }
 
     if let ItemPlacement::Map { position, index } = &event.origin {
-        let Some(stack_entity) = stacks.occupied_tiles.get(position) else {
+        let Some(stack_entity) = state.occupied_tiles.get(position) else {
             return;
         };
         let Ok(stack_items) = stack_item_q.get(*stack_entity) else {
@@ -161,7 +158,7 @@ pub fn item_drag_ended(
 pub fn item_move_canceled(
     _: On<ItemMoveCanceled>,
     drag_item_q: Query<(Entity, &UiItemDragging)>,
-    stacks: Res<ItemStacks>,
+    state: Res<ItemState>,
     stack_item_q: Query<&Children>,
     mut commands: Commands,
 ) {
@@ -169,7 +166,7 @@ pub fn item_move_canceled(
         return;
     };
     if let ItemPlacement::Map { position, index } = &drag_item.origin {
-        let Some(stack_entity) = stacks.occupied_tiles.get(position) else {
+        let Some(stack_entity) = state.occupied_tiles.get(position) else {
             return;
         };
         let Ok(stack_items) = stack_item_q.get(*stack_entity) else {

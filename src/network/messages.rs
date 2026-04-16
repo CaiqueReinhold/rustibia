@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use asynchronous_codec::{Decoder, Encoder};
 use bytes::{Buf, BufMut, BytesMut};
 use thiserror::Error;
@@ -5,7 +7,7 @@ use thiserror::Error;
 use crate::{
     actor::{AgentId, FacingDirection, Health, Mana, WalkingDirection},
     conf::map::{STACK_MAX_VISIBLE_ITEMS, TILES_X, TILES_Y},
-    core::{OutfitId, TextMessageType},
+    core::{OutfitColors, OutfitId, TextMessageType},
     items::{ContainerId, InventorySlot, ItemId},
     map::Position,
 };
@@ -75,7 +77,11 @@ const MSG_CONTAINER_CLOSED: u8 = 13;
 const MSG_PLAYER_WALK_DENIED: u8 = 14;
 const MSG_INVETORY_SLOT_UPDATED: u8 = 15;
 const MSG_PLAYER_CAPACITY_UPDATED: u8 = 16;
-const MSG_ACTOR_DIRECTION_CHANGED: u8 = 17;
+const MSG_AGENT_DIRECTION_CHANGED: u8 = 17;
+const MSG_REMOVE_AGENT: u8 = 18;
+const MSG_MOVE_AGENT: u8 = 19;
+const MSG_SPAWN_AGENT: u8 = 20;
+const MSG_TELEPORT_AGENT: u8 = 21;
 
 #[derive(Clone, Debug)]
 pub enum ServerMessage {
@@ -105,6 +111,8 @@ pub enum ServerMessage {
     },
     DescribeMap {
         tiles: Box<[ItemStack; TILES_X * TILES_Y]>,
+        floor: u8,
+        center: Position,
     },
     TileChanged {
         position: Position,
@@ -112,7 +120,7 @@ pub enum ServerMessage {
     },
     PlayerWalkAck {
         position: Position,
-        tiles: Box<[ItemStack]>,
+        tiles: Vec<(u8, Box<[ItemStack]>)>,
     },
     PlayerPosition {
         position: Position,
@@ -150,6 +158,57 @@ pub enum ServerMessage {
         agent_id: AgentId,
         facing: FacingDirection,
     },
+    RemoveAgent {
+        agent_id: AgentId,
+    },
+    MoveAgent {
+        agent_id: AgentId,
+        direction: WalkingDirection,
+        from: Position,
+    },
+    SpawnAgent {
+        agent_id: AgentId,
+        outfit: (OutfitId, OutfitColors),
+        position: Position,
+        facing: FacingDirection,
+        name: String,
+        life: Health,
+        speed: u16,
+    },
+    TeleportAgent {
+        agent_id: AgentId,
+        position: Position,
+    },
+}
+
+impl Display for ServerMessage {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ServerMessage::DescribeMap { center, floor, .. } => {
+                write!(f, "DescribeMap {{ center: {}, floor: {} }}", center, floor)
+            }
+            ServerMessage::PlayerWalkAck { position, tiles } => {
+                write!(
+                    f,
+                    "PlayerWalkAck {{ position: {}, floors: {:?} }}",
+                    position,
+                    tiles.iter().map(|i| i.0).collect::<Vec<u8>>()
+                )
+            }
+            ServerMessage::TileChanged { position, .. } => {
+                write!(f, "TileChanged {{ position: {} }}", position)
+            }
+            ServerMessage::OpenContainer { container_id, .. } => {
+                write!(f, "OpenContainer {{ container_id: {} }}", container_id)
+            }
+            ServerMessage::UpdateContainer { container_id, .. } => {
+                write!(f, "UpdateContainer {{ container_id: {} }}", container_id)
+            }
+            msg => {
+                write!(f, "{:?}", msg)
+            }
+        }
+    }
 }
 
 #[derive(Error, Debug)]
@@ -239,11 +298,17 @@ impl Decoder for GameMessageCodec {
                 }))
             }
             MSG_DESCRIBE_MAP => {
+                let center = decode_position(buf);
+                let floor = buf.get_u8();
                 let mut tiles = Box::new([[None; STACK_MAX_VISIBLE_ITEMS]; TILES_X * TILES_Y]);
                 for tile in tiles.iter_mut() {
                     *tile = decode_tile(buf);
                 }
-                Ok(Some(ServerMessage::DescribeMap { tiles }))
+                Ok(Some(ServerMessage::DescribeMap {
+                    tiles,
+                    floor,
+                    center,
+                }))
             }
             MSG_TILE_CHANGED => {
                 let position = decode_position(buf);
@@ -253,15 +318,20 @@ impl Decoder for GameMessageCodec {
             MSG_PLAYER_WALK_ACK => {
                 let position = decode_position(buf);
                 // payload_len - 1 (msg type) - 12 (position) = bytes remaining for tiles
-                let tiles_bytes = payload_len - 13;
-                let start_remaining = buf.remaining();
-                let mut tiles: Vec<ItemStack> = Vec::new();
-                while start_remaining - buf.remaining() < tiles_bytes {
-                    tiles.push(decode_tile(buf));
+                let mut floor_tiles: Vec<(u8, Box<[ItemStack]>)> = Vec::new();
+                let mut floor = buf.get_u8();
+                while floor != 0xFF {
+                    let tiles_len = buf.get_u8();
+                    let mut tiles = Vec::new();
+                    for _ in 0..tiles_len {
+                        tiles.push(decode_tile(buf));
+                    }
+                    floor_tiles.push((floor, tiles.into_boxed_slice()));
+                    floor = buf.get_u8();
                 }
                 Ok(Some(ServerMessage::PlayerWalkAck {
                     position,
-                    tiles: tiles.into_boxed_slice(),
+                    tiles: floor_tiles,
                 }))
             }
             MSG_PLAYER_POS => {
@@ -319,9 +389,21 @@ impl Decoder for GameMessageCodec {
                 let capacity = buf.get_u32_le();
                 Ok(Some(ServerMessage::PlayerCapacityUpdated { capacity }))
             }
-            MSG_ACTOR_DIRECTION_CHANGED => Ok(Some(ServerMessage::AgentChangedDirection {
+            MSG_AGENT_DIRECTION_CHANGED => Ok(Some(ServerMessage::AgentChangedDirection {
                 agent_id: buf.get_u16_le(),
                 facing: decode_facing(buf)?,
+            })),
+            MSG_REMOVE_AGENT => Ok(Some(ServerMessage::RemoveAgent {
+                agent_id: buf.get_u16_le(),
+            })),
+            MSG_MOVE_AGENT => Ok(Some(ServerMessage::MoveAgent {
+                agent_id: buf.get_u16_le(),
+                direction: decode_direction(buf)?,
+                from: decode_position(buf),
+            })),
+            MSG_TELEPORT_AGENT => Ok(Some(ServerMessage::TeleportAgent {
+                agent_id: buf.get_u16_le(),
+                position: decode_position(buf),
             })),
             _ => Err(MessageDecodeError::WrongSequence),
         }
@@ -360,9 +442,9 @@ fn decode_items(buf: &mut BytesMut) -> Box<[Option<(ItemId, u8)>]> {
 
 fn decode_position(buf: &mut BytesMut) -> Position {
     Position {
-        x: buf.get_u32_le(),
-        y: buf.get_u32_le(),
-        z: buf.get_u32_le(),
+        x: buf.get_u16_le(),
+        y: buf.get_u16_le(),
+        z: buf.get_u8(),
     }
 }
 
@@ -389,19 +471,20 @@ fn decode_optional_item(buf: &mut BytesMut) -> Option<ItemId> {
     }
 }
 
-// fn decode_direction(b: u8) -> Result<WalkingDirection, MessageDecodeError> {
-//     match b {
-//         0x00 => Ok(WalkingDirection::North),
-//         0x01 => Ok(WalkingDirection::East),
-//         0x02 => Ok(WalkingDirection::West),
-//         0x03 => Ok(WalkingDirection::South),
-//         0x04 => Ok(WalkingDirection::NorthEast),
-//         0x05 => Ok(WalkingDirection::NorthWest),
-//         0x06 => Ok(WalkingDirection::SouthEast),
-//         0x07 => Ok(WalkingDirection::SouthWest),
-//         _ => Err(MessageDecodeError::WrongSequence),
-//     }
-// }
+fn decode_direction(buf: &mut BytesMut) -> Result<WalkingDirection, MessageDecodeError> {
+    let b = buf.get_u8();
+    match b {
+        0x00 => Ok(WalkingDirection::North),
+        0x01 => Ok(WalkingDirection::East),
+        0x02 => Ok(WalkingDirection::West),
+        0x03 => Ok(WalkingDirection::South),
+        0x04 => Ok(WalkingDirection::NorthEast),
+        0x05 => Ok(WalkingDirection::NorthWest),
+        0x06 => Ok(WalkingDirection::SouthEast),
+        0x07 => Ok(WalkingDirection::SouthWest),
+        _ => Err(MessageDecodeError::WrongSequence),
+    }
+}
 
 impl Encoder for GameMessageCodec {
     type Item<'a> = ClientMessage;
@@ -476,9 +559,9 @@ impl Encoder for GameMessageCodec {
 }
 
 fn encode_position(pos: Position, dst: &mut BytesMut) {
-    dst.put_u32_le(pos.x);
-    dst.put_u32_le(pos.y);
-    dst.put_u32_le(pos.z);
+    dst.put_u16_le(pos.x);
+    dst.put_u16_le(pos.y);
+    dst.put_u8(pos.z);
 }
 
 fn encode_direction(d: &WalkingDirection, dst: &mut BytesMut) {

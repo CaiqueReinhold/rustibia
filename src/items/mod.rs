@@ -2,7 +2,7 @@ use bevy::{prelude::*, sprite_render::Material2dPlugin};
 
 use crate::{
     core::{GameState, InstanceManager},
-    items::{instancing::ItemStacks, material::ItemInstance},
+    items::{instancing::ItemState, material::ItemInstance},
 };
 
 mod container;
@@ -24,9 +24,9 @@ impl Plugin for ItemsPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(Material2dPlugin::<material::ItemMaterial>::default())
             .init_resource::<InstanceManager<ItemInstance>>()
-            .init_resource::<ItemStacks>()
             .init_resource::<ChangedTileQueue>()
-            .add_systems(Startup, instancing::init_material_buffer)
+            .init_resource::<ItemState>()
+            .add_systems(Startup, instancing::setup_resources)
             .add_systems(
                 OnEnter(GameState::InGame),
                 inventory::spawn_inventory_ui.after(crate::game_ui::spawn_main_ui),

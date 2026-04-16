@@ -128,7 +128,9 @@ impl PersistentConnection {
             futures::select! {
                 msg = self.receiver.recv().fuse() => {
                     if let Ok(msg) = msg {
-                        info!("sending msg: {:?}", msg);
+                        if !matches!(msg, ClientMessage::Ping) {
+                            info!("sending msg: {:?}", msg);
+                        }
                         self.stream.send(msg).await?;
                     } else {
                         break;
@@ -137,7 +139,9 @@ impl PersistentConnection {
                 msg = self.stream.next().fuse() => {
                     if let Some(msg) = msg {
                         if let Ok(msg) = msg {
-                            info!("receiveing msg: {:?}", msg);
+                            if !matches!(msg, ServerMessage::Pong) {
+                                info!("receiveing msg: {}", msg);
+                            }
                             if self.sender.send(msg).await.is_err() {
                                 break;
                             }

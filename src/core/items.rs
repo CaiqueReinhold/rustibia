@@ -95,6 +95,9 @@ fn read_item_config(config: &Value) -> Option<Arc<ItemConfig>> {
     if config["avoid"].as_bool()? {
         flags.push(ItemFlag::Avoid);
     }
+    if config["block_sight"].as_bool()? {
+        flags.push(ItemFlag::BlockSight);
+    }
     Some(Arc::new(ItemConfig {
         id,
         // name,

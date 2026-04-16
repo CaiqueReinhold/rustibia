@@ -5,8 +5,11 @@ pub mod map {
     pub const TILES_X: usize = 19;
     pub const TILES_Y: usize = 15;
     pub const STACK_MAX_VISIBLE_ITEMS: usize = 8;
-    pub const CONTAINER_COORD_FLAG: u32 = 0xFFFFFFFF;
-    pub const INVENTORY_COORD_FLAG: u32 = 0xFFFFFFFE;
+    pub const CONTAINER_COORD_FLAG: u16 = 0xFFFF;
+    pub const INVENTORY_COORD_FLAG: u16 = 0xFFFE;
+    pub const MIN_FLOOR: u8 = 0;
+    pub const MAX_FLOOR: u8 = 15;
+    pub const BASE_FLOOR: u8 = 7;
 }
 
 pub mod z_order {
@@ -75,9 +78,9 @@ pub mod server {
 }
 
 pub mod minimap {
-    pub const IMAGE_SIZE: u32 = 2048;
+    pub const IMAGE_SIZE: u16 = 2048;
     /// Tiles visible per axis at each zoom level (index 0 = most zoomed in).
-    pub const ZOOM_LEVELS: [u32; 4] = [20, 40, 80, 160];
+    pub const ZOOM_LEVELS: [u8; 4] = [20, 40, 80, 160];
     pub const DEFAULT_ZOOM: usize = 2; // 80×80 tiles
 }
 

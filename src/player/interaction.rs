@@ -212,8 +212,8 @@ fn on_drag_end(
         ItemPlacement::Container { container_id, slot } => (
             Position {
                 x: CONTAINER_COORD_FLAG,
-                y: *container_id as u32,
-                z: *slot as u32,
+                y: *container_id,
+                z: *slot as u8,
             },
             0,
         ),
@@ -228,7 +228,11 @@ fn on_drag_end(
     };
 
     // For map-floor sources, defer the move if the player is not adjacent
-    if let ItemPlacement::Map { position: ref source_pos, .. } = drag_state.origin {
+    if let ItemPlacement::Map {
+        position: ref source_pos,
+        ..
+    } = drag_state.origin
+    {
         let player_pos = player_q.into_inner();
         if !(is_adjacent(player_pos, source_pos) || player_pos == source_pos) {
             // Cancel visual drag state immediately
@@ -248,24 +252,35 @@ fn on_drag_end(
                         if !container_ui.is_full() {
                             Some(Position {
                                 x: CONTAINER_COORD_FLAG,
-                                y: container_ui.container_id as u32,
-                                z: slot as u32,
+                                y: container_ui.container_id,
+                                z: slot as u8,
                             })
-                        } else { None }
-                    } else { None }
-                } else { None }
+                        } else {
+                            None
+                        }
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
             } else if let Some(slot) = hover_state.inventory_slot {
                 if let Some(item_slot) = drag_state.item.config.slot {
                     if item_slot == slot
-                        || (item_slot == InventorySlot::BothHands && slot == InventorySlot::LeftHand)
+                        || (item_slot == InventorySlot::BothHands
+                            && slot == InventorySlot::LeftHand)
                     {
                         Some(Position {
                             x: INVENTORY_COORD_FLAG,
                             y: slot.as_id(),
                             z: 0,
                         })
-                    } else { None }
-                } else { None }
+                    } else {
+                        None
+                    }
+                } else {
+                    None
+                }
             } else {
                 None
             };
@@ -339,8 +354,8 @@ fn on_drag_end(
                     stack_index: stack_index as u16,
                     to: Position {
                         x: CONTAINER_COORD_FLAG,
-                        y: container_ui.container_id as u32,
-                        z: slot as u32,
+                        y: container_ui.container_id,
+                        z: slot as u8,
                     },
                 },
             });
@@ -436,7 +451,9 @@ fn on_item_click(
                 };
                 if is_adjacent(player_pos, position) || player_pos == position {
                     commands.trigger(SendMessage { msg });
-                    commands.insert_resource(PendingUseAck { target_window_id: None });
+                    commands.insert_resource(PendingUseAck {
+                        target_window_id: None,
+                    });
                 } else {
                     match compute_path_to_adjacent(player_pos, position, &minimap) {
                         Some(steps) => {
@@ -475,8 +492,8 @@ fn on_item_click(
                     msg: ClientMessage::UseItem {
                         position: Position {
                             x: CONTAINER_COORD_FLAG,
-                            y: container_ui.container_id as u32,
-                            z: slot as u32,
+                            y: container_ui.container_id,
+                            z: slot as u8,
                         },
                         item_id: item.config.id,
                         stack_index: 0,

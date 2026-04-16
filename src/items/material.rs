@@ -17,8 +17,6 @@ pub struct ItemInstance {
     pub value_x: u32,
     pub value_y: u32,
     pub value_z: u32,
-    pub bounding_square: f32,
-    _pad: f32,
     pub bbox_min: Vec2,
     pub bbox_size: Vec2,
 }
@@ -40,6 +38,9 @@ pub struct ItemMaterial {
 
     #[storage(5, read_only)]
     pub instances: Handle<ShaderStorageBuffer>,
+
+    #[uniform(6)]
+    pub mesh_size: Vec2,
 }
 
 impl Material2d for ItemMaterial {

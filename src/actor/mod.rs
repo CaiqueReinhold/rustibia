@@ -26,6 +26,7 @@ impl Plugin for ActorPlugin {
                 Update,
                 (
                     movement::move_actor,
+                    movement::teleport_agents,
                     instancing::update_actor_instances,
                     instancing::upload_instance_buffer,
                 )
@@ -58,7 +59,8 @@ impl Plugin for ActorPlugin {
             .add_observer(instancing::on_remove_actor)
             .add_observer(movement::on_actor_move)
             .add_observer(movement::on_actor_change_direction)
-            .add_observer(movement::on_update_elevation);
+            .add_observer(movement::on_update_elevation)
+            .add_observer(movement::on_teleport_agent);
 
         #[cfg(feature = "debug")]
         app.add_systems(Update, (instancing::actor_rect,));

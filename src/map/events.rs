@@ -12,18 +12,20 @@ use crate::{
         events::{DescribeMap, TileChanged},
         ItemStack,
     },
-    player::components::Player,
 };
 
-fn iter_viewport(pos: &Position) -> impl Iterator<Item = Position> {
-    let half_w = (TILES_X / 2) as u32;
-    let half_h = (TILES_Y / 2) as u32;
+fn iter_viewport(pos: &Position, floor: u8) -> impl Iterator<Item = Position> {
+    let floor_offset = pos.z as i16 - floor as i16;
+    let half_w = (TILES_X / 2) as i16;
+    let half_h = (TILES_Y / 2) as i16;
+    let x = pos.x as i16;
+    let y = pos.y as i16;
 
-    let x_start = pos.x.saturating_sub(half_w);
-    let x_end = pos.x + half_w;
-    let y_start = pos.y.saturating_sub(half_h);
-    let y_end = pos.y + half_h;
-    let z = pos.z;
+    let x_start = (x - half_w + floor_offset).max(0) as u16;
+    let x_end = (x + half_w + floor_offset) as u16;
+    let y_start = (y - half_h + floor_offset).max(0) as u16;
+    let y_end = (y + half_h + floor_offset) as u16;
+    let z = floor;
 
     (y_start..=y_end).flat_map(move |y| (x_start..=x_end).map(move |x| Position { x, y, z }))
 }
@@ -31,17 +33,19 @@ fn iter_viewport(pos: &Position) -> impl Iterator<Item = Position> {
 fn iter_expansion(
     pos: &Position,
     direction: &WalkingDirection,
+    floor: u8,
 ) -> Box<dyn Iterator<Item = Position>> {
-    let half_w = (TILES_X / 2) as u32;
-    let half_h = (TILES_Y / 2) as u32;
-    let x = pos.x;
-    let y = pos.y;
-    let z = pos.z;
+    let floor_offset = pos.z as i16 - floor as i16;
+    let half_w = (TILES_X / 2) as i16;
+    let half_h = (TILES_Y / 2) as i16;
+    let x = pos.x as i16;
+    let y = pos.y as i16;
+    let z = floor;
 
-    let x_start = x.saturating_sub(half_w);
-    let x_end = x + half_w;
-    let y_start = y.saturating_sub(half_h);
-    let y_end = y + half_h;
+    let x_start = (x - half_w + floor_offset).max(0) as u16;
+    let x_end = (x + half_w + floor_offset) as u16;
+    let y_start = (y - half_h + floor_offset).max(0) as u16;
+    let y_end = (y + half_h + floor_offset) as u16;
 
     let top_row = {
         (x_start..=x_end).map(move |xi| Position {
@@ -122,12 +126,11 @@ pub(super) fn on_describe_map(
     event: On<DescribeMap>,
     mut commands: Commands,
     config: Res<ItemConfigs>,
-    player_pos: Single<&Position, With<Player>>,
     mut map: ResMut<Map>,
     mut queue: ResMut<ChangedTileQueue>,
     mut minimap: ResMut<MinimapData>,
 ) {
-    for (i, position) in iter_viewport(&player_pos).enumerate() {
+    for (i, position) in iter_viewport(&event.center, event.floor).enumerate() {
         let tile = event.tiles[i];
         update_tile(
             &tile,
@@ -149,11 +152,13 @@ pub fn on_player_walk_ack(
     minimap: &mut MinimapData,
     player_pos: &Position,
     direction: WalkingDirection,
-    tiles: &[ItemStack],
+    floor_tiles: &[(u8, Box<[ItemStack]>)],
 ) {
-    for (i, position) in iter_expansion(player_pos, &direction).enumerate() {
-        update_tile(&tiles[i], &position, map, config, minimap, commands);
-        queue.changed_positions.push_back(position);
+    for (floor, tiles) in floor_tiles {
+        for (i, position) in iter_expansion(player_pos, &direction, *floor).enumerate() {
+            update_tile(&tiles[i], &position, map, config, minimap, commands);
+            queue.changed_positions.push_back(position);
+        }
     }
 }
 
