@@ -44,7 +44,7 @@ pub fn spawn_ui_item(
     let config = appearances.get_item(item.config.id);
     let sheet = appearances.get_sheet(&config.group);
     let texture_atlas = TextureAtlasLayout::from_grid(
-        UVec2::splat(if config.box_size > 32.0 { 64 } else { 32 }),
+        sheet.sprite_size.as_uvec2(),
         sheet.grid_size.x as u32,
         sheet.grid_size.y as u32,
         None,

@@ -105,7 +105,6 @@ pub struct SpriteConfig {
     pub layers: u32,
     pub sprite_ids: Vec<u32>,
     pub animation: SpriteAnimation,
-    pub box_size: f32,
     pub boxes: Vec<Rect>,
 }
 
@@ -155,7 +154,6 @@ fn read_sprite_config(conf: &Value) -> SpriteConfig {
         .map(|e| e.as_u64().unwrap() as u32)
         .collect();
     let animation = read_animation(&conf["animation"]);
-    let box_size = conf["box_size"].as_u64().unwrap() as f32;
     let mut boxes: Vec<Rect> = Vec::new();
     for b in conf["boxes"].as_array().unwrap().iter() {
         boxes.push(Rect {
@@ -178,7 +176,6 @@ fn read_sprite_config(conf: &Value) -> SpriteConfig {
         pattern_z,
         layers,
         sprite_ids,
-        box_size,
         boxes,
         animation,
     }

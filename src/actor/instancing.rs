@@ -88,7 +88,6 @@ pub fn spawn_actor(
         addons,
         outfit_colors,
         speed,
-        box_size: [outfit.still_sprite.box_size, outfit.moving_sprite.box_size],
         boxes: [
             outfit.still_sprite.boxes.clone().try_into().unwrap(),
             outfit.moving_sprite.boxes.clone().try_into().unwrap(),
