@@ -82,14 +82,6 @@ pub fn spawn_actor(
         .materials
         .get(&outfit.still_sprite.group)
         .unwrap();
-    let index = instances.alloc_index();
-    let instance = &mut instances.get_mut(index);
-    instance.time_offset = time.elapsed_secs_wrapped();
-    instance.phase_duration = match &outfit.still_sprite.animation {
-        SpriteAnimation::Static => 0.1,
-        SpriteAnimation::Uniform { phase_duration, .. } => phase_duration.as_secs_f32(),
-        _ => 0.1,
-    };
 
     let actor = Actor {
         direction: facing,
@@ -107,6 +99,16 @@ pub fn spawn_actor(
         ],
         ..default()
     };
+
+    let index = instances.alloc_index();
+    let instance = instances.get_mut(index);
+    instance.time_offset = time.elapsed_secs_wrapped();
+    instance.phase_duration = match &outfit.still_sprite.animation {
+        SpriteAnimation::Static => 0.1,
+        SpriteAnimation::Uniform { phase_duration, .. } => phase_duration.as_secs_f32(),
+        _ => 0.1,
+    };
+    update_instance(instance, &actor, None);
 
     let world_position = position.to_world();
     let entity = commands
@@ -320,7 +322,7 @@ pub fn upload_instance_buffer(
     loaded_materials: Res<LoadedMaterials>,
     mut materials: ResMut<Assets<ActorMaterial>>,
 ) {
-    if !instances.is_changed() {
+    if !instances.is_dirty() {
         return;
     }
 
@@ -334,33 +336,35 @@ pub fn upload_instance_buffer(
     }
 }
 
+fn update_instance(instance: &mut ActorInstance, actor: &Actor, moving: Option<&Moving>) {
+    instance.moving = match moving {
+        Some(..) => 1,
+        None => 0,
+    };
+    instance.direction = actor.direction.into();
+    instance.mounted = actor.mounted.into();
+    instance.addons = actor.addons as u32;
+    instance.color_head = COLOR_TABLE[actor.outfit_colors.0 as usize];
+    instance.color_body = COLOR_TABLE[actor.outfit_colors.1 as usize];
+    instance.color_legs = COLOR_TABLE[actor.outfit_colors.2 as usize];
+    instance.color_feet = COLOR_TABLE[actor.outfit_colors.3 as usize];
+    instance.bounding_square = actor.box_size[instance.moving as usize];
+    let bbox = &actor.boxes[instance.moving as usize][actor.direction as usize];
+    instance.bbox_min = bbox.min;
+    instance.bbox_size = bbox.max;
+    instance.moving_progress = match moving {
+        Some(m) => m.timer.fraction(),
+        None => 0.0,
+    };
+    instance.phase_count = actor.phase_counts[instance.moving as usize];
+}
+
 pub fn update_actor_instances(
     actors_q: Query<(&Actor, &MeshTag, Option<&Moving>), Or<(Changed<Actor>, Changed<Moving>)>>,
     mut instances: ResMut<InstanceManager<ActorInstance>>,
 ) {
     for (actor, tag, moving) in actors_q {
-        let index = tag.0;
-        let instance = instances.get_mut(index);
-        instance.moving = match moving {
-            Some(..) => 1,
-            None => 0,
-        };
-        instance.direction = actor.direction.into();
-        instance.mounted = actor.mounted.into();
-        instance.addons = actor.addons as u32;
-        instance.color_head = COLOR_TABLE[actor.outfit_colors.0 as usize];
-        instance.color_body = COLOR_TABLE[actor.outfit_colors.1 as usize];
-        instance.color_legs = COLOR_TABLE[actor.outfit_colors.2 as usize];
-        instance.color_feet = COLOR_TABLE[actor.outfit_colors.3 as usize];
-        instance.bounding_square = actor.box_size[instance.moving as usize];
-        let bbox = &actor.boxes[instance.moving as usize][actor.direction as usize];
-        instance.bbox_min = bbox.min;
-        instance.bbox_size = bbox.max;
-        instance.moving_progress = match moving {
-            Some(m) => m.timer.fraction(),
-            None => 0.0,
-        };
-        instance.phase_count = actor.phase_counts[instance.moving as usize];
+        update_instance(instances.get_mut(tag.0), actor, moving);
     }
 }
 

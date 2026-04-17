@@ -3,7 +3,7 @@ use std::time::Duration;
 use bevy::prelude::*;
 
 use crate::actor::components::Actor;
-use crate::actor::WalkingDirection;
+use crate::actor::{AgentId, WalkingDirection};
 use crate::conf::z_order::ACTOR_Z_OFFSET;
 use crate::map::{Map, Position};
 use crate::network::events::{AgentChangedDirection, TeleportAgent};
@@ -22,6 +22,7 @@ pub struct ShouldTeleport {
 
 #[derive(Event, Debug)]
 pub struct MoveActor {
+    pub agent_id: AgentId,
     pub direction: WalkingDirection,
 }
 
@@ -33,10 +34,13 @@ pub struct UpdateElevation {
 pub fn on_actor_move(
     event: On<MoveActor>,
     mut commands: Commands,
-    mut player_q: Query<(Entity, &mut Actor, &Position)>,
+    mut agent_q: Query<(&mut Actor, &Position)>,
     map: Res<Map>,
 ) {
-    let Ok((entity, mut actor, position)) = player_q.single_mut() else {
+    let Some(entity) = map.get_agent(event.agent_id) else {
+        return;
+    };
+    let Ok((mut agent, position)) = agent_q.get_mut(entity) else {
         return;
     };
 
@@ -44,14 +48,14 @@ pub fn on_actor_move(
     let facing = event.direction.facing();
     let end_position = start_position.clone() + event.direction;
     let tile_modifier = map.get_tile_friction(&end_position).unwrap_or(0);
-    let step_time_ms = actor.get_step_duration(tile_modifier, event.direction.is_diagonal());
+    let step_time_ms = agent.get_step_duration(tile_modifier, event.direction.is_diagonal());
 
     info!(
-        "move from {} to {}. Tile friction: {}. step_time_ms: {}",
-        start_position, end_position, tile_modifier, step_time_ms
+        "agent {} -> move from {} to {}. Tile friction: {}. step_time_ms: {}",
+        event.agent_id, start_position, end_position, tile_modifier, step_time_ms
     );
 
-    actor.direction = facing;
+    agent.direction = facing;
     commands.entity(entity).insert(Moving {
         start: start_position.clone(),
         end: end_position,
@@ -145,9 +149,7 @@ pub fn teleport_agents(
     for (entity, teleport, mut transform, moving) in agents_q.iter_mut() {
         if moving.is_none() {
             let elevation = map.get_elevation(&teleport.position);
-            info!("translation before {}", transform.translation);
             transform.translation = teleport.position.to_world_with_elevation(elevation);
-            info!("translation after {}", transform.translation);
             commands
                 .entity(entity)
                 .insert(teleport.position.clone())

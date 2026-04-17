@@ -22,7 +22,6 @@ pub struct ActorInstance {
     pub moving_progress: f32,
     pub phase_count: u32,
     pub phase_duration: f32,
-    _pad: Vec3,
 }
 
 #[repr(C)]

@@ -5,6 +5,7 @@ use crate::core::{GameState, InstanceManager};
 
 mod colors;
 mod components;
+mod events;
 mod hud;
 mod instancing;
 mod material;
@@ -28,10 +29,13 @@ impl Plugin for ActorPlugin {
                     movement::move_actor,
                     movement::teleport_agents,
                     instancing::update_actor_instances,
-                    instancing::upload_instance_buffer,
                 )
                     .chain()
                     .run_if(in_state(GameState::InGame)),
+            )
+            .add_systems(
+                PostUpdate,
+                instancing::upload_instance_buffer.run_if(in_state(GameState::InGame)),
             )
             .add_systems(
                 Update,
@@ -60,7 +64,8 @@ impl Plugin for ActorPlugin {
             .add_observer(movement::on_actor_move)
             .add_observer(movement::on_actor_change_direction)
             .add_observer(movement::on_update_elevation)
-            .add_observer(movement::on_teleport_agent);
+            .add_observer(movement::on_teleport_agent)
+            .add_observer(events::on_spawn_agent);
 
         #[cfg(feature = "debug")]
         app.add_systems(Update, (instancing::actor_rect,));

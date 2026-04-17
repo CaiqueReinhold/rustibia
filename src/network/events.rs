@@ -1,9 +1,9 @@
 use bevy::prelude::*;
 
 use crate::{
-    actor::{AgentId, FacingDirection, Health, Mana},
+    actor::{AgentId, FacingDirection, Health, Mana, WalkingDirection},
     conf::map::{TILES_X, TILES_Y},
-    core::{OutfitId, TextMessageType},
+    core::{OutfitColors, OutfitId, TextMessageType},
     items::{ContainerId, InventorySlot, ItemId},
     map::Position,
     network::{messages::ItemStack, ServerMessage},
@@ -121,6 +121,29 @@ pub struct AgentChangedDirection {
 pub struct TeleportAgent {
     pub agent_id: AgentId,
     pub position: Position,
+}
+
+#[derive(Event, Debug)]
+pub struct RemoveAgent {
+    pub agent_id: AgentId,
+}
+
+#[derive(Event, Debug)]
+pub struct MoveAgent {
+    pub agent_id: AgentId,
+    pub from: Position,
+    pub direction: WalkingDirection,
+}
+
+#[derive(Event, Debug)]
+pub struct SpawnAgent {
+    pub agent_id: AgentId,
+    pub outfit: (OutfitId, OutfitColors),
+    pub position: Position,
+    pub facing: FacingDirection,
+    pub name: String,
+    pub health: Health,
+    pub speed: u16,
 }
 
 pub fn route_event(msg: ServerMessage, commands: &mut Commands) {
@@ -249,14 +272,18 @@ pub fn route_event(msg: ServerMessage, commands: &mut Commands) {
             commands.trigger(AgentChangedDirection { agent_id, facing });
         }
         ServerMessage::RemoveAgent { agent_id } => {
-            todo!();
+            commands.trigger(RemoveAgent { agent_id });
         }
         ServerMessage::MoveAgent {
             agent_id,
             direction,
             from,
         } => {
-            todo!();
+            commands.trigger(MoveAgent {
+                agent_id,
+                direction,
+                from,
+            });
         }
         ServerMessage::SpawnAgent {
             agent_id,
@@ -264,10 +291,18 @@ pub fn route_event(msg: ServerMessage, commands: &mut Commands) {
             position,
             facing,
             name,
-            life,
+            health,
             speed,
         } => {
-            todo!();
+            commands.trigger(SpawnAgent {
+                agent_id,
+                outfit,
+                position,
+                facing,
+                name,
+                health,
+                speed,
+            });
         }
         ServerMessage::TeleportAgent { agent_id, position } => {
             commands.trigger(TeleportAgent { agent_id, position });

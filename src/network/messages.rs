@@ -172,7 +172,7 @@ pub enum ServerMessage {
         position: Position,
         facing: FacingDirection,
         name: String,
-        life: Health,
+        health: Health,
         speed: u16,
     },
     TeleportAgent {
@@ -401,6 +401,33 @@ impl Decoder for GameMessageCodec {
                 direction: decode_direction(buf)?,
                 from: decode_position(buf),
             })),
+            MSG_SPAWN_AGENT => {
+                let agent_id = buf.get_u16_le();
+                let position = decode_position(buf);
+                let facing = decode_facing(buf)?;
+                let name_len = buf.get_u16_le() as usize;
+                let name = String::from_utf8_lossy(&buf[..name_len]).into_owned();
+                buf.advance(name_len);
+                let health = Health {
+                    current: buf.get_u32_le(),
+                    max: buf.get_u32_le(),
+                };
+                let outfit_id = buf.get_u16_le();
+                let color1 = buf.get_u8();
+                let color2 = buf.get_u8();
+                let color3 = buf.get_u8();
+                let color4 = buf.get_u8();
+                let speed = buf.get_u16_le();
+                Ok(Some(ServerMessage::SpawnAgent {
+                    agent_id,
+                    outfit: (outfit_id, (color1, color2, color3, color4)),
+                    position,
+                    facing,
+                    name,
+                    health,
+                    speed,
+                }))
+            }
             MSG_TELEPORT_AGENT => Ok(Some(ServerMessage::TeleportAgent {
                 agent_id: buf.get_u16_le(),
                 position: decode_position(buf),

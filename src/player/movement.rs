@@ -110,7 +110,10 @@ pub fn process_move_queue(
                 commands.trigger(SendMessage {
                     msg: ClientMessage::MovePlayer { direction },
                 });
-                commands.trigger(MoveActor { direction });
+                commands.trigger(MoveActor {
+                    agent_id: player.agent_id,
+                    direction,
+                });
             }
             Movement::Turn(direction) => {
                 queue.pending_turn_ack = true;
