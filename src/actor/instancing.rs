@@ -12,7 +12,7 @@ use bevy_text_outline::TextOutline;
 
 use crate::actor::components::{Actor, ActorAnimConfigs};
 use crate::actor::{
-    ActorHud, DisplayName, FacingDirection, Health, HealthState, Hud, HudBar, Mana,
+    ActorHud, AgentId, DisplayName, FacingDirection, Health, HealthState, Hud, HudBar, Mana,
 };
 use crate::conf::actor::{HUD_BAR_HEIGHT, HUD_BAR_WIDTH};
 use crate::conf::ui::ui_colors;
@@ -100,6 +100,7 @@ pub fn spawn_actor(
     name: String,
     health: Option<Health>,
     mana: Option<Mana>,
+    agent_id: AgentId,
 ) -> Entity {
     let outfit = appearances.get_outfit(outfit_id);
     let sheet = appearances.get_sheet(&outfit.still_sprite.group);
@@ -117,6 +118,7 @@ pub fn spawn_actor(
         .unwrap();
 
     let actor = Actor {
+        agent_id,
         direction: facing,
         addons,
         outfit_colors,

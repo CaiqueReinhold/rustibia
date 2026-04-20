@@ -4,7 +4,7 @@ use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
 use bevy::render::storage::ShaderStorageBuffer;
 
-use crate::actor::{spawn_actor, ActorInstance, ActorMaterial, LoadedMaterials};
+use crate::actor::{spawn_actor, ActorInstance, ActorMaterial, LoadedMaterials, MoveQueue};
 use crate::conf::actor::{ADDON_1_FLAG, ADDON_2_FLAG};
 use crate::core::{Appearances, GameState, InstanceManager, ItemConfigs};
 
@@ -52,12 +52,16 @@ pub fn spawn_player(
         event.name.clone(),
         Some(event.health.clone()),
         Some(event.mana.clone()),
+        event.agent_id,
     );
 
     map.add_agent(event.agent_id, entity);
-    commands.entity(entity).insert(Player {
-        agent_id: event.agent_id,
-    });
+    commands
+        .entity(entity)
+        .insert(Player {
+            agent_id: event.agent_id,
+        })
+        .remove::<MoveQueue>();
 
     let mut inventory = HashMap::new();
     if let Some(item_id) = event.inventory_head {

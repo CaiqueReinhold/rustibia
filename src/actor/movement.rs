@@ -22,7 +22,7 @@ pub struct ShouldTeleport {
 }
 
 #[derive(Component, Debug, Default)]
-pub struct MoveQueue(pub VecDeque<WalkingDirection>);
+pub struct MoveQueue(pub VecDeque<(Position, WalkingDirection)>);
 
 #[derive(Event, Debug)]
 pub struct MoveActor {
@@ -164,12 +164,20 @@ pub fn teleport_agents(
 
 pub fn process_actor_move_queues(
     mut commands: Commands,
-    mut queue_q: Query<(&Actor, &mut MoveQueue), Without<Moving>>,
+    mut queue_q: Query<(Entity, &Actor, &Position, &mut MoveQueue), Without<Moving>>,
 ) {
-    for (actor, mut queue) in &mut queue_q {
-        let Some(direction) = queue.0.pop_front() else {
+    for (entity, actor, position, mut queue) in &mut queue_q {
+        let Some((move_from, direction)) = queue.0.pop_front() else {
             continue;
         };
+
+        if *position != move_from {
+            if queue.0.is_empty() {
+                commands.entity(entity).insert(move_from);
+            } else {
+                return;
+            }
+        }
 
         commands.trigger(MoveActor {
             agent_id: actor.agent_id,

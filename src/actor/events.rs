@@ -48,6 +48,7 @@ pub fn on_spawn_agent(
         event.name.clone(),
         Some(event.health.clone()),
         None,
+        event.agent_id,
     );
     map.add_agent(event.agent_id, entity);
 }
@@ -63,19 +64,19 @@ pub fn on_move_agent(
     let Some(agent_entity) = map.get_agent(event.agent_id) else {
         return;
     };
-    let Ok(pos) = pos_q.get(agent_entity) else {
-        return;
-    };
-
-    if *pos != event.from {
-        commands.entity(agent_entity).insert(event.from.clone());
-    }
 
     if moving_q.get(agent_entity).is_ok() {
         if let Ok(mut queue) = queue_q.get_mut(agent_entity) {
-            queue.0.push_back(event.direction);
+            queue.0.push_back((event.from.clone(), event.direction));
         }
         return;
+    }
+
+    let Ok(pos) = pos_q.get(agent_entity) else {
+        return;
+    };
+    if *pos != event.from {
+        commands.entity(agent_entity).insert(event.from.clone());
     }
 
     commands.trigger(MoveActor {
