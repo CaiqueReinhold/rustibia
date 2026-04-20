@@ -43,6 +43,7 @@ pub fn spawn_player(
         &ui_assets.font,
         &appearances,
         event.outfit.0,
+        &map,
         event.outfit.1,
         event.facing,
         event.speed,

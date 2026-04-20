@@ -24,19 +24,14 @@ use crate::core::{SpriteAnimator, SpriteConfig, MAX_LAYERS};
 
 use crate::actor::{
     material::{ActorInstance, ActorMaterial, ActorParams},
-    movement::Moving,
+    movement::{MoveQueue, Moving},
 };
-use crate::map::Position;
+use crate::map::{Map, Position};
 
 #[derive(Resource, Default, Debug)]
 pub struct LoadedMaterials {
     materials: HashMap<String, (Handle<Mesh>, Handle<ActorMaterial>)>,
     buffer: Handle<ShaderStorageBuffer>,
-}
-
-#[derive(Event, Debug)]
-pub struct RemoveActor {
-    pub entity: Entity,
 }
 
 pub fn init_instances_buffer(
@@ -50,9 +45,6 @@ pub fn init_instances_buffer(
     commands.insert_resource(loaded_materials);
 }
 
-/// Resolves the flat list of atlas sprite IDs for all active (addon, layer) combinations.
-/// Iterates addons 0..config.pattern_y, skipping inactive addon bits, then layers.
-/// Order matches even=alpha-blend / odd=recolor compositing in actor.wgsl.
 pub fn resolve_actor_sprite_ids(
     config: &SpriteConfig,
     phase: u32,
@@ -99,6 +91,7 @@ pub fn spawn_actor(
     font: &Handle<Font>,
     appearances: &Appearances,
     outfit_id: OutfitId,
+    map: &Map,
     outfit_colors: (u8, u8, u8, u8),
     facing: FacingDirection,
     speed: u16,
@@ -150,6 +143,7 @@ pub fn spawn_actor(
     instance.bbox_size = bbox.max;
 
     let world_position = position.to_world();
+    let elevation = map.get_elevation(&position) as f32;
     let entity = commands
         .spawn((
             actor,
@@ -158,8 +152,8 @@ pub fn spawn_actor(
             MeshTag(index),
             position,
             Transform::from_xyz(
-                world_position.x,
-                world_position.y,
+                world_position.x - elevation,
+                world_position.y + elevation,
                 world_position.z + ACTOR_Z_OFFSET,
             ),
             SpriteAnimator::new(Arc::clone(&outfit.still_sprite), facing as u32, 0, 0),
@@ -167,6 +161,7 @@ pub fn spawn_actor(
                 still: Arc::clone(&outfit.still_sprite),
                 moving: Arc::clone(&outfit.moving_sprite),
             },
+            MoveQueue::default(),
         ))
         .id();
 
@@ -324,22 +319,6 @@ fn init_material(
         outfit.still_sprite.group.clone(),
         (mesh_handle, material_handle),
     );
-}
-
-pub fn on_remove_actor(
-    event: On<RemoveActor>,
-    mut commands: Commands,
-    mut instances: ResMut<InstanceManager<ActorInstance>>,
-    actor_q: Query<(&MeshTag, Option<&ActorHud>), With<Actor>>,
-) {
-    let Ok((tag, maybe_hud)) = actor_q.get(event.entity) else {
-        return;
-    };
-    if let Some(hud) = maybe_hud {
-        commands.entity(hud.main_entity).despawn();
-    }
-    instances.dealloc_index(tag.0);
-    commands.entity(event.entity).despawn();
 }
 
 pub fn upload_instance_buffer(

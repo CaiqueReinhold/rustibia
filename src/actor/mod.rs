@@ -14,7 +14,7 @@ pub mod movement;
 pub use crate::actor::components::*;
 pub use crate::actor::instancing::{spawn_actor, LoadedMaterials};
 pub use crate::actor::material::{ActorInstance, ActorMaterial};
-pub use crate::actor::movement::{MoveActor, Moving, UpdateElevation};
+pub use crate::actor::movement::{MoveActor, MoveQueue, Moving, UpdateElevation};
 
 pub struct ActorPlugin;
 
@@ -25,7 +25,11 @@ impl Plugin for ActorPlugin {
             .add_systems(Startup, instancing::init_instances_buffer)
             .add_systems(
                 Update,
-                (movement::move_actor, movement::teleport_agents)
+                (
+                    movement::move_actor,
+                    movement::process_actor_move_queues,
+                    movement::teleport_agents,
+                )
                     .chain()
                     .run_if(in_state(GameState::InGame)),
             )
@@ -67,12 +71,13 @@ impl Plugin for ActorPlugin {
                 PostUpdate,
                 hud::update_hud_positions.run_if(in_state(GameState::InGame)),
             )
-            .add_observer(instancing::on_remove_actor)
             .add_observer(movement::on_actor_move)
             .add_observer(movement::on_actor_change_direction)
             .add_observer(movement::on_update_elevation)
             .add_observer(movement::on_teleport_agent)
-            .add_observer(events::on_spawn_agent);
+            .add_observer(events::on_spawn_agent)
+            .add_observer(events::on_move_agent)
+            .add_observer(events::on_remove_actor);
 
         #[cfg(feature = "debug")]
         app.add_systems(Update, (instancing::actor_rect,));

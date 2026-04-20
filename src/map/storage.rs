@@ -23,6 +23,10 @@ impl Map {
         self.agents.insert(id, agent);
     }
 
+    pub fn remove_agent(&mut self, id: AgentId) {
+        self.agents.remove(&id);
+    }
+
     pub fn get_agent(&self, id: AgentId) -> Option<Entity> {
         self.agents.get(&id).cloned()
     }

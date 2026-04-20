@@ -26,6 +26,7 @@ impl From<Mounted> for u32 {
 #[derive(Component, Debug, Default)]
 pub struct Actor {
     // pub outfit_id: u32,
+    pub agent_id: AgentId,
     pub direction: FacingDirection,
     pub addons: u8,
     pub mounted: Mounted,

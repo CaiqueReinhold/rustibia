@@ -1,3 +1,4 @@
+use std::collections::VecDeque;
 use std::time::Duration;
 
 use bevy::prelude::*;
@@ -19,6 +20,9 @@ pub struct Moving {
 pub struct ShouldTeleport {
     pub position: Position,
 }
+
+#[derive(Component, Debug, Default)]
+pub struct MoveQueue(pub VecDeque<WalkingDirection>);
 
 #[derive(Event, Debug)]
 pub struct MoveActor {
@@ -155,5 +159,21 @@ pub fn teleport_agents(
                 .insert(teleport.position.clone())
                 .remove::<ShouldTeleport>();
         }
+    }
+}
+
+pub fn process_actor_move_queues(
+    mut commands: Commands,
+    mut queue_q: Query<(&Actor, &mut MoveQueue), Without<Moving>>,
+) {
+    for (actor, mut queue) in &mut queue_q {
+        let Some(direction) = queue.0.pop_front() else {
+            continue;
+        };
+
+        commands.trigger(MoveActor {
+            agent_id: actor.agent_id,
+            direction,
+        });
     }
 }
