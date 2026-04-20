@@ -3,7 +3,7 @@ use bevy::sprite_render::Material2dPlugin;
 
 use crate::core::{AnimationSet, GameState, InstanceManager};
 
-mod colors;
+// mod colors;
 mod components;
 mod events;
 mod hud;
@@ -31,8 +31,7 @@ impl Plugin for ActorPlugin {
             )
             .add_systems(
                 Update,
-                instancing::set_actor_animation_state
-                    .run_if(in_state(GameState::InGame)),
+                instancing::set_actor_animation_state.run_if(in_state(GameState::InGame)),
             )
             .add_systems(
                 Update,

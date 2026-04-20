@@ -23,7 +23,6 @@ use crate::core::{Appearances, InstanceManager, OutfitSprite, SpriteSheet};
 use crate::core::{SpriteAnimator, SpriteConfig, MAX_LAYERS};
 
 use crate::actor::{
-    colors::COLOR_TABLE,
     material::{ActorInstance, ActorMaterial, ActorParams},
     movement::Moving,
 };
@@ -142,10 +141,10 @@ pub fn spawn_actor(
         resolve_actor_sprite_ids(&outfit.still_sprite, 0, facing as u32, addons as u32, 0);
     instance.sprite_ids = sprite_ids;
     instance.layer_count = layer_count;
-    instance.color_head = COLOR_TABLE[outfit_colors.0 as usize];
-    instance.color_body = COLOR_TABLE[outfit_colors.1 as usize];
-    instance.color_legs = COLOR_TABLE[outfit_colors.2 as usize];
-    instance.color_feet = COLOR_TABLE[outfit_colors.3 as usize];
+    instance.outfit_colors = outfit_colors.0 as u32
+        | ((outfit_colors.1 as u32) << 8)
+        | ((outfit_colors.2 as u32) << 16)
+        | ((outfit_colors.3 as u32) << 24);
     let bbox = &outfit.still_sprite.boxes[facing as usize];
     instance.bbox_min = bbox.min;
     instance.bbox_size = bbox.max;
@@ -417,11 +416,10 @@ pub fn update_actor_instances(
         );
         instance.sprite_ids = sprite_ids;
         instance.layer_count = layer_count;
-
-        instance.color_head = COLOR_TABLE[actor.outfit_colors.0 as usize];
-        instance.color_body = COLOR_TABLE[actor.outfit_colors.1 as usize];
-        instance.color_legs = COLOR_TABLE[actor.outfit_colors.2 as usize];
-        instance.color_feet = COLOR_TABLE[actor.outfit_colors.3 as usize];
+        instance.outfit_colors = actor.outfit_colors.0 as u32
+            | ((actor.outfit_colors.1 as u32) << 8)
+            | ((actor.outfit_colors.2 as u32) << 16)
+            | ((actor.outfit_colors.3 as u32) << 24);
 
         let is_moving = moving.is_some() as usize;
         let bbox = &actor.boxes[is_moving][actor.direction as usize];

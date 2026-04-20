@@ -11,11 +11,7 @@ use crate::core::MAX_LAYERS;
 pub struct ActorInstance {
     pub sprite_ids: [u32; MAX_LAYERS],
     pub layer_count: u32,
-    pub _pad: u32,
-    pub color_head: Vec4,
-    pub color_body: Vec4,
-    pub color_legs: Vec4,
-    pub color_feet: Vec4,
+    pub outfit_colors: u32, // packed: head | body<<8 | legs<<16 | feet<<24 (indices into COLOR_TABLE)
     pub bbox_min: Vec2,
     pub bbox_size: Vec2,
 }
