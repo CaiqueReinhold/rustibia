@@ -1,16 +1,17 @@
 use crate::{
     conf::z_order::{GROUND_PASS_OFFSET, TOP_Z_OFFSET},
-    core::{Appearances, InstanceManager, SpriteAnimation, SpriteConfig},
+    core::{Appearances, InstanceManager, SpriteAnimator, SpriteConfig},
     items::{
         item::ItemFlag,
         material::{ItemInstance, ItemMaterial},
-        Item, ItemId,
+        Item,
     },
     map::{FloorEntities, Map, Position},
 };
-use bevy::{asset::RenderAssetUsages, render::storage::ShaderStorageBuffer};
-use bevy::{mesh::MeshTag, prelude::*};
+use bevy::prelude::*;
+use bevy::{asset::RenderAssetUsages, mesh::MeshTag, render::storage::ShaderStorageBuffer};
 use std::collections::{HashMap, VecDeque};
+use std::sync::Arc;
 
 #[derive(Component)]
 pub struct SpawnedItem;
@@ -23,7 +24,6 @@ pub struct ItemState {
 #[derive(Resource, Debug, Default)]
 pub struct LoadedMaterials {
     materials: HashMap<String, (Handle<Mesh>, Handle<ItemMaterial>)>,
-    lookups: HashMap<String, HashMap<ItemId, u32>>,
     buffer: Handle<ShaderStorageBuffer>,
 }
 
@@ -35,7 +35,6 @@ pub struct ChangedTileQueue {
 pub fn setup_resources(mut commands: Commands, mut buffers: ResMut<Assets<ShaderStorageBuffer>>) {
     let loaded_materials = LoadedMaterials {
         materials: HashMap::new(),
-        lookups: HashMap::new(),
         buffer: buffers.add(ShaderStorageBuffer::new(&[0], RenderAssetUsages::all())),
     };
     commands.insert_resource(loaded_materials);
@@ -61,10 +60,8 @@ pub fn process_tile_changed(
     mut loaded_materials: ResMut<LoadedMaterials>,
     mut materials: ResMut<Assets<ItemMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
-    mut buffers: ResMut<Assets<ShaderStorageBuffer>>,
     map: Res<Map>,
     appearances: Res<Appearances>,
-    time: Res<Time>,
     floor_entities: Res<FloorEntities>,
 ) {
     while let Some(position) = queue.changed_positions.pop_front() {
@@ -99,8 +96,6 @@ pub fn process_tile_changed(
                     &appearances,
                     &mut materials,
                     &mut meshes,
-                    &mut buffers,
-                    &time,
                     elevation,
                 );
                 commands.entity(parent).add_child(item_entity);
@@ -127,8 +122,6 @@ fn spawn_item(
     appearances: &Appearances,
     materials: &mut Assets<ItemMaterial>,
     meshes: &mut Assets<Mesh>,
-    buffers: &mut Assets<ShaderStorageBuffer>,
-    time: &Time,
     elevation: f32,
 ) -> Entity {
     let sprite = appearances.get_item(item.config.id);
@@ -139,28 +132,20 @@ fn spawn_item(
             &sprite.group,
             materials,
             meshes,
-            buffers,
             loaded_materials,
             appearances,
-            time,
         );
     }
 
     let (mesh, material) = loaded_materials.materials.get(&sprite.group).unwrap();
     let index = instances.alloc_index();
-    let instance = &mut instances.get_mut(index);
-    init_instance(
-        instance,
-        sprite,
-        time.elapsed_secs(),
-        *loaded_materials
-            .lookups
-            .get(&sprite.group)
-            .unwrap()
-            .get(&sprite.id)
-            .unwrap(),
-        item.get_patterns(position, sprite),
-    );
+    let instance = instances.get_mut(index);
+    let patterns = item.get_patterns(position, &sprite);
+    let (px, py, pz) = patterns;
+    init_instance(instance, &sprite, patterns);
+
+    let animator = SpriteAnimator::new(Arc::clone(&sprite), px, py, pz);
+    instance.sprite_id = animator.current_sprite_ids[0];
 
     let z = if item.config.has_flag(ItemFlag::Top) {
         TOP_Z_OFFSET
@@ -180,7 +165,8 @@ fn spawn_item(
         0.0
     };
     let translation = Vec3::new(-elevation + shift_x, elevation + shift_y, z);
-    let entity = commands
+
+    commands
         .spawn((
             SpawnedItem,
             Mesh2d(mesh.clone()),
@@ -188,77 +174,54 @@ fn spawn_item(
             MeshTag(index),
             Transform::from_translation(translation),
             Visibility::Inherited,
+            animator,
         ))
-        .id();
-    entity
+        .id()
 }
 
-fn init_instance(
-    instance: &mut ItemInstance,
-    sprite: &SpriteConfig,
-    time_offset_secs: f32,
-    lookup_offset: u32,
-    patterns: (u32, u32, u32),
-) {
-    instance.time_offset = time_offset_secs;
-    instance.phase_duration = match &sprite.animation {
-        SpriteAnimation::Static => 0.0,
-        SpriteAnimation::Uniform { phase_duration, .. } => phase_duration.as_secs_f32(),
-        _ => 0.0,
-    };
-    instance.phase_count = sprite.animation.total_animation_phases();
-    instance.lookup_offset = lookup_offset;
-    let (px, py, pz) = patterns;
-    instance.pattern_x = sprite.pattern_x;
-    instance.pattern_y = sprite.pattern_y;
-    instance.pattern_z = sprite.pattern_z;
-    instance.value_x = px;
-    instance.value_y = py;
-    instance.value_z = pz;
+fn init_instance(instance: &mut ItemInstance, sprite: &SpriteConfig, patterns: (u32, u32, u32)) {
+    let (px, _py, _pz) = patterns;
     if !sprite.boxes.is_empty() {
         let bbox = &sprite.boxes[px as usize];
         instance.bbox_min = bbox.min;
         instance.bbox_size = bbox.max;
     } else {
-        instance.bbox_min = Vec2::new(0.0, 0.0);
+        instance.bbox_min = Vec2::ZERO;
         instance.bbox_size = Vec2::new(32.0, 32.0);
     }
 }
 
 fn init_material(
-    group: &String,
+    group: &str,
     materials: &mut Assets<ItemMaterial>,
     meshes: &mut Assets<Mesh>,
-    buffers: &mut Assets<ShaderStorageBuffer>,
     loaded_materials: &mut LoadedMaterials,
     appearances: &Appearances,
-    time: &Time,
 ) {
     let sheet = appearances.get_sheet(group);
-
-    let mut lookup_map: HashMap<ItemId, u32> = HashMap::new();
-    let mut animation_frame_lookup: Vec<u32> = Vec::new();
-
-    for config in appearances.iter_group_items(group) {
-        lookup_map.insert(config.id, animation_frame_lookup.len() as u32);
-        animation_frame_lookup.extend_from_slice(config.sprite_ids.as_slice());
-    }
-
     let material_handle = materials.add(ItemMaterial {
         texture: sheet.texture.clone(),
-        time_offset: time.elapsed_secs(),
         atlas_grid: sheet.grid_size,
         mesh_size: sheet.sprite_size,
-        sprite_lookup: buffers.add(ShaderStorageBuffer::from(&animation_frame_lookup)),
         instances: loaded_materials.buffer.clone(),
     });
-
-    let mesh = Mesh::from(Rectangle::new(sheet.sprite_size.x, sheet.sprite_size.y));
-    let mesh_handle = meshes.add(mesh);
+    let mesh_handle = meshes.add(Mesh::from(Rectangle::new(
+        sheet.sprite_size.x,
+        sheet.sprite_size.y,
+    )));
     loaded_materials
         .materials
-        .insert(group.clone(), (mesh_handle, material_handle));
-    loaded_materials.lookups.insert(group.clone(), lookup_map);
+        .insert(group.to_string(), (mesh_handle, material_handle));
+}
+
+pub fn update_item_instances(
+    items_q: Query<(&SpriteAnimator, &MeshTag), (With<SpawnedItem>, Changed<SpriteAnimator>)>,
+    mut instances: ResMut<InstanceManager<ItemInstance>>,
+) {
+    for (animator, tag) in &items_q {
+        let instance = instances.get_mut(tag.0);
+        instance.sprite_id = animator.current_sprite_ids[0];
+    }
 }
 
 pub fn upload_instance_buffer(
@@ -277,7 +240,6 @@ pub fn upload_instance_buffer(
     }
 
     for (_, mat) in loaded_materials.materials.values() {
-        // set material as changed so buffer gets updated in the pipeline
         let _ = materials.get_mut(mat).unwrap();
     }
 }

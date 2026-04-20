@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy::sprite_render::Material2dPlugin;
 
-use crate::core::{GameState, InstanceManager};
+use crate::core::{AnimationSet, GameState, InstanceManager};
 
 mod colors;
 mod components;
@@ -25,12 +25,20 @@ impl Plugin for ActorPlugin {
             .add_systems(Startup, instancing::init_instances_buffer)
             .add_systems(
                 Update,
-                (
-                    movement::move_actor,
-                    movement::teleport_agents,
-                    instancing::update_actor_instances,
-                )
+                (movement::move_actor, movement::teleport_agents)
                     .chain()
+                    .run_if(in_state(GameState::InGame)),
+            )
+            .add_systems(
+                Update,
+                instancing::set_actor_animation_state
+                    .run_if(in_state(GameState::InGame)),
+            )
+            .add_systems(
+                Update,
+                instancing::update_actor_instances
+                    .after(AnimationSet)
+                    .after(instancing::set_actor_animation_state)
                     .run_if(in_state(GameState::InGame)),
             )
             .add_systems(

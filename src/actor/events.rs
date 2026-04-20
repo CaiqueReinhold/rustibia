@@ -20,7 +20,6 @@ pub fn on_spawn_agent(
     mut map: ResMut<Map>,
     ui_assets: Res<GameUiAssets>,
     appearances: Res<Appearances>,
-    time: Res<Time>,
 ) {
     let entity = spawn_actor(
         &mut commands,
@@ -31,7 +30,6 @@ pub fn on_spawn_agent(
         &mut instances,
         &ui_assets.font,
         &appearances,
-        &time,
         event.outfit.0,
         event.outfit.1,
         event.facing,

@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 use std::fs;
+use std::sync::Arc;
 use std::time::Duration;
 
 use bevy::prelude::*;
@@ -13,21 +14,21 @@ pub type OutfitColors = (u8, u8, u8, u8);
 #[derive(Debug)]
 pub struct OutfitSprite {
     // pub id: OutfitId,
-    pub still_sprite: SpriteConfig,
-    pub moving_sprite: SpriteConfig,
+    pub still_sprite: Arc<SpriteConfig>,
+    pub moving_sprite: Arc<SpriteConfig>,
 }
 
 #[derive(Resource, Debug)]
 pub struct Appearances {
     sheets: HashMap<String, SpriteSheet>,
-    items: HashMap<ItemId, SpriteConfig>,
+    items: HashMap<ItemId, Arc<SpriteConfig>>,
     outfits: HashMap<OutfitId, OutfitSprite>,
 }
 
 impl Appearances {
     pub(super) fn new(
         sheets: HashMap<String, SpriteSheet>,
-        items: HashMap<u16, SpriteConfig>,
+        items: HashMap<u16, Arc<SpriteConfig>>,
         outfits: HashMap<u16, OutfitSprite>,
     ) -> Self {
         Appearances {
@@ -37,16 +38,8 @@ impl Appearances {
         }
     }
 
-    pub fn iter_group_items(&self, group: &String) -> impl Iterator<Item = &SpriteConfig> {
-        self.items
-            .values()
-            .filter(|i| &i.group == group)
-            .collect::<Vec<&SpriteConfig>>()
-            .into_iter()
-    }
-
-    pub fn get_item(&self, id: ItemId) -> &SpriteConfig {
-        self.items.get(&id).unwrap()
+    pub fn get_item(&self, id: ItemId) -> Arc<SpriteConfig> {
+        Arc::clone(self.items.get(&id).unwrap())
     }
 
     pub fn get_outfit(&self, id: OutfitId) -> &OutfitSprite {
@@ -109,7 +102,7 @@ pub struct SpriteConfig {
 }
 
 pub fn read_sprites_config() -> (
-    HashMap<ItemId, SpriteConfig>,
+    HashMap<ItemId, Arc<SpriteConfig>>,
     HashMap<OutfitId, OutfitSprite>,
 ) {
     let Ok(contents) = fs::read_to_string("assets/configs/sprite.json") else {
@@ -117,10 +110,10 @@ pub fn read_sprites_config() -> (
     };
     let sprites: Value = serde_json::from_str(&contents).unwrap();
 
-    let mut items: HashMap<ItemId, SpriteConfig> = HashMap::new();
+    let mut items: HashMap<ItemId, Arc<SpriteConfig>> = HashMap::new();
     for conf in sprites["items"].as_array().unwrap().iter() {
         let sprite = read_sprite_config(conf);
-        items.insert(sprite.id, sprite);
+        items.insert(sprite.id, Arc::new(sprite));
     }
     let mut outfits: HashMap<OutfitId, OutfitSprite> = HashMap::new();
     for out in sprites["outfits"].as_array().unwrap().iter() {
@@ -131,8 +124,8 @@ pub fn read_sprites_config() -> (
             id,
             OutfitSprite {
                 // id,
-                still_sprite,
-                moving_sprite,
+                still_sprite: Arc::new(still_sprite),
+                moving_sprite: Arc::new(moving_sprite),
             },
         );
     }

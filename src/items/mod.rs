@@ -1,7 +1,7 @@
 use bevy::{prelude::*, sprite_render::Material2dPlugin};
 
 use crate::{
-    core::{GameState, InstanceManager},
+    core::{AnimationSet, GameState, InstanceManager},
     items::{instancing::ItemState, material::ItemInstance},
 };
 
@@ -35,12 +35,23 @@ impl Plugin for ItemsPlugin {
                 Update,
                 (
                     instancing::process_tile_changed,
-                    ui_item::animate_ui_items,
                     ui_item::move_dragged_item,
                     container::container_content_changed,
                     inventory::update_inventory_ui,
                     inventory::update_capacity,
                 )
+                    .run_if(in_state(GameState::InGame)),
+            )
+            .add_systems(
+                Update,
+                ui_item::animate_ui_items
+                    .after(AnimationSet)
+                    .run_if(in_state(GameState::InGame)),
+            )
+            .add_systems(
+                Update,
+                instancing::update_item_instances
+                    .after(AnimationSet)
                     .run_if(in_state(GameState::InGame)),
             )
             .add_systems(

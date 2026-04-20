@@ -24,6 +24,7 @@ impl<T: Default> InstanceManager<T> {
     }
 
     pub fn get_mut(&mut self, index: u32) -> &mut T {
+        self.dirty = true;
         &mut self.data[index as usize]
     }
 

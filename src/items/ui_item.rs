@@ -4,7 +4,7 @@ use bevy::{camera::visibility::RenderLayers, prelude::*};
 
 use crate::{
     conf::ui::{z_index::DRAGGED_ITEM_UI_Z, UI_ITEM_SIZE},
-    core::{Appearances, SpriteAnimation},
+    core::{Appearances, SpriteAnimator},
     items::{
         instancing::ItemState, Item, ItemDragEnded, ItemDragStarted, ItemMoveCanceled,
         ItemMoveConfirmed, ItemPlacement,
@@ -18,17 +18,6 @@ pub struct UiItem {
     pub item: Arc<Item>,
 }
 
-/// Drives frame animation for UI items (inventory, containers, dragged item).
-/// Mirrors the GPU shader logic in items.wgsl on the CPU.
-#[derive(Component, Debug)]
-pub struct UiItemAnimation {
-    /// Number of animation phases. 1 means static.
-    pub phase_count: u32,
-    /// Seconds per phase. 0.0 means static (no animation).
-    pub phase_duration: f32,
-    /// Atlas sprite IDs indexed as `sprite_ids[phase]`.
-    pub sprite_ids: Vec<u32>,
-}
 
 #[derive(Component)]
 pub struct UiItemDragging {
@@ -52,25 +41,13 @@ pub fn spawn_ui_item(
     );
     let texture_atlas_handle = texture_atlases.add(texture_atlas);
     let mut atlas = TextureAtlas::from(texture_atlas_handle);
-    atlas.index = (*config.sprite_ids.first().unwrap()) as usize;
 
-    let (phase_count, phase_duration) = match &config.animation {
-        SpriteAnimation::Static => (1, 0.0),
-        SpriteAnimation::Uniform {
-            phase_count,
-            phase_duration,
-        } => (*phase_count, phase_duration.as_secs_f32()),
-        // NonUniform has variable per-phase durations; treat as static (same as GPU shader).
-        SpriteAnimation::NonUniform { .. } => (1, 0.0),
-    };
+    let animator = SpriteAnimator::new(Arc::clone(&config), 0, 0, 0);
+    atlas.index = animator.current_sprite_ids[0] as usize;
 
     (
         UiItem { item: item.clone() },
-        UiItemAnimation {
-            phase_count,
-            phase_duration,
-            sprite_ids: config.sprite_ids.clone(),
-        },
+        animator,
         Node {
             width: Val::Px(UI_ITEM_SIZE),
             height: Val::Px(UI_ITEM_SIZE),
@@ -82,20 +59,12 @@ pub fn spawn_ui_item(
     )
 }
 
-/// Advances the `TextureAtlas` index for animated UI items each frame.
-///
-/// Mirrors the GPU `get_animation_phase` logic from `items.wgsl`:
-/// `phase = floor(time / phase_duration) % phase_count`
-/// then `atlas_index = sprite_ids[phase]`.
-pub fn animate_ui_items(time: Res<Time>, mut query: Query<(&UiItemAnimation, &mut ImageNode)>) {
-    let elapsed = time.elapsed_secs();
-    for (anim, mut image_node) in &mut query {
-        if anim.phase_duration == 0.0 || anim.phase_count <= 1 {
-            continue;
-        }
-        let phase = ((elapsed / anim.phase_duration).floor() as u32) % anim.phase_count;
+pub fn animate_ui_items(
+    mut query: Query<(&SpriteAnimator, &mut ImageNode), Changed<SpriteAnimator>>,
+) {
+    for (animator, mut image_node) in &mut query {
         if let Some(atlas) = &mut image_node.texture_atlas {
-            atlas.index = anim.sprite_ids[phase as usize] as usize;
+            atlas.index = animator.current_sprite_ids[0] as usize;
         }
     }
 }

@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+mod animation;
 mod assets;
 mod instances;
 mod items;
@@ -7,6 +8,7 @@ mod sprite;
 mod systems;
 mod text;
 
+pub use animation::*;
 pub use assets::*;
 pub use instances::*;
 pub use items::ItemConfigs;
@@ -40,6 +42,12 @@ impl Plugin for CorePlugin {
             .add_systems(
                 Update,
                 text::despawn_text_messages.run_if(in_state(GameState::InGame)),
+            )
+            .add_systems(
+                Update,
+                tick_sprite_animators
+                    .in_set(AnimationSet)
+                    .run_if(in_state(GameState::InGame)),
             )
             .add_observer(systems::receive_pong)
             .add_observer(text::on_text_message);

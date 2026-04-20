@@ -13,7 +13,7 @@ use crate::items::{ItemConfig, ItemId};
 #[derive(Resource)]
 pub struct LoadTasks {
     sprite_conf_task: Task<(
-        HashMap<ItemId, SpriteConfig>,
+        HashMap<ItemId, Arc<SpriteConfig>>,
         HashMap<OutfitId, OutfitSprite>,
     )>,
     sprite_sheet_task: Task<HashMap<String, SpriteSheet>>,

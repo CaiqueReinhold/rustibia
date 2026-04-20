@@ -1,9 +1,12 @@
+use std::sync::Arc;
+
 use bevy::prelude::*;
 
 use crate::conf::{
     actor::{SPEED_PARAM_A, SPEED_PARAM_B, SPEED_PARAM_C},
     server::TICK_DURATION_MS,
 };
+use crate::core::SpriteConfig;
 
 pub type AgentId = u16;
 
@@ -28,9 +31,7 @@ pub struct Actor {
     pub mounted: Mounted,
     pub outfit_colors: (u8, u8, u8, u8),
     pub speed: u16,
-    pub box_size: [f32; 2],
     pub boxes: [[Rect; 4]; 2],
-    pub phase_counts: [u32; 2],
 }
 
 impl Actor {
@@ -188,5 +189,10 @@ pub struct DisplayName;
 pub struct HudBar {
     pub ratio: f32,
 }
-
 // --- HUD components ---
+
+#[derive(Component)]
+pub struct ActorAnimConfigs {
+    pub still: Arc<SpriteConfig>,
+    pub moving: Arc<SpriteConfig>,
+}

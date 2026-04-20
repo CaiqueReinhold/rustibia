@@ -32,7 +32,6 @@ pub fn spawn_player(
     ui_assets: Res<GameUiAssets>,
     appearances: Res<Appearances>,
     item_configs: Res<ItemConfigs>,
-    time: Res<Time>,
 ) {
     let entity = spawn_actor(
         &mut commands,
@@ -43,7 +42,6 @@ pub fn spawn_player(
         &mut instances,
         &ui_assets.font,
         &appearances,
-        &time,
         event.outfit.0,
         event.outfit.1,
         event.facing,

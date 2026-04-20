@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use bevy::asset::RenderAssetUsages;
 use bevy::camera::visibility::RenderLayers;
 use bevy::mesh::MeshTag;
@@ -8,7 +10,7 @@ use bevy::text::FontSmoothing;
 use bevy::ui::{UiTransform, Val2};
 use bevy_text_outline::TextOutline;
 
-use crate::actor::components::Actor;
+use crate::actor::components::{Actor, ActorAnimConfigs};
 use crate::actor::{
     ActorHud, DisplayName, FacingDirection, Health, HealthState, Hud, HudBar, Mana,
 };
@@ -17,7 +19,8 @@ use crate::conf::ui::ui_colors;
 use crate::conf::ui::z_index::Z_AGENT_HUD;
 use crate::conf::z_order::ACTOR_Z_OFFSET;
 use crate::core::OutfitId;
-use crate::core::{Appearances, InstanceManager, OutfitSprite, SpriteAnimation, SpriteSheet};
+use crate::core::{Appearances, InstanceManager, OutfitSprite, SpriteSheet};
+use crate::core::{SpriteAnimator, SpriteConfig, MAX_LAYERS};
 
 use crate::actor::{
     colors::COLOR_TABLE,
@@ -48,6 +51,45 @@ pub fn init_instances_buffer(
     commands.insert_resource(loaded_materials);
 }
 
+/// Resolves the flat list of atlas sprite IDs for all active (addon, layer) combinations.
+/// Iterates addons 0..config.pattern_y, skipping inactive addon bits, then layers.
+/// Order matches even=alpha-blend / odd=recolor compositing in actor.wgsl.
+pub fn resolve_actor_sprite_ids(
+    config: &SpriteConfig,
+    phase: u32,
+    direction: u32,
+    addons: u32,
+    mounted: u32,
+) -> ([u32; MAX_LAYERS], u32) {
+    debug_assert!(
+        (config.pattern_y * config.layers) as usize <= MAX_LAYERS,
+        "outfit has more layers than MAX_LAYERS={MAX_LAYERS}: pattern_y={} layers={}",
+        config.pattern_y,
+        config.layers,
+    );
+    let mut sprite_ids = [0u32; MAX_LAYERS];
+    let mut slot = 0usize;
+
+    for addon in 0..config.pattern_y {
+        if addon > 0 && (addons & addon) == 0 {
+            continue;
+        }
+        for layer in 0..config.layers {
+            if slot >= MAX_LAYERS {
+                break;
+            }
+            let index = (((phase * config.pattern_z + mounted) * config.pattern_y + addon)
+                * config.pattern_x
+                + direction)
+                * config.layers
+                + layer;
+            sprite_ids[slot] = config.sprite_ids[index as usize];
+            slot += 1;
+        }
+    }
+    (sprite_ids, slot as u32)
+}
+
 pub fn spawn_actor(
     commands: &mut Commands,
     loaded_materials: &mut LoadedMaterials,
@@ -57,7 +99,6 @@ pub fn spawn_actor(
     instances: &mut InstanceManager<ActorInstance>,
     font: &Handle<Font>,
     appearances: &Appearances,
-    time: &Time,
     outfit_id: OutfitId,
     outfit_colors: (u8, u8, u8, u8),
     facing: FacingDirection,
@@ -92,22 +133,22 @@ pub fn spawn_actor(
             outfit.still_sprite.boxes.clone().try_into().unwrap(),
             outfit.moving_sprite.boxes.clone().try_into().unwrap(),
         ],
-        phase_counts: [
-            outfit.still_sprite.animation.total_animation_phases(),
-            outfit.moving_sprite.animation.total_animation_phases(),
-        ],
         ..default()
     };
 
     let index = instances.alloc_index();
     let instance = instances.get_mut(index);
-    instance.time_offset = time.elapsed_secs_wrapped();
-    instance.phase_duration = match &outfit.still_sprite.animation {
-        SpriteAnimation::Static => 0.1,
-        SpriteAnimation::Uniform { phase_duration, .. } => phase_duration.as_secs_f32(),
-        _ => 0.1,
-    };
-    update_instance(instance, &actor, None);
+    let (sprite_ids, layer_count) =
+        resolve_actor_sprite_ids(&outfit.still_sprite, 0, facing as u32, addons as u32, 0);
+    instance.sprite_ids = sprite_ids;
+    instance.layer_count = layer_count;
+    instance.color_head = COLOR_TABLE[outfit_colors.0 as usize];
+    instance.color_body = COLOR_TABLE[outfit_colors.1 as usize];
+    instance.color_legs = COLOR_TABLE[outfit_colors.2 as usize];
+    instance.color_feet = COLOR_TABLE[outfit_colors.3 as usize];
+    let bbox = &outfit.still_sprite.boxes[facing as usize];
+    instance.bbox_min = bbox.min;
+    instance.bbox_size = bbox.max;
 
     let world_position = position.to_world();
     let entity = commands
@@ -122,6 +163,11 @@ pub fn spawn_actor(
                 world_position.y,
                 world_position.z + ACTOR_Z_OFFSET,
             ),
+            SpriteAnimator::new(Arc::clone(&outfit.still_sprite), facing as u32, 0, 0),
+            ActorAnimConfigs {
+                still: Arc::clone(&outfit.still_sprite),
+                moving: Arc::clone(&outfit.moving_sprite),
+            },
         ))
         .id();
 
@@ -263,36 +309,18 @@ fn init_material(
     sheet: &SpriteSheet,
     materials: &mut Assets<ActorMaterial>,
     meshes: &mut Assets<Mesh>,
-    buffers: &mut Assets<ShaderStorageBuffer>,
+    _buffers: &mut Assets<ShaderStorageBuffer>,
     loaded_materials: &mut LoadedMaterials,
 ) {
     let params = ActorParams {
         atlas_grid: sheet.grid_size,
-        pattern_x: UVec2::new(
-            outfit.still_sprite.pattern_x,
-            outfit.moving_sprite.pattern_x,
-        ),
-        pattern_y: UVec2::new(
-            outfit.still_sprite.pattern_y,
-            outfit.moving_sprite.pattern_y,
-        ),
-        pattern_z: UVec2::new(
-            outfit.still_sprite.pattern_z,
-            outfit.moving_sprite.pattern_z,
-        ),
-        layers: UVec2::new(outfit.still_sprite.layers, outfit.moving_sprite.layers),
     };
-
     let material_handle = materials.add(ActorMaterial {
         texture: sheet.texture.clone(),
         params,
-        still_indexes: buffers.add(ShaderStorageBuffer::from(&outfit.still_sprite.sprite_ids)),
-        moving_indexes: buffers.add(ShaderStorageBuffer::from(&outfit.moving_sprite.sprite_ids)),
         instances: loaded_materials.buffer.clone(),
     });
-
-    let mesh = Mesh::from(Rectangle::new(64.0, 64.0));
-    let mesh_handle = meshes.add(mesh);
+    let mesh_handle = meshes.add(Mesh::from(Rectangle::new(64.0, 64.0)));
     loaded_materials.materials.insert(
         outfit.still_sprite.group.clone(),
         (mesh_handle, material_handle),
@@ -316,7 +344,7 @@ pub fn on_remove_actor(
 }
 
 pub fn upload_instance_buffer(
-    instances: Res<InstanceManager<ActorInstance>>,
+    mut instances: ResMut<InstanceManager<ActorInstance>>,
     mut buffers: ResMut<Assets<ShaderStorageBuffer>>,
     loaded_materials: Res<LoadedMaterials>,
     mut materials: ResMut<Assets<ActorMaterial>>,
@@ -327,6 +355,7 @@ pub fn upload_instance_buffer(
 
     if let Some(ssb) = buffers.get_mut(&loaded_materials.buffer) {
         ssb.set_data(instances.get_buffer_data());
+        instances.reset_dirty();
     }
 
     for (_, mat) in loaded_materials.materials.values() {
@@ -335,35 +364,69 @@ pub fn upload_instance_buffer(
     }
 }
 
-fn update_instance(instance: &mut ActorInstance, actor: &Actor, moving: Option<&Moving>) {
-    instance.moving = match moving {
-        Some(..) => 1,
-        None => 0,
-    };
-    instance.direction = actor.direction.into();
-    instance.mounted = actor.mounted.into();
-    instance.addons = actor.addons as u32;
-    instance.color_head = COLOR_TABLE[actor.outfit_colors.0 as usize];
-    instance.color_body = COLOR_TABLE[actor.outfit_colors.1 as usize];
-    instance.color_legs = COLOR_TABLE[actor.outfit_colors.2 as usize];
-    instance.color_feet = COLOR_TABLE[actor.outfit_colors.3 as usize];
-    instance.bounding_square = actor.box_size[instance.moving as usize];
-    let bbox = &actor.boxes[instance.moving as usize][actor.direction as usize];
-    instance.bbox_min = bbox.min;
-    instance.bbox_size = bbox.max;
-    instance.moving_progress = match moving {
-        Some(m) => m.timer.fraction(),
-        None => 0.0,
-    };
-    instance.phase_count = actor.phase_counts[instance.moving as usize];
+pub fn set_actor_animation_state(
+    mut actors_q: Query<
+        (
+            &Actor,
+            &mut SpriteAnimator,
+            Option<&Moving>,
+            &ActorAnimConfigs,
+        ),
+        Or<(Changed<Actor>, Changed<Moving>)>,
+    >,
+) {
+    for (actor, mut animator, moving, configs) in &mut actors_q {
+        let new_config = if moving.is_some() {
+            Arc::clone(&configs.moving)
+        } else {
+            Arc::clone(&configs.still)
+        };
+        if !Arc::ptr_eq(&animator.config, &new_config) {
+            animator.config = new_config;
+            animator.current_phase = 0;
+            animator.timer.reset();
+            animator.moving_animation = moving.is_some();
+        }
+        animator.pattern_x = actor.direction as u32;
+        animator.pattern_z = actor.mounted as u32;
+
+        if let Some(moving) = moving {
+            animator.current_phase = (moving.timer.fraction()
+                * (configs.moving.animation.total_animation_phases() as f32))
+                as u32;
+        }
+    }
 }
 
 pub fn update_actor_instances(
-    actors_q: Query<(&Actor, &MeshTag, Option<&Moving>), Or<(Changed<Actor>, Changed<Moving>)>>,
+    actors_q: Query<
+        (&Actor, &SpriteAnimator, &MeshTag, Option<&Moving>),
+        Or<(Changed<SpriteAnimator>, Changed<Actor>, Changed<Moving>)>,
+    >,
     mut instances: ResMut<InstanceManager<ActorInstance>>,
 ) {
-    for (actor, tag, moving) in actors_q {
-        update_instance(instances.get_mut(tag.0), actor, moving);
+    for (actor, animator, tag, moving) in &actors_q {
+        let instance = instances.get_mut(tag.0);
+
+        let (sprite_ids, layer_count) = resolve_actor_sprite_ids(
+            &animator.config,
+            animator.current_phase,
+            actor.direction as u32,
+            actor.addons as u32,
+            actor.mounted as u32,
+        );
+        instance.sprite_ids = sprite_ids;
+        instance.layer_count = layer_count;
+
+        instance.color_head = COLOR_TABLE[actor.outfit_colors.0 as usize];
+        instance.color_body = COLOR_TABLE[actor.outfit_colors.1 as usize];
+        instance.color_legs = COLOR_TABLE[actor.outfit_colors.2 as usize];
+        instance.color_feet = COLOR_TABLE[actor.outfit_colors.3 as usize];
+
+        let is_moving = moving.is_some() as usize;
+        let bbox = &actor.boxes[is_moving][actor.direction as usize];
+        instance.bbox_min = bbox.min;
+        instance.bbox_size = bbox.max;
     }
 }
 
