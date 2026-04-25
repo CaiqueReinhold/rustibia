@@ -10,15 +10,15 @@ use crate::{
     items::{ChangedTileQueue, ItemDragEnded},
     map::{self, Map, MinimapData, Position},
     network::{
+        ClientMessage, SendMessage,
         events::{
             AgentChangedDirection, PlayerPosition, PlayerWalk, PlayerWalkDenied, ShowTextMessage,
         },
-        ClientMessage, SendMessage,
     },
     player::{
         components::Player,
         interaction::{PendingUseAck, PendingWalkAction, WalkAction},
-        pathfinding::{compute_path, compute_path_to_adjacent, is_adjacent, AutoWalkTarget},
+        pathfinding::{AutoWalkTarget, compute_path, compute_path_to_adjacent, is_adjacent},
     },
 };
 
@@ -101,15 +101,13 @@ pub fn process_move_queue(
                 if !map.can_walk(&new_position) {
                     commands.trigger(ShowTextMessage {
                         text: "You can't go there".to_string(),
-                        _message_type: TextMessageType::ActionDenied,
+                        message_type: TextMessageType::ActionDenied,
                     });
                     return;
                 }
                 queue.pending_walk_ack = Some(direction);
                 queue.predicted_pos = Some(new_position);
-                commands.trigger(SendMessage {
-                    msg: ClientMessage::MovePlayer { direction },
-                });
+                commands.trigger(SendMessage(ClientMessage::MovePlayer { direction }));
                 commands.trigger(MoveActor {
                     agent_id: player.agent_id,
                     direction,
@@ -117,9 +115,7 @@ pub fn process_move_queue(
             }
             Movement::Turn(direction) => {
                 queue.pending_turn_ack = true;
-                commands.trigger(SendMessage {
-                    msg: ClientMessage::ChangeDirection { direction },
-                });
+                commands.trigger(SendMessage(ClientMessage::ChangeDirection { direction }));
                 commands.trigger(AgentChangedDirection {
                     agent_id: player.agent_id,
                     facing: direction,
@@ -140,9 +136,7 @@ pub fn on_ack_walk(
 ) {
     if move_queue.predicted_pos.as_ref() != Some(&event.position) {
         move_queue.moves.clear();
-        commands.trigger(SendMessage {
-            msg: ClientMessage::GetPlayerPosition,
-        });
+        commands.trigger(SendMessage(ClientMessage::GetPlayerPosition));
     }
     let direction = move_queue.pending_walk_ack.unwrap();
     let source_pos = event.position.clone() - direction;
@@ -173,17 +167,17 @@ pub fn on_walk_denied(
 
     let mut confirmed_pos: Option<Position> = None;
 
-    if let Some(direction) = move_queue.pending_walk_ack {
-        if let Some(predicted_pos) = &move_queue.predicted_pos {
-            let (entity, position) = *player;
-            let player_pos = predicted_pos.clone() - direction;
-            commands.entity(entity).insert(Moving {
-                start: position.clone(),
-                end: player_pos.clone(),
-                timer: Timer::new(Duration::from_millis(1), TimerMode::Once),
-            });
-            confirmed_pos = Some(player_pos);
-        }
+    if let Some(direction) = move_queue.pending_walk_ack
+        && let Some(predicted_pos) = &move_queue.predicted_pos
+    {
+        let (entity, position) = *player;
+        let player_pos = predicted_pos.clone() - direction;
+        commands.entity(entity).insert(Moving {
+            start: position.clone(),
+            end: player_pos.clone(),
+            timer: Timer::new(Duration::from_millis(1), TimerMode::Once),
+        });
+        confirmed_pos = Some(player_pos);
     }
     move_queue.pending_walk_ack = None;
     move_queue.predicted_pos = None;
@@ -198,7 +192,7 @@ pub fn on_walk_denied(
                     commands.remove_resource::<AutoWalkTarget>();
                     commands.trigger(ShowTextMessage {
                         text: "There is no way.".to_string(),
-                        _message_type: TextMessageType::ActionDenied,
+                        message_type: TextMessageType::ActionDenied,
                     });
                 }
             }
@@ -213,7 +207,7 @@ pub fn on_walk_denied(
                 commands.remove_resource::<AutoWalkTarget>();
                 commands.trigger(ShowTextMessage {
                     text: "There is no way.".to_string(),
-                    _message_type: TextMessageType::ActionDenied,
+                    message_type: TextMessageType::ActionDenied,
                 });
             }
         }
@@ -322,13 +316,13 @@ pub fn fire_pending_action(
             msg,
             target_window_id,
         } => {
-            commands.trigger(SendMessage { msg: msg.clone() });
+            commands.trigger(SendMessage(msg.clone()));
             commands.insert_resource(PendingUseAck {
                 target_window_id: *target_window_id,
             });
         }
         WalkAction::MoveItem { msg } => {
-            commands.trigger(SendMessage { msg: msg.clone() });
+            commands.trigger(SendMessage(msg.clone()));
             commands.trigger(ItemDragEnded);
         }
     }

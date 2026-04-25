@@ -7,7 +7,7 @@ mod keyboard;
 mod movement;
 pub mod pathfinding;
 
-pub use interaction::{ItemDragState, MouseHoverState, PendingUseAck};
+pub use interaction::{ItemDragState, MouseHoverState, PendingLook, PendingUseAck};
 
 use crate::core::GameState;
 

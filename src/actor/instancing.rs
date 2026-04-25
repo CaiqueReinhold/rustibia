@@ -20,7 +20,7 @@ use crate::conf::ui::z_index::Z_AGENT_HUD;
 use crate::conf::z_order::ACTOR_Z_OFFSET;
 use crate::core::OutfitId;
 use crate::core::{Appearances, InstanceManager, OutfitSprite, SpriteSheet};
-use crate::core::{SpriteAnimator, SpriteConfig, MAX_LAYERS};
+use crate::core::{MAX_LAYERS, SpriteAnimator, SpriteConfig};
 
 use crate::actor::{
     material::{ActorInstance, ActorMaterial, ActorParams},

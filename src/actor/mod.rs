@@ -12,7 +12,7 @@ mod material;
 pub mod movement;
 
 pub use crate::actor::components::*;
-pub use crate::actor::instancing::{spawn_actor, LoadedMaterials};
+pub use crate::actor::instancing::{LoadedMaterials, spawn_actor};
 pub use crate::actor::material::{ActorInstance, ActorMaterial};
 pub use crate::actor::movement::{MoveActor, MoveQueue, Moving, UpdateElevation};
 

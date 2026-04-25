@@ -6,6 +6,7 @@ use crate::{
     camera::GameCamera,
     conf::{
         map::{CONTAINER_COORD_FLAG, INVENTORY_COORD_FLAG},
+        ui::MIN_DRAG_THRESHOLD,
         viewport::{GAME_VIEW_HEIGHT, GAME_VIEW_WIDTH},
     },
     core::TextMessageType,
@@ -14,28 +15,32 @@ use crate::{
         InventorySlot, Item, ItemDragEnded, ItemDragStarted, ItemFlag, ItemMoveCanceled,
         ItemMoveConfirmed, ItemPlacement, LootContainerUI,
     },
-    map::{minimap::MinimapData, Map, Position},
+    map::{Map, Position, minimap::MinimapData},
     network::{
-        events::{MoveItemResult, ShowTextMessage, UseItemAck},
         ClientMessage, SendMessage,
+        events::{MoveItemResult, ShowTextMessage, UseItemAck},
     },
     player::{
         components::{Player, PlayerInventory},
         movement::MovementQueue,
-        pathfinding::{compute_path, compute_path_to_adjacent, is_adjacent, AutoWalkTarget},
+        pathfinding::{AutoWalkTarget, compute_path, compute_path_to_adjacent, is_adjacent},
     },
 };
 
 #[derive(Resource, Debug)]
 pub struct ItemDragState {
-    item: Arc<Item>,
-    origin: ItemPlacement,
+    pub item: Arc<Item>,
+    pub origin: ItemPlacement,
+    pub crossed_threshold: bool,
 }
 
 #[derive(Resource, Debug)]
 pub struct PendingUseAck {
     pub target_window_id: Option<WindowId>,
 }
+
+#[derive(Resource, Debug)]
+pub struct PendingLook;
 
 #[derive(Debug)]
 pub enum WalkAction {
@@ -103,8 +108,30 @@ pub fn attach_observers(event: On<Add, MainUI>, mut commands: Commands) {
     commands
         .entity(event.entity)
         .observe(on_drag_start)
+        .observe(on_drag)
         .observe(on_drag_end)
-        .observe(on_item_click);
+        .observe(on_item_click)
+        .observe(on_look_at);
+}
+
+fn on_drag(
+    event: On<Pointer<Drag>>,
+    mut commands: Commands,
+    drag_state: Option<ResMut<ItemDragState>>,
+) {
+    let Some(mut drag_state) = drag_state else {
+        return;
+    };
+
+    if drag_state.crossed_threshold || event.distance.max_element() < MIN_DRAG_THRESHOLD {
+        return;
+    }
+
+    drag_state.crossed_threshold = true;
+    commands.trigger(ItemDragStarted {
+        item: drag_state.item.clone(),
+        origin: drag_state.origin.clone(),
+    });
 }
 
 fn on_drag_start(
@@ -112,14 +139,10 @@ fn on_drag_start(
     mut commands: Commands,
     hover_state: Res<MouseHoverState>,
     map: Res<Map>,
-    drag_state: Option<Res<ItemDragState>>,
     container_q: Query<&LootContainerUI>,
     inventory: Res<PlayerInventory>,
 ) {
-    if drag_state.is_some() {
-        return;
-    }
-
+    commands.remove_resource::<ItemDragState>();
     if event.button != PointerButton::Primary {
         return;
     }
@@ -139,13 +162,7 @@ fn on_drag_start(
                 position: position.clone(),
                 index,
             },
-        });
-        commands.trigger(ItemDragStarted {
-            item: item.clone(),
-            origin: ItemPlacement::Map {
-                position: position.clone(),
-                index,
-            },
+            crossed_threshold: false,
         });
     } else if let Some(container) = hover_state.container {
         let Some(slot) = hover_state.container_slot else {
@@ -164,30 +181,18 @@ fn on_drag_start(
                 container_id: container_ui.container_id,
                 slot,
             },
-        });
-        commands.trigger(ItemDragStarted {
-            item: item.clone(),
-            origin: ItemPlacement::Container {
-                container_id: container_ui.container_id,
-                slot,
-            },
+            crossed_threshold: false,
         });
     } else if let Some(inventory_slot) = hover_state.inventory_slot {
         let Some(item) = inventory.items.get(&inventory_slot) else {
             return;
         };
-
         commands.insert_resource(ItemDragState {
             item: item.clone(),
             origin: ItemPlacement::Inventory {
                 slot: inventory_slot,
             },
-        });
-        commands.trigger(ItemDragStarted {
-            item: item.clone(),
-            origin: ItemPlacement::Inventory {
-                slot: inventory_slot,
-            },
+            crossed_threshold: false,
         });
     }
 }
@@ -206,6 +211,11 @@ fn on_drag_end(
     let Some(drag_state) = drag_state else {
         return;
     };
+
+    if !drag_state.crossed_threshold {
+        commands.remove_resource::<ItemDragState>();
+        return;
+    }
 
     let (from_position, stack_index) = match &drag_state.origin {
         ItemPlacement::Map { position, index } => (position.clone(), *index),
@@ -290,7 +300,7 @@ fn on_drag_end(
                     from: from_position.clone(),
                     item_id: drag_state.item.config.id,
                     amount: drag_state.item.amount as u8,
-                    stack_index: stack_index as u16,
+                    stack_index: stack_index as u8,
                     to,
                 };
                 match compute_path_to_adjacent(player_pos, source_pos, &minimap) {
@@ -305,14 +315,14 @@ fn on_drag_end(
                     None => {
                         commands.trigger(ShowTextMessage {
                             text: "There is no way.".to_string(),
-                            _message_type: TextMessageType::ActionDenied,
+                            message_type: TextMessageType::ActionDenied,
                         });
                     }
                 }
             } else {
                 commands.trigger(ShowTextMessage {
                     text: "You cannot put that item there.".to_string(),
-                    _message_type: TextMessageType::ActionDenied,
+                    message_type: TextMessageType::ActionDenied,
                 });
             }
             return;
@@ -327,15 +337,13 @@ fn on_drag_end(
         }
 
         if map.can_drop_item(target_position) {
-            commands.trigger(SendMessage {
-                msg: ClientMessage::MoveItem {
-                    from: from_position,
-                    item_id: drag_state.item.config.id,
-                    amount: drag_state.item.amount as u8,
-                    stack_index: stack_index as u16,
-                    to: target_position.clone(),
-                },
-            });
+            commands.trigger(SendMessage(ClientMessage::MoveItem {
+                from: from_position,
+                item_id: drag_state.item.config.id,
+                amount: drag_state.item.amount as u8,
+                stack_index: stack_index as u8,
+                to: target_position.clone(),
+            }));
             canceled = false;
         }
     } else if let Some(container) = hover_state.container {
@@ -346,41 +354,35 @@ fn on_drag_end(
             return;
         };
         if !container_ui.is_full() {
-            commands.trigger(SendMessage {
-                msg: ClientMessage::MoveItem {
-                    from: from_position,
-                    item_id: drag_state.item.config.id,
-                    amount: drag_state.item.amount as u8,
-                    stack_index: stack_index as u16,
-                    to: Position {
-                        x: CONTAINER_COORD_FLAG,
-                        y: container_ui.container_id,
-                        z: slot as u8,
-                    },
+            commands.trigger(SendMessage(ClientMessage::MoveItem {
+                from: from_position,
+                item_id: drag_state.item.config.id,
+                amount: drag_state.item.amount as u8,
+                stack_index: stack_index as u8,
+                to: Position {
+                    x: CONTAINER_COORD_FLAG,
+                    y: container_ui.container_id,
+                    z: slot as u8,
                 },
-            });
+            }));
             canceled = false;
         }
-    } else if let Some(slot) = hover_state.inventory_slot {
-        if let Some(item_slot) = drag_state.item.config.slot {
-            if item_slot == slot
-                || (item_slot == InventorySlot::BothHands && slot == InventorySlot::LeftHand)
-            {
-                commands.trigger(SendMessage {
-                    msg: ClientMessage::MoveItem {
-                        from: from_position,
-                        item_id: drag_state.item.config.id,
-                        amount: drag_state.item.amount as u8,
-                        stack_index: stack_index as u16,
-                        to: Position {
-                            x: INVENTORY_COORD_FLAG,
-                            y: slot.as_id(),
-                            z: 0,
-                        },
-                    },
-                });
-            }
-        }
+    } else if let Some(slot) = hover_state.inventory_slot
+        && let Some(item_slot) = drag_state.item.config.slot
+        && (item_slot == slot
+            || (item_slot == InventorySlot::BothHands && slot == InventorySlot::LeftHand))
+    {
+        commands.trigger(SendMessage(ClientMessage::MoveItem {
+            from: from_position,
+            item_id: drag_state.item.config.id,
+            amount: drag_state.item.amount as u8,
+            stack_index: stack_index as u8,
+            to: Position {
+                x: INVENTORY_COORD_FLAG,
+                y: slot.as_id(),
+                z: 0,
+            },
+        }));
     }
 
     if canceled {
@@ -412,28 +414,37 @@ fn on_item_click(
     minimap: Res<MinimapData>,
     mut move_queue: ResMut<MovementQueue>,
     player_q: Single<&Position, With<Player>>,
+    keyboard: Res<ButtonInput<KeyCode>>,
 ) {
-    if drag_state.is_some() || pending_ack.is_some() {
+    if drag_state.is_some_and(|state| state.crossed_threshold) || pending_ack.is_some() {
         return;
     }
 
-    if event.button == PointerButton::Primary {
-        if let Some(target) = &hover_state.tile_position {
-            let from = player_q.into_inner();
-            match compute_path(from, target, &minimap) {
-                Some(steps) => {
-                    move_queue.set_auto_walk_path(steps);
-                    commands.insert_resource(AutoWalkTarget(target.clone()));
-                }
-                None => {
-                    commands.trigger(ShowTextMessage {
-                        text: "There is no way.".to_string(),
-                        _message_type: TextMessageType::ActionDenied,
-                    });
-                }
+    if event.button == PointerButton::Primary
+        && let Some(target) = &hover_state.tile_position
+        && !keyboard.any_pressed([
+            KeyCode::ShiftLeft,
+            KeyCode::ShiftRight,
+            KeyCode::ControlLeft,
+            KeyCode::ControlRight,
+            KeyCode::AltLeft,
+            KeyCode::AltRight,
+        ])
+    {
+        let from = player_q.into_inner();
+        match compute_path(from, target, &minimap) {
+            Some(steps) => {
+                move_queue.set_auto_walk_path(steps);
+                commands.insert_resource(AutoWalkTarget(target.clone()));
             }
-            return;
+            None => {
+                commands.trigger(ShowTextMessage {
+                    text: "There is no way.".to_string(),
+                    message_type: TextMessageType::ActionDenied,
+                });
+            }
         }
+        return;
     }
 
     if event.button == PointerButton::Secondary {
@@ -447,10 +458,10 @@ fn on_item_click(
                 let msg = ClientMessage::UseItem {
                     position: position.clone(),
                     item_id: item.config.id,
-                    stack_index: index as u16,
+                    stack_index: index as u8,
                 };
                 if is_adjacent(player_pos, position) || player_pos == position {
-                    commands.trigger(SendMessage { msg });
+                    commands.trigger(SendMessage(msg));
                     commands.insert_resource(PendingUseAck {
                         target_window_id: None,
                     });
@@ -470,7 +481,7 @@ fn on_item_click(
                         None => {
                             commands.trigger(ShowTextMessage {
                                 text: "There is no way.".to_string(),
-                                _message_type: TextMessageType::ActionDenied,
+                                message_type: TextMessageType::ActionDenied,
                             });
                         }
                     }
@@ -488,17 +499,15 @@ fn on_item_click(
             };
 
             if item.config.has_flag(ItemFlag::Usable) {
-                commands.trigger(SendMessage {
-                    msg: ClientMessage::UseItem {
-                        position: Position {
-                            x: CONTAINER_COORD_FLAG,
-                            y: container_ui.container_id,
-                            z: slot as u8,
-                        },
-                        item_id: item.config.id,
-                        stack_index: 0,
+                commands.trigger(SendMessage(ClientMessage::UseItem {
+                    position: Position {
+                        x: CONTAINER_COORD_FLAG,
+                        y: container_ui.container_id,
+                        z: slot as u8,
                     },
-                });
+                    item_id: item.config.id,
+                    stack_index: 0,
+                }));
 
                 if item.config.has_flag(ItemFlag::Container) {
                     commands.insert_resource(PendingUseAck {
@@ -516,17 +525,15 @@ fn on_item_click(
             };
 
             if item.config.has_flag(ItemFlag::Usable) {
-                commands.trigger(SendMessage {
-                    msg: ClientMessage::UseItem {
-                        position: Position {
-                            x: INVENTORY_COORD_FLAG,
-                            y: slot.as_id(),
-                            z: 0,
-                        },
-                        item_id: item.config.id,
-                        stack_index: 0,
+                commands.trigger(SendMessage(ClientMessage::UseItem {
+                    position: Position {
+                        x: INVENTORY_COORD_FLAG,
+                        y: slot.as_id(),
+                        z: 0,
                     },
-                });
+                    item_id: item.config.id,
+                    stack_index: 0,
+                }));
                 commands.insert_resource(PendingUseAck {
                     target_window_id: None,
                 });
@@ -535,15 +542,35 @@ fn on_item_click(
     }
 }
 
+fn on_look_at(
+    event: On<Pointer<Click>>,
+    mut commands: Commands,
+    keyboard: Res<ButtonInput<KeyCode>>,
+    hover_state: Res<MouseHoverState>,
+    pending: Option<Res<PendingLook>>,
+) {
+    if pending.is_none()
+        && event.button == PointerButton::Primary
+        && keyboard.any_pressed([KeyCode::ShiftLeft, KeyCode::ShiftRight])
+        && let Some(position) = &hover_state.tile_position
+    {
+        info!("on_look_at");
+        commands.trigger(SendMessage(ClientMessage::Look {
+            position: position.clone(),
+        }));
+        commands.insert_resource(PendingLook);
+    }
+}
+
 pub fn on_item_ack(
     _: On<UseItemAck>,
     mut commands: Commands,
     pending_ack: Option<Res<PendingUseAck>>,
 ) {
-    if let Some(ack) = pending_ack {
-        if ack.target_window_id.is_none() {
-            commands.remove_resource::<PendingUseAck>();
-        }
-        // If the ack is for opening a container, the resource will be removed in the container system
+    if let Some(ack) = pending_ack
+        && ack.target_window_id.is_none()
+    {
+        commands.remove_resource::<PendingUseAck>();
     }
+    // If the ack is for opening a container, the resource will be removed in the container system
 }

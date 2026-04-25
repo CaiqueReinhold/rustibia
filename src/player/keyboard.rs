@@ -146,10 +146,10 @@ pub fn read_player_input(
     let mut pressed = None;
     if let Some(key) = just_pressed_key {
         pressed = Some(*key);
-    } else if let Some(key) = key_repeat.pressed_key {
-        if keyboard.pressed(key) {
-            pressed = Some(key);
-        }
+    } else if let Some(key) = key_repeat.pressed_key
+        && keyboard.pressed(key)
+    {
+        pressed = Some(key);
     }
 
     if key_repeat.pressed_key.is_some()

@@ -1,4 +1,4 @@
-use async_channel::{bounded, Receiver, Sender};
+use async_channel::{Receiver, Sender, bounded};
 use async_net::TcpStream;
 use asynchronous_codec::Framed;
 use bevy::log::info;
@@ -21,9 +21,7 @@ pub struct Connect {
 }
 
 #[derive(Event, Debug)]
-pub struct SendMessage {
-    pub msg: ClientMessage,
-}
+pub struct SendMessage(pub ClientMessage);
 
 #[derive(Resource, Debug)]
 pub struct ConnectionState {
@@ -35,7 +33,7 @@ pub struct ConnectionState {
 pub fn connect(mut commands: Commands) {
     commands.trigger(Connect {
         character_id: 1,
-        auth_token: "".to_string(),
+        auth_token: "token".to_string(),
     });
 }
 
@@ -97,7 +95,7 @@ pub(super) fn on_send_message(event: On<SendMessage>, connection: Option<Res<Con
     }
 
     let connection = connection.unwrap();
-    if let Err(e) = connection.sender.send_blocking(event.msg.clone()) {
+    if let Err(e) = connection.sender.send_blocking(event.0.clone()) {
         error!("Error sending client message: {e}");
     };
 }
@@ -146,7 +144,8 @@ impl PersistentConnection {
                                 break;
                             }
                         } else {
-                            return Err(io::Error::new(io::ErrorKind::InvalidData, msg.err().unwrap()));
+                            error!("Error reading from server: {}", msg.err().unwrap());
+                            break;
                         }
                     } else {
                         break;

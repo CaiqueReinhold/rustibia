@@ -2,8 +2,8 @@ use bevy::{mesh::MeshTag, prelude::*, render::storage::ShaderStorageBuffer};
 
 use crate::{
     actor::{
-        spawn_actor, Actor, ActorHud, ActorInstance, ActorMaterial, LoadedMaterials, MoveActor,
-        MoveQueue, Moving,
+        Actor, ActorHud, ActorInstance, ActorMaterial, LoadedMaterials, MoveActor, MoveQueue,
+        Moving, spawn_actor,
     },
     conf::actor::{ADDON_1_FLAG, ADDON_2_FLAG},
     core::{Appearances, InstanceManager},

@@ -3,13 +3,13 @@ use std::sync::Arc;
 use bevy::prelude::*;
 
 use crate::{
-    conf::ui::{ui_colors, ITEM_SLOT_SIZE, LOOT_CONTAINER_DEFAULT_HEIGHT},
+    conf::ui::{ITEM_SLOT_SIZE, LOOT_CONTAINER_DEFAULT_HEIGHT, ui_colors},
     core::{Appearances, ItemConfigs},
     game_ui::{AddUIWindow, CloseUIWindow, GameUiAssets, ReplaceUIWindowContent, UiWindowRef},
-    items::{ui_item::spawn_ui_item, Item, ItemId, OpenParentContainer},
+    items::{Item, ItemId, OpenParentContainer, ui_item::spawn_ui_item},
     network::{
-        events::{ContainerClosed, OpenContainer, UpdateContainer},
         ClientMessage, SendMessage,
+        events::{ContainerClosed, OpenContainer, UpdateContainer},
     },
     player::{MouseHoverState, PendingUseAck},
 };
@@ -261,11 +261,9 @@ pub fn on_open_parent_container(
     commands.insert_resource(PendingUseAck {
         target_window_id: Some(window_ref.window_id),
     });
-    commands.trigger(SendMessage {
-        msg: ClientMessage::OpenParentContainer {
-            container_id: event.container_id,
-        },
-    });
+    commands.trigger(SendMessage(ClientMessage::OpenParentContainer {
+        container_id: event.container_id,
+    }));
 }
 
 pub fn on_update_container(
@@ -306,18 +304,16 @@ pub fn on_container_ui_closed(
         return;
     };
 
-    if let Some(prevent_close) = prevent_close.as_ref() {
-        if prevent_close.container_id == loot_container.container_id {
-            commands.remove_resource::<PreventContainerCloseEvent>();
-            return;
-        }
+    if let Some(prevent_close) = prevent_close.as_ref()
+        && prevent_close.container_id == loot_container.container_id
+    {
+        commands.remove_resource::<PreventContainerCloseEvent>();
+        return;
     }
 
-    commands.trigger(SendMessage {
-        msg: ClientMessage::CloseContainer {
-            container_id: loot_container.container_id,
-        },
-    });
+    commands.trigger(SendMessage(ClientMessage::CloseContainer {
+        container_id: loot_container.container_id,
+    }));
 }
 
 pub fn container_content_changed(

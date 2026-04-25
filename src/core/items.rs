@@ -98,6 +98,9 @@ fn read_item_config(config: &Value) -> Option<Arc<ItemConfig>> {
     if config["block_sight"].as_bool()? {
         flags.push(ItemFlag::BlockSight);
     }
+    if config["multiuse"].as_bool()? {
+        flags.push(ItemFlag::Multiuse);
+    }
     Some(Arc::new(ItemConfig {
         id,
         // name,

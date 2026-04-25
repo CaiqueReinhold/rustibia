@@ -37,7 +37,8 @@ pub fn update_hud_positions(
         let screen_px = top_left + uv * size;
 
         if let Ok(mut tranf) = hud_q.get_mut(display_name.main_entity) {
-            tranf.translation = Val2::new(Val::Px(screen_px.x.round()), Val::Px(screen_px.y.round()));
+            tranf.translation =
+                Val2::new(Val::Px(screen_px.x.round()), Val::Px(screen_px.y.round()));
         }
     }
 }
@@ -69,15 +70,15 @@ pub fn update_hud_bar_ratios(
     mut hud_bars_q: Query<&mut HudBar>,
 ) {
     for (actor_hud, health, mana) in actors_q.iter() {
-        if let Some(health) = health {
-            if let Ok(mut hud_bar) = hud_bars_q.get_mut(actor_hud.health_bar.unwrap()) {
-                hud_bar.ratio = health.ratio();
-            }
+        if let Some(health) = health
+            && let Ok(mut hud_bar) = hud_bars_q.get_mut(actor_hud.health_bar.unwrap())
+        {
+            hud_bar.ratio = health.ratio();
         }
-        if let Some(mana) = mana {
-            if let Ok(mut hud_bar) = hud_bars_q.get_mut(actor_hud.mana_bar.unwrap()) {
-                hud_bar.ratio = mana.ratio();
-            }
+        if let Some(mana) = mana
+            && let Ok(mut hud_bar) = hud_bars_q.get_mut(actor_hud.mana_bar.unwrap())
+        {
+            hud_bar.ratio = mana.ratio();
         }
     }
 }

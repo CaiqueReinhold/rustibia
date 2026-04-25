@@ -6,7 +6,7 @@ use crate::{
     core::{OutfitColors, OutfitId, TextMessageType},
     items::{ContainerId, InventorySlot, ItemId},
     map::Position,
-    network::{messages::ItemStack, ServerMessage},
+    network::{ServerMessage, messages::ItemStack},
 };
 
 #[derive(Event, Debug)]
@@ -71,7 +71,7 @@ pub struct MoveItemResult {
 #[derive(Event, Debug)]
 pub struct ShowTextMessage {
     pub text: String,
-    pub _message_type: TextMessageType,
+    pub message_type: TextMessageType,
 }
 
 #[derive(Event, Debug)]
@@ -224,10 +224,7 @@ pub fn route_event(msg: ServerMessage, commands: &mut Commands) {
             commands.trigger(MoveItemResult { success: false });
         }
         ServerMessage::TextMessage { text, message_type } => {
-            commands.trigger(ShowTextMessage {
-                text,
-                _message_type: message_type,
-            });
+            commands.trigger(ShowTextMessage { text, message_type });
         }
         ServerMessage::UseItemAck => {
             commands.trigger(UseItemAck);

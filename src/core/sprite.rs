@@ -183,7 +183,7 @@ fn read_animation(value: &Value) -> SpriteAnimation {
             // } else {
             //     AnimationLoopType::PingPong
             // };
-            let animation = match &anim["phases"] {
+            match &anim["phases"] {
                 Value::Array(anim_phases) => {
                     let mut phases: Vec<UVec2> = Vec::new();
                     for phase in anim_phases.iter() {
@@ -203,8 +203,7 @@ fn read_animation(value: &Value) -> SpriteAnimation {
                         phase_duration,
                     }
                 }
-            };
-            animation
+            }
         }
         _ => SpriteAnimation::Static,
     }

@@ -2,7 +2,7 @@ use std::time::{Duration, Instant};
 
 use bevy::prelude::*;
 
-use crate::network::{events::ServerPong, SendMessage};
+use crate::network::{SendMessage, events::ServerPong};
 
 #[derive(Resource, Debug)]
 pub struct PingState {
@@ -26,9 +26,7 @@ impl Default for PingState {
 pub fn send_ping(mut commands: Commands, mut ping_state: ResMut<PingState>, time: Res<Time>) {
     ping_state.timer.tick(time.delta());
     if ping_state.timer.just_finished() && !ping_state.pending_ack {
-        commands.trigger(SendMessage {
-            msg: crate::network::ClientMessage::Ping,
-        });
+        commands.trigger(SendMessage(crate::network::ClientMessage::Ping));
         ping_state.last_sent_at = Instant::now();
         ping_state.pending_ack = true;
     }

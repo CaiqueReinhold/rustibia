@@ -49,6 +49,7 @@ pub mod ui {
     pub const INVENTORY_HEIGHT: f32 = 170.0;
     pub const ITEM_SLOT_SIZE: f32 = 36.0;
     pub const UI_BAR_HEIGHT: f32 = 20.0;
+    pub const MIN_DRAG_THRESHOLD: f32 = 5.0;
 
     pub mod z_index {
         pub const Z_WINDOW: i32 = 10;
@@ -67,6 +68,7 @@ pub mod ui {
 
         // pub const FONT_COLOR_TITLE: Srgba = Srgba::new(0.564705, 0.564705, 0.564705, 1.0);
         pub const FONT_COLOR_CONTENT: Srgba = Srgba::new(0.75294, 0.75294, 0.75294, 1.0);
+        pub const FONT_COLOR_LOOK_MSG: Srgba = Srgba::rgb(0.0, 0.7372549, 0.0);
 
         pub const MANA_BAR_COLOR: Srgba = Srgba::new(0.0, 0.0, 0.7, 1.0);
     }

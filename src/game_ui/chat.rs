@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use crate::{
-    conf::ui::{ui_colors, CHAT_BOX_HEIGHT},
+    conf::ui::{CHAT_BOX_HEIGHT, ui_colors},
     game_ui::GameUiAssets,
 };
 

@@ -1,14 +1,14 @@
 use bevy::{ecs::relationship::RelatedSpawnerCommands, prelude::*};
 
 use crate::{
-    conf::ui::{ui_colors, z_index::Z_WINDOW, INVENTORY_HEIGHT, ITEM_SLOT_SIZE, SIDE_PANEL_WIDTH},
+    conf::ui::{INVENTORY_HEIGHT, ITEM_SLOT_SIZE, SIDE_PANEL_WIDTH, ui_colors, z_index::Z_WINDOW},
     core::Appearances,
     game_ui::{GameUiAssets, Index, RightPanelDock, UIWindow, UIWindowDock, UiWindowRef, WindowId},
     items::{
         item::InventorySlot,
-        ui_item::{spawn_ui_item, UiItem},
+        ui_item::{UiItem, spawn_ui_item},
     },
-    player::{components::PlayerInventory, ItemDragState, MouseHoverState},
+    player::{ItemDragState, MouseHoverState, components::PlayerInventory},
 };
 
 #[derive(Component, Debug)]
@@ -348,7 +348,7 @@ fn on_enter_slot(
     slot_q: Query<&InventorySlotUi>,
     dragging_item: Option<Res<ItemDragState>>,
 ) {
-    if dragging_item.is_some() {
+    if dragging_item.is_some_and(|state| state.crossed_threshold) {
         commands.entity(event.entity).insert(Outline {
             width: Val::Px(1.0),
             offset: Val::Px(0.0),

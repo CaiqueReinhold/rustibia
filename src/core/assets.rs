@@ -5,8 +5,8 @@ use bevy::prelude::*;
 use bevy::tasks::futures_lite::future;
 use bevy::tasks::{IoTaskPool, Task};
 
-use crate::core::items::{read_item_configs, ItemConfigs};
-use crate::core::sprite::{read_sprite_sheets, read_sprites_config, Appearances};
+use crate::core::items::{ItemConfigs, read_item_configs};
+use crate::core::sprite::{Appearances, read_sprite_sheets, read_sprites_config};
 use crate::core::{GameState, OutfitId, OutfitSprite, SpriteConfig, SpriteSheet};
 use crate::items::{ItemConfig, ItemId};
 

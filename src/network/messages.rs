@@ -15,15 +15,18 @@ use crate::{
 pub type ItemStack = [Option<(ItemId, u8)>; STACK_MAX_VISIBLE_ITEMS];
 
 // client
-const MSG_PING: u8 = 0;
-const MSG_LOGIN: u8 = 1;
-const MSG_MOVE_PLAYER: u8 = 2;
-const MSG_GET_PLAYER_POS: u8 = 3;
-const MSG_MOVE_ITEM: u8 = 4;
-const MSG_USE_ITEM: u8 = 5;
-const MSG_CLOSE_CONTAINER: u8 = 6;
-const MSG_OPEN_PARENT_CONTAINER: u8 = 7;
-const MSG_CHANGE_DIRECTION: u8 = 8;
+const CLI_PING: u8 = 0;
+const CLI_LOGIN: u8 = 1;
+const CLI_MOVE_PLAYER: u8 = 2;
+const CLI_GET_PLAYER_POS: u8 = 3;
+const CLI_MOVE_ITEM: u8 = 4;
+const CLI_USE_ITEM: u8 = 5;
+const CLI_CLOSE_CONTAINER: u8 = 6;
+const CLI_OPEN_PARENT_CONTAINER: u8 = 7;
+const CLI_CHANGE_DIRECTION: u8 = 8;
+const CLI_LOGOUT: u8 = 9;
+const CLI_USE_ITEM_WITH: u8 = 10;
+const CLI_LOOK: u8 = 11;
 
 #[derive(Clone, Debug)]
 pub enum ClientMessage {
@@ -40,13 +43,13 @@ pub enum ClientMessage {
         from: Position,
         item_id: ItemId,
         amount: u8,
-        stack_index: u16,
+        stack_index: u8,
         to: Position,
     },
     UseItem {
         position: Position,
         item_id: ItemId,
-        stack_index: u16,
+        stack_index: u8,
     },
     CloseContainer {
         container_id: ContainerId,
@@ -56,6 +59,18 @@ pub enum ClientMessage {
     },
     ChangeDirection {
         direction: FacingDirection,
+    },
+    Logout,
+    UseItemWith {
+        source: Position,
+        source_item_id: ItemId,
+        source_index: u8,
+        target: Position,
+        target_item_id: ItemId,
+        target_index: u8,
+    },
+    Look {
+        position: Position,
     },
 }
 
@@ -345,7 +360,7 @@ impl Decoder for GameMessageCodec {
                 let text_len = buf.get_u16_le() as usize;
                 let text = String::from_utf8_lossy(&buf[..text_len]).into_owned();
                 buf.advance(text_len);
-                let message_type = decode_text_type(buf.get_u8());
+                let message_type = decode_text_type(buf.get_u8())?;
                 Ok(Some(ServerMessage::TextMessage { text, message_type }))
             }
             MSG_OPEN_CONTAINER => {
@@ -485,8 +500,12 @@ fn decode_facing(buf: &mut BytesMut) -> Result<FacingDirection, MessageDecodeErr
     }
 }
 
-fn decode_text_type(_b: u8) -> TextMessageType {
-    TextMessageType::ActionDenied
+fn decode_text_type(b: u8) -> Result<TextMessageType, MessageDecodeError> {
+    match b {
+        1 => Ok(TextMessageType::ActionDenied),
+        2 => Ok(TextMessageType::Look),
+        _ => Err(MessageDecodeError::WrongSequence),
+    }
 }
 
 fn decode_optional_item(buf: &mut BytesMut) -> Option<ItemId> {
@@ -523,18 +542,18 @@ impl Encoder for GameMessageCodec {
 
         match item {
             ClientMessage::Ping => {
-                dst.put_u8(MSG_PING);
+                dst.put_u8(CLI_PING);
             }
             ClientMessage::Login {
                 character_id,
                 auth_token,
             } => {
-                dst.put_u8(MSG_LOGIN);
+                dst.put_u8(CLI_LOGIN);
                 dst.put_u32_le(character_id);
                 dst.put_slice(auth_token.as_bytes());
             }
             ClientMessage::MovePlayer { direction } => {
-                dst.put_u8(MSG_MOVE_PLAYER);
+                dst.put_u8(CLI_MOVE_PLAYER);
                 encode_direction(&direction, dst);
             }
             ClientMessage::MoveItem {
@@ -544,37 +563,58 @@ impl Encoder for GameMessageCodec {
                 stack_index,
                 to,
             } => {
-                dst.put_u8(MSG_MOVE_ITEM);
+                dst.put_u8(CLI_MOVE_ITEM);
                 encode_position(from, dst);
                 dst.put_u16_le(item_id);
                 dst.put_u8(amount);
-                dst.put_u16_le(stack_index);
+                dst.put_u8(stack_index);
                 encode_position(to, dst);
             }
             ClientMessage::GetPlayerPosition => {
-                dst.put_u8(MSG_GET_PLAYER_POS);
+                dst.put_u8(CLI_GET_PLAYER_POS);
             }
             ClientMessage::UseItem {
                 position,
                 item_id,
                 stack_index,
             } => {
-                dst.put_u8(MSG_USE_ITEM);
+                dst.put_u8(CLI_USE_ITEM);
                 encode_position(position, dst);
                 dst.put_u16_le(item_id);
-                dst.put_u16_le(stack_index);
+                dst.put_u8(stack_index);
             }
             ClientMessage::CloseContainer { container_id } => {
-                dst.put_u8(MSG_CLOSE_CONTAINER);
+                dst.put_u8(CLI_CLOSE_CONTAINER);
                 dst.put_u16_le(container_id);
             }
             ClientMessage::OpenParentContainer { container_id } => {
-                dst.put_u8(MSG_OPEN_PARENT_CONTAINER);
+                dst.put_u8(CLI_OPEN_PARENT_CONTAINER);
                 dst.put_u16_le(container_id);
             }
             ClientMessage::ChangeDirection { direction } => {
-                dst.put_u8(MSG_CHANGE_DIRECTION);
+                dst.put_u8(CLI_CHANGE_DIRECTION);
                 encode_facing(&direction, dst);
+            }
+            ClientMessage::Logout => dst.put_u8(CLI_LOGOUT),
+            ClientMessage::UseItemWith {
+                source,
+                source_item_id,
+                source_index,
+                target,
+                target_item_id,
+                target_index,
+            } => {
+                dst.put_u8(CLI_USE_ITEM_WITH);
+                encode_position(source, dst);
+                dst.put_u16_le(source_item_id);
+                dst.put_u8(source_index);
+                encode_position(target, dst);
+                dst.put_u16_le(target_item_id);
+                dst.put_u8(target_index);
+            }
+            ClientMessage::Look { position } => {
+                dst.put_u8(CLI_LOOK);
+                encode_position(position, dst);
             }
         }
 
