@@ -86,9 +86,9 @@ pub fn on_text_message(
 pub fn despawn_text_messages(
     mut commands: Commands,
     time: Res<Time>,
-    mut q: Query<(Entity, &mut TextMessage, &mut Text)>,
+    mut q: Query<(Entity, &mut TextMessage)>,
 ) {
-    for (entity, mut text_message, mut text) in q.iter_mut() {
+    for (entity, mut text_message) in q.iter_mut() {
         text_message.timer.tick(time.delta());
         if text_message.timer.is_finished() {
             commands.entity(entity).despawn();

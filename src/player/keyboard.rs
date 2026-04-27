@@ -183,3 +183,13 @@ fn route_action(action: &PlayerAction, commands: &mut Commands) {
         }
     }
 }
+
+pub fn cancel_targeting_on_escape(
+    mut commands: Commands,
+    keyboard: Res<ButtonInput<KeyCode>>,
+    targeting: Option<Res<crate::player::UseWithTargetingState>>,
+) {
+    if targeting.is_some() && keyboard.just_pressed(KeyCode::Escape) {
+        commands.remove_resource::<crate::player::UseWithTargetingState>();
+    }
+}

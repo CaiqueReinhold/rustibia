@@ -118,6 +118,54 @@ pub fn compute_path_to_adjacent(
     Some(path.windows(2).map(|w| pos_to_dir(&w[0], &w[1])).collect())
 }
 
+/// Computes a path to any tile reachable from both `a` and `b` (i.e., adjacent to or standing on each).
+/// Returns `Some(vec![])` if the player already qualifies, `None` if no such tile exists or it's unreachable.
+/// Both `a` and `b` must be on the same Z floor as `from`.
+pub fn compute_path_adjacent_to_both(
+    from: &Position,
+    a: &Position,
+    b: &Position,
+    minimap: &MinimapData,
+) -> Option<Vec<WalkingDirection>> {
+    if a.z != b.z || a.z != from.z {
+        return None;
+    }
+    // No tile can be within 1 of both if they are more than 2 apart (Chebyshev).
+    if heuristic(a, b) > 2 {
+        return None;
+    }
+
+    let reaches = |p: &Position, x: &Position| -> bool { p == x || is_adjacent(p, x) };
+
+    if reaches(from, a) && reaches(from, b) {
+        return Some(vec![]);
+    }
+
+    // Admissible heuristic: at least one of the two endpoints must still be reached.
+    let h = |p: &Position| -> u32 {
+        heuristic(p, a)
+            .saturating_sub(1)
+            .max(heuristic(p, b).saturating_sub(1))
+    };
+
+    if h(from) > MAX_PATH_STEPS as u32 {
+        return None;
+    }
+
+    let (path, _cost) = astar(
+        from,
+        |pos| successors(pos, minimap),
+        h,
+        |pos| reaches(pos, a) && reaches(pos, b),
+    )?;
+
+    if path.len().saturating_sub(1) > MAX_PATH_STEPS {
+        return None;
+    }
+
+    Some(path.windows(2).map(|w| pos_to_dir(&w[0], &w[1])).collect())
+}
+
 fn pos_to_dir(from: &Position, to: &Position) -> WalkingDirection {
     match (to.x as i32 - from.x as i32, to.y as i32 - from.y as i32) {
         (0, -1) => WalkingDirection::North,

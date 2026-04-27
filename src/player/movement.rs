@@ -325,6 +325,12 @@ pub fn fire_pending_action(
             commands.trigger(SendMessage(msg.clone()));
             commands.trigger(ItemDragEnded);
         }
+        WalkAction::UseItemWith { msg } => {
+            commands.trigger(SendMessage(msg.clone()));
+            commands.insert_resource(PendingUseAck {
+                target_window_id: None,
+            });
+        }
     }
 
     commands.remove_resource::<PendingWalkAction>();

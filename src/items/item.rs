@@ -82,7 +82,8 @@ pub enum ItemFlag {
     FullBank,
     Bottom,
     Usable,
-    Multiuse,
+    MultiUse,
+    ForceUse,
     Avoid,
     BlockSight,
 }

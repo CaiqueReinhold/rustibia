@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use bevy::prelude::*;
+use bevy::window::CursorIcon;
 
 use crate::{
     camera::GameCamera,
@@ -12,7 +13,7 @@ use crate::{
     core::TextMessageType,
     game_ui::{GameViewport, MainUI, UiWindowRef, WindowId},
     items::{
-        InventorySlot, Item, ItemDragEnded, ItemDragStarted, ItemFlag, ItemMoveCanceled,
+        InventorySlot, Item, ItemDragEnded, ItemDragStarted, ItemFlag, ItemId, ItemMoveCanceled,
         ItemMoveConfirmed, ItemPlacement, LootContainerUI,
     },
     map::{Map, Position, minimap::MinimapData},
@@ -23,7 +24,10 @@ use crate::{
     player::{
         components::{Player, PlayerInventory},
         movement::MovementQueue,
-        pathfinding::{AutoWalkTarget, compute_path, compute_path_to_adjacent, is_adjacent},
+        pathfinding::{
+            AutoWalkTarget, compute_path, compute_path_adjacent_to_both, compute_path_to_adjacent,
+            is_adjacent,
+        },
     },
 };
 
@@ -42,6 +46,13 @@ pub struct PendingUseAck {
 #[derive(Resource, Debug)]
 pub struct PendingLook;
 
+#[derive(Resource, Debug)]
+pub struct UseWithTargetingState {
+    pub source: ItemPlacement,
+    pub source_item_id: ItemId,
+    pub source_index: u8,
+}
+
 #[derive(Debug)]
 pub enum WalkAction {
     UseItem {
@@ -49,6 +60,9 @@ pub enum WalkAction {
         target_window_id: Option<WindowId>,
     },
     MoveItem {
+        msg: ClientMessage,
+    },
+    UseItemWith {
         msg: ClientMessage,
     },
 }
@@ -111,6 +125,7 @@ pub fn attach_observers(event: On<Add, MainUI>, mut commands: Commands) {
         .observe(on_drag)
         .observe(on_drag_end)
         .observe(on_item_click)
+        .observe(on_target_click)
         .observe(on_look_at);
 }
 
@@ -409,6 +424,7 @@ fn on_item_click(
     map: Res<Map>,
     drag_state: Option<Res<ItemDragState>>,
     pending_ack: Option<Res<PendingUseAck>>,
+    targeting: Option<Res<UseWithTargetingState>>,
     container_q: Query<(&LootContainerUI, &UiWindowRef)>,
     inventory: Res<PlayerInventory>,
     minimap: Res<MinimapData>,
@@ -416,7 +432,10 @@ fn on_item_click(
     player_q: Single<&Position, With<Player>>,
     keyboard: Res<ButtonInput<KeyCode>>,
 ) {
-    if drag_state.is_some_and(|state| state.crossed_threshold) || pending_ack.is_some() {
+    if drag_state.is_some_and(|state| state.crossed_threshold)
+        || pending_ack.is_some()
+        || targeting.is_some()
+    {
         return;
     }
 
@@ -452,6 +471,18 @@ fn on_item_click(
             let Some((item, index)) = map.peek_item(position) else {
                 return;
             };
+
+            if item.config.has_flag(ItemFlag::MultiUse) {
+                commands.insert_resource(UseWithTargetingState {
+                    source: ItemPlacement::Map {
+                        position: position.clone(),
+                        index,
+                    },
+                    source_item_id: item.config.id,
+                    source_index: index as u8,
+                });
+                return;
+            }
 
             if item.config.has_flag(ItemFlag::Usable) {
                 let player_pos = player_q.into_inner();
@@ -498,6 +529,18 @@ fn on_item_click(
                 return;
             };
 
+            if item.config.has_flag(ItemFlag::MultiUse) {
+                commands.insert_resource(UseWithTargetingState {
+                    source: ItemPlacement::Container {
+                        container_id: container_ui.container_id,
+                        slot,
+                    },
+                    source_item_id: item.config.id,
+                    source_index: 0,
+                });
+                return;
+            }
+
             if item.config.has_flag(ItemFlag::Usable) {
                 commands.trigger(SendMessage(ClientMessage::UseItem {
                     position: Position {
@@ -524,6 +567,15 @@ fn on_item_click(
                 return;
             };
 
+            if item.config.has_flag(ItemFlag::MultiUse) {
+                commands.insert_resource(UseWithTargetingState {
+                    source: ItemPlacement::Inventory { slot: *slot },
+                    source_item_id: item.config.id,
+                    source_index: 0,
+                });
+                return;
+            }
+
             if item.config.has_flag(ItemFlag::Usable) {
                 commands.trigger(SendMessage(ClientMessage::UseItem {
                     position: Position {
@@ -548,7 +600,11 @@ fn on_look_at(
     keyboard: Res<ButtonInput<KeyCode>>,
     hover_state: Res<MouseHoverState>,
     pending: Option<Res<PendingLook>>,
+    targeting: Option<Res<UseWithTargetingState>>,
 ) {
+    if targeting.is_some() {
+        return;
+    }
     if pending.is_none()
         && event.button == PointerButton::Primary
         && keyboard.any_pressed([KeyCode::ShiftLeft, KeyCode::ShiftRight])
@@ -573,4 +629,301 @@ pub fn on_item_ack(
         commands.remove_resource::<PendingUseAck>();
     }
     // If the ack is for opening a container, the resource will be removed in the container system
+}
+
+pub fn sync_targeting_cursor(
+    mut commands: Commands,
+    targeting: Option<Res<UseWithTargetingState>>,
+    window_q: Single<Entity, With<Window>>,
+    mut last_active: Local<bool>,
+) {
+    let active = targeting.is_some();
+    if active == *last_active {
+        return;
+    }
+    *last_active = active;
+    let icon = if active {
+        bevy::window::SystemCursorIcon::Crosshair
+    } else {
+        bevy::window::SystemCursorIcon::Default
+    };
+    commands.entity(*window_q).insert(CursorIcon::System(icon));
+}
+
+fn on_target_click(
+    event: On<Pointer<Click>>,
+    mut commands: Commands,
+    hover_state: Res<MouseHoverState>,
+    map: Res<Map>,
+    targeting: Option<Res<UseWithTargetingState>>,
+    container_q: Query<&LootContainerUI>,
+    inventory: Res<PlayerInventory>,
+    minimap: Res<MinimapData>,
+    mut move_queue: ResMut<MovementQueue>,
+    player_q: Single<&Position, With<Player>>,
+) {
+    let Some(targeting) = targeting else {
+        return;
+    };
+
+    if event.button == PointerButton::Secondary {
+        commands.remove_resource::<UseWithTargetingState>();
+        return;
+    }
+
+    if event.button != PointerButton::Primary {
+        return;
+    }
+
+    let target = resolve_target(&hover_state, &map, &container_q, &inventory);
+    let Some((target_placement, target_item_id, target_index)) = target else {
+        commands.remove_resource::<UseWithTargetingState>();
+        return;
+    };
+
+    let source_pos = placement_to_position(&targeting.source);
+    let target_pos = placement_to_position(&target_placement);
+
+    let msg = ClientMessage::UseItemWith {
+        source: source_pos.clone(),
+        source_item_id: targeting.source_item_id,
+        source_index: targeting.source_index,
+        target: target_pos.clone(),
+        target_item_id,
+        target_index,
+    };
+
+    let source_on_player = matches!(
+        targeting.source,
+        ItemPlacement::Container { .. } | ItemPlacement::Inventory { .. }
+    );
+    let target_on_player = matches!(
+        target_placement,
+        ItemPlacement::Container { .. } | ItemPlacement::Inventory { .. }
+    );
+
+    let player_pos = player_q.into_inner();
+
+    match (source_on_player, target_on_player) {
+        (true, true) => {
+            commands.trigger(SendMessage(msg));
+            commands.insert_resource(PendingUseAck {
+                target_window_id: None,
+            });
+            commands.remove_resource::<UseWithTargetingState>();
+        }
+        (false, true) | (true, false) => {
+            let map_pos = if source_on_player {
+                target_pos.clone()
+            } else {
+                source_pos.clone()
+            };
+            if is_adjacent(player_pos, &map_pos) || player_pos == &map_pos {
+                commands.trigger(SendMessage(msg));
+                commands.insert_resource(PendingUseAck {
+                    target_window_id: None,
+                });
+                commands.remove_resource::<UseWithTargetingState>();
+            } else {
+                info!("player pos: {}, map pos: {}", player_pos, map_pos);
+                match compute_path_to_adjacent(player_pos, &map_pos, &minimap) {
+                    Some(steps) => {
+                        move_queue.set_auto_walk_path(steps);
+                        commands.insert_resource(AutoWalkTarget(map_pos.clone()));
+                        commands.insert_resource(PendingWalkAction {
+                            item_pos: map_pos,
+                            action: WalkAction::UseItemWith { msg },
+                        });
+                        commands.remove_resource::<UseWithTargetingState>();
+                    }
+                    None => {
+                        commands.trigger(ShowTextMessage {
+                            text: "There is no way.".to_string(),
+                            message_type: TextMessageType::ActionDenied,
+                        });
+                        commands.remove_resource::<UseWithTargetingState>();
+                    }
+                }
+            }
+        }
+        (false, false) => {
+            let reaches = |p: &Position, x: &Position| -> bool { p == x || is_adjacent(p, x) };
+            if reaches(player_pos, &source_pos) && reaches(player_pos, &target_pos) {
+                commands.trigger(SendMessage(msg));
+                commands.insert_resource(PendingUseAck {
+                    target_window_id: None,
+                });
+                commands.remove_resource::<UseWithTargetingState>();
+            } else {
+                match compute_path_adjacent_to_both(player_pos, &source_pos, &target_pos, &minimap)
+                {
+                    Some(steps) => {
+                        move_queue.set_auto_walk_path(steps);
+                        commands.insert_resource(AutoWalkTarget(target_pos.clone()));
+                        commands.insert_resource(PendingWalkAction {
+                            item_pos: target_pos,
+                            action: WalkAction::UseItemWith { msg },
+                        });
+                        commands.remove_resource::<UseWithTargetingState>();
+                    }
+                    None => {
+                        commands.trigger(ShowTextMessage {
+                            text: "There is no way.".to_string(),
+                            message_type: TextMessageType::ActionDenied,
+                        });
+                        commands.remove_resource::<UseWithTargetingState>();
+                    }
+                }
+            }
+        }
+    }
+}
+
+fn resolve_target(
+    hover_state: &MouseHoverState,
+    map: &Map,
+    container_q: &Query<&LootContainerUI>,
+    inventory: &PlayerInventory,
+) -> Option<(ItemPlacement, ItemId, u8)> {
+    if let Some(position) = &hover_state.tile_position {
+        info!("hover position: {}", position);
+        let items = map.get_items(position)?;
+        let mut force_use_pick: Option<(ItemId, usize)> = None;
+        let mut top_pick: Option<(ItemId, usize)> = None;
+        for (i, item) in items.enumerate() {
+            top_pick = Some((item.config.id, i));
+            if item.config.has_flag(ItemFlag::ForceUse) && force_use_pick.is_none() {
+                force_use_pick = Some((item.config.id, i));
+            }
+        }
+        let (item_id, index) = force_use_pick.or(top_pick)?;
+        return Some((
+            ItemPlacement::Map {
+                position: position.clone(),
+                index,
+            },
+            item_id,
+            index as u8,
+        ));
+    }
+    if let Some(container) = hover_state.container {
+        let container_ui = container_q.get(container).ok()?;
+        let slot = hover_state.container_slot?;
+        let item = container_ui.items.get(slot)?;
+        return Some((
+            ItemPlacement::Container {
+                container_id: container_ui.container_id,
+                slot,
+            },
+            item.config.id,
+            0,
+        ));
+    }
+    if let Some(slot) = hover_state.inventory_slot {
+        let item = inventory.items.get(&slot)?;
+        return Some((ItemPlacement::Inventory { slot }, item.config.id, 0));
+    }
+    None
+}
+
+fn placement_to_position(placement: &ItemPlacement) -> Position {
+    match placement {
+        ItemPlacement::Map { position, .. } => position.clone(),
+        ItemPlacement::Container { container_id, slot } => Position {
+            x: CONTAINER_COORD_FLAG,
+            y: *container_id,
+            z: *slot as u8,
+        },
+        ItemPlacement::Inventory { slot } => Position {
+            x: INVENTORY_COORD_FLAG,
+            y: slot.as_id(),
+            z: 0,
+        },
+    }
+}
+
+pub fn on_targeting_tile_changed(
+    event: On<crate::network::events::TileChanged>,
+    mut commands: Commands,
+    targeting: Option<Res<UseWithTargetingState>>,
+) {
+    let Some(targeting) = targeting else { return };
+    let ItemPlacement::Map { position, index } = &targeting.source else {
+        return;
+    };
+    if position != &event.position {
+        return;
+    }
+
+    let still_present = event
+        .items
+        .iter()
+        .filter_map(|opt| opt.as_ref())
+        .nth(*index)
+        .map(|(id, _)| *id == targeting.source_item_id)
+        .unwrap_or(false);
+
+    if !still_present {
+        commands.remove_resource::<UseWithTargetingState>();
+    }
+}
+
+pub fn on_targeting_container_updated(
+    event: On<crate::network::events::UpdateContainer>,
+    mut commands: Commands,
+    targeting: Option<Res<UseWithTargetingState>>,
+) {
+    let Some(targeting) = targeting else { return };
+    let ItemPlacement::Container { container_id, slot } = &targeting.source else {
+        return;
+    };
+    if *container_id != event.container_id {
+        return;
+    }
+
+    let still_present = event
+        .items
+        .get(*slot)
+        .and_then(|opt| opt.as_ref())
+        .map(|(id, _)| *id == targeting.source_item_id)
+        .unwrap_or(false);
+
+    if !still_present {
+        commands.remove_resource::<UseWithTargetingState>();
+    }
+}
+
+pub fn on_targeting_container_closed(
+    event: On<crate::network::events::ContainerClosed>,
+    mut commands: Commands,
+    targeting: Option<Res<UseWithTargetingState>>,
+) {
+    let Some(targeting) = targeting else { return };
+    let ItemPlacement::Container { container_id, .. } = &targeting.source else {
+        return;
+    };
+    if *container_id == event.container_id {
+        commands.remove_resource::<UseWithTargetingState>();
+    }
+}
+
+pub fn on_targeting_inventory_updated(
+    event: On<crate::network::events::IventorySlotUpdated>,
+    mut commands: Commands,
+    targeting: Option<Res<UseWithTargetingState>>,
+) {
+    let Some(targeting) = targeting else { return };
+    let ItemPlacement::Inventory { slot } = &targeting.source else {
+        return;
+    };
+    if *slot != event.slot {
+        return;
+    }
+    let still_present = event
+        .item_id
+        .map(|id| id == targeting.source_item_id)
+        .unwrap_or(false);
+    if !still_present {
+        commands.remove_resource::<UseWithTargetingState>();
+    }
 }

@@ -7,7 +7,9 @@ mod keyboard;
 mod movement;
 pub mod pathfinding;
 
-pub use interaction::{ItemDragState, MouseHoverState, PendingLook, PendingUseAck};
+pub use interaction::{
+    ItemDragState, MouseHoverState, PendingLook, PendingUseAck, UseWithTargetingState,
+};
 
 use crate::core::GameState;
 
@@ -25,6 +27,7 @@ impl Plugin for PlayerPlugin {
                 (
                     interaction::update_hover_state,
                     keyboard::read_player_input.run_if(in_state(GameState::InGame)),
+                    keyboard::cancel_targeting_on_escape.run_if(in_state(GameState::InGame)),
                 ),
             )
             .add_systems(
@@ -41,7 +44,10 @@ impl Plugin for PlayerPlugin {
             )
             .add_systems(
                 PostUpdate,
-                (movement::center_on_player.run_if(in_state(GameState::InGame)),),
+                (
+                    movement::center_on_player.run_if(in_state(GameState::InGame)),
+                    interaction::sync_targeting_cursor.run_if(in_state(GameState::InGame)),
+                ),
             )
             .add_systems(
                 Update,
@@ -59,6 +65,10 @@ impl Plugin for PlayerPlugin {
             .add_observer(movement::on_update_elevation_player)
             .add_observer(events::spawn_player)
             .add_observer(events::on_slot_update)
-            .add_observer(events::on_capacity_update);
+            .add_observer(events::on_capacity_update)
+            .add_observer(interaction::on_targeting_tile_changed)
+            .add_observer(interaction::on_targeting_container_updated)
+            .add_observer(interaction::on_targeting_container_closed)
+            .add_observer(interaction::on_targeting_inventory_updated);
     }
 }
