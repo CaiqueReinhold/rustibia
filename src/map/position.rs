@@ -26,10 +26,10 @@ impl Position {
     }
 
     pub fn from_world(world_pos: Vec2, z: u8) -> Self {
-        let floor_offset = ((7 - z) * 32) as f32;
+        let floor_offset = ((7 - z as i32) * 32) as f32;
         Position {
             x: ((world_pos.x + floor_offset) / TILE_SIZE).floor() as u16,
-            y: ((world_pos.y.abs() - floor_offset) / TILE_SIZE).floor() as u16,
+            y: ((floor_offset - world_pos.y) / TILE_SIZE).floor() as u16,
             z,
         }
     }

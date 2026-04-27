@@ -299,7 +299,7 @@ fn update_minimap_image(
                 if px >= IMAGE_SIZE || py >= IMAGE_SIZE {
                     continue;
                 }
-                let idx = (py * IMAGE_SIZE + px) as usize * 4;
+                let idx = (py as usize * IMAGE_SIZE as usize + px as usize) * 4;
                 let (r, g, b) = minimap_color_to_rgb(tile.color);
                 data[idx] = r;
                 data[idx + 1] = g;
