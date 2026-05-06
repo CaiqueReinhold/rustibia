@@ -1,14 +1,14 @@
 use bevy::prelude::*;
 
-use crate::actor::components::{Actor, ActorHud, HealthState, Hud};
-use crate::actor::{DisplayName, Health, HudBar, Mana};
+use crate::agent::components::{Agent, AgentHud, HealthState, Hud};
+use crate::agent::{DisplayName, Health, HudBar, Mana};
 use crate::camera::GameCamera;
 use crate::conf::viewport::{GAME_VIEW_HEIGHT, GAME_VIEW_WIDTH};
 use crate::game_ui::GameViewport;
 
 pub fn update_hud_positions(
     game_cam_q: Query<&GlobalTransform, With<GameCamera>>,
-    actors_q: Query<(&GlobalTransform, &ActorHud), With<Actor>>,
+    agents_q: Query<(&GlobalTransform, &AgentHud), With<Agent>>,
     mut hud_q: Query<&mut UiTransform, With<Hud>>,
     viewport_q: Query<(&ComputedNode, &UiGlobalTransform), With<GameViewport>>,
 ) {
@@ -23,8 +23,8 @@ pub fn update_hud_positions(
     let size = computed.size();
     let top_left = ui_gt.translation - size * 0.5;
 
-    for (actor_gt, display_name) in actors_q.iter() {
-        let world_pos = actor_gt.translation().truncate();
+    for (agent_gt, display_name) in agents_q.iter() {
+        let world_pos = agent_gt.translation().truncate();
 
         // Normalize to [0, 1] UV within the game view (mirrors update_hover_state in reverse).
         let uv = Vec2::new(
@@ -45,11 +45,11 @@ pub fn update_hud_positions(
 
 pub fn update_display_name_health_state(
     mut commands: Commands,
-    health_q: Query<(&ActorHud, &Health), Changed<Health>>,
+    health_q: Query<(&AgentHud, &Health), Changed<Health>>,
 ) {
-    for (actor_hud, health) in health_q.iter() {
+    for (agent_hud, health) in health_q.iter() {
         commands
-            .entity(actor_hud.display_name)
+            .entity(agent_hud.display_name)
             .insert(HealthState::from_ratio(health.ratio()));
     }
 }
@@ -66,17 +66,17 @@ pub fn update_display_name_color(
 }
 
 pub fn update_hud_bar_ratios(
-    actors_q: Query<(&ActorHud, Option<&Health>, Option<&Mana>), Changed<Health>>,
+    agents_q: Query<(&AgentHud, Option<&Health>, Option<&Mana>), Changed<Health>>,
     mut hud_bars_q: Query<&mut HudBar>,
 ) {
-    for (actor_hud, health, mana) in actors_q.iter() {
+    for (agent_hud, health, mana) in agents_q.iter() {
         if let Some(health) = health
-            && let Ok(mut hud_bar) = hud_bars_q.get_mut(actor_hud.health_bar.unwrap())
+            && let Ok(mut hud_bar) = hud_bars_q.get_mut(agent_hud.health_bar.unwrap())
         {
             hud_bar.ratio = health.ratio();
         }
         if let Some(mana) = mana
-            && let Ok(mut hud_bar) = hud_bars_q.get_mut(actor_hud.mana_bar.unwrap())
+            && let Ok(mut hud_bar) = hud_bars_q.get_mut(agent_hud.mana_bar.unwrap())
         {
             hud_bar.ratio = mana.ratio();
         }

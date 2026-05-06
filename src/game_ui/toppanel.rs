@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use crate::actor::{Health, HealthState, HudBar, Mana};
+use crate::agent::{Health, HealthState, HudBar, Mana};
 use crate::conf::ui::{ui_colors, TOP_BAR_HEIGHT, UI_BAR_HEIGHT};
 use crate::game_ui::assets::GameUiAssets;
 use crate::player::components::Player;

@@ -5,7 +5,7 @@ use bytes::{Buf, BufMut, BytesMut};
 use thiserror::Error;
 
 use crate::{
-    actor::{AgentId, FacingDirection, Health, Mana, WalkingDirection},
+    agent::{AgentId, FacingDirection, Health, Mana, WalkingDirection},
     conf::map::{STACK_MAX_VISIBLE_ITEMS, TILES_X, TILES_Y},
     core::{OutfitColors, OutfitId, TextMessageType},
     items::{ContainerId, InventorySlot, ItemId},

@@ -3,14 +3,14 @@
 ## Context
 
 This crate adds stroke outlines to Bevy `Text` UI nodes. It is used in this project to render
-actor display names (health-coloured names above player/NPC heads) with a black outline for
+agent display names (health-coloured names above player/NPC heads) with a black outline for
 legibility against the game background.
 
 ---
 
 ## Why not `Text2d`?
 
-The first implementation rendered names as `Text2d` child entities of each actor. This approach
+The first implementation rendered names as `Text2d` child entities of each agent. This approach
 was abandoned for two separate reasons:
 
 ### 1. Faded outlines from the 2× render texture
@@ -119,14 +119,14 @@ Key details:
 
 ---
 
-## Actor display name positioning (`src/actor/`)
+## Agent display name positioning (`src/agent/`)
 
-Each actor spawns a UI `Hud` node (absolutely positioned, `ZIndex(100)`) that contains:
+Each agent spawns a UI `Hud` node (absolutely positioned, `ZIndex(100)`) that contains:
 - A `DisplayName` child: `Text` + `TextOutline` + health-coloured text
 - Optional `HudBar` children for health and mana
 
 The `Hud` node is positioned each frame by `update_hud_positions` in `PostUpdate`, which
-converts actor world-space coordinates to UI logical pixels:
+converts agent world-space coordinates to UI logical pixels:
 
 ```
 uv.x = (world.x - cam.x) / GAME_VIEW_WIDTH  + 0.5

@@ -4,8 +4,8 @@ use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
 use bevy::render::storage::ShaderStorageBuffer;
 
-use crate::actor::{spawn_actor, ActorInstance, ActorMaterial, LoadedMaterials, MoveQueue};
-use crate::conf::actor::{ADDON_1_FLAG, ADDON_2_FLAG};
+use crate::agent::{spawn_agent, AgentInstance, AgentMaterial, LoadedMaterials, MoveQueue};
+use crate::conf::agent::{ADDON_1_FLAG, ADDON_2_FLAG};
 use crate::core::{Appearances, GameState, InstanceManager, ItemConfigs};
 
 use crate::game_ui::GameUiAssets;
@@ -24,16 +24,16 @@ pub fn spawn_player(
     event: On<SpawnPlayer>,
     mut commands: Commands,
     mut loaded_materials: ResMut<LoadedMaterials>,
-    mut materials: ResMut<Assets<ActorMaterial>>,
+    mut materials: ResMut<Assets<AgentMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut buffers: ResMut<Assets<ShaderStorageBuffer>>,
-    mut instances: ResMut<InstanceManager<ActorInstance>>,
+    mut instances: ResMut<InstanceManager<AgentInstance>>,
     mut map: ResMut<Map>,
     ui_assets: Res<GameUiAssets>,
     appearances: Res<Appearances>,
     item_configs: Res<ItemConfigs>,
 ) {
-    let entity = spawn_actor(
+    let entity = spawn_agent(
         &mut commands,
         &mut loaded_materials,
         &mut materials,

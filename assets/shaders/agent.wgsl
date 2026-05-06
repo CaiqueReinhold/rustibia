@@ -1,10 +1,10 @@
 #import bevy_sprite::mesh2d_functions as mesh_functions
 
-struct ActorParams {
+struct AgentParams {
     atlas_grid: vec2<f32>,
 }
 
-struct ActorInstance {
+struct AgentInstance {
     sprite_ids: array<u32, 6>,
     layer_count: u32,
     outfit_colors: u32, // packed: head | body<<8 | legs<<16 | feet<<24
@@ -19,10 +19,10 @@ var atlas_tex: texture_2d<f32>;
 var atlas_smp: sampler;
 
 @group(#{MATERIAL_BIND_GROUP}) @binding(2)
-var<uniform> params: ActorParams;
+var<uniform> params: AgentParams;
 
 @group(#{MATERIAL_BIND_GROUP}) @binding(3)
-var<storage, read> instances: array<ActorInstance>;
+var<storage, read> instances: array<AgentInstance>;
 
 const COLOR_TABLE: array<vec3<f32>, 133> = array<vec3<f32>, 133>(
     vec3<f32>(1.0000, 1.0000, 1.0000),

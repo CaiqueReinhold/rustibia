@@ -8,7 +8,7 @@ use crate::core::MAX_LAYERS;
 
 #[repr(C)]
 #[derive(ShaderType, Clone, Copy, Debug, Default)]
-pub struct ActorInstance {
+pub struct AgentInstance {
     pub sprite_ids: [u32; MAX_LAYERS],
     pub layer_count: u32,
     pub outfit_colors: u32, // packed: head | body<<8 | legs<<16 | feet<<24 (indices into COLOR_TABLE)
@@ -18,29 +18,29 @@ pub struct ActorInstance {
 
 #[repr(C)]
 #[derive(ShaderType, Clone, Copy, Debug, Default)]
-pub struct ActorParams {
+pub struct AgentParams {
     pub atlas_grid: Vec2,
 }
 
 #[derive(Asset, AsBindGroup, TypePath, Debug, Clone, Default)]
-pub struct ActorMaterial {
+pub struct AgentMaterial {
     #[texture(0)]
     #[sampler(1)]
     pub texture: Handle<Image>,
 
     #[uniform(2)]
-    pub params: ActorParams,
+    pub params: AgentParams,
 
     #[storage(3, read_only)]
     pub instances: Handle<ShaderStorageBuffer>,
 }
 
-impl Material2d for ActorMaterial {
+impl Material2d for AgentMaterial {
     fn fragment_shader() -> ShaderRef {
-        "shaders/actor.wgsl".into()
+        "shaders/agent.wgsl".into()
     }
     fn vertex_shader() -> ShaderRef {
-        "shaders/actor.wgsl".into()
+        "shaders/agent.wgsl".into()
     }
     fn alpha_mode(&self) -> AlphaMode2d {
         AlphaMode2d::Blend

@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use std::fmt::Display;
 use std::ops::{Add, Sub};
 
-use crate::actor::WalkingDirection;
+use crate::agent::WalkingDirection;
 use crate::conf::map::TILE_SIZE;
 use crate::conf::z_order::{FLOOR_Z_MULTIPLIER, POSITION_Z_MULTIPLIER};
 

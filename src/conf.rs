@@ -15,14 +15,14 @@ pub mod map {
 pub mod z_order {
     pub const FLOOR_Z_MULTIPLIER: f32 = 100.0;
     pub const POSITION_Z_MULTIPLIER: f32 = 0.02;
-    pub const ACTOR_Z_OFFSET: f32 = 0.013;
+    pub const AGENT_Z_OFFSET: f32 = 0.013;
     pub const TOP_Z_OFFSET: f32 = 0.015;
-    /// Ground and border items render in a separate pass below actors.
+    /// Ground and border items render in a separate pass below agents.
     /// -1.0 exceeds the max viewport position delta (~16 tiles × 0.02 = 0.32).
     pub const GROUND_PASS_OFFSET: f32 = -1.0;
 }
 
-pub mod actor {
+pub mod agent {
     // pub const ADDONS_NONE: u8 = 0;
     pub const ADDON_1_FLAG: u8 = 0b1;
     pub const ADDON_2_FLAG: u8 = 0b10;

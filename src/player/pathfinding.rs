@@ -3,7 +3,7 @@ use pathfinding::prelude::astar;
 use bevy::prelude::*;
 
 use crate::{
-    actor::WalkingDirection,
+    agent::WalkingDirection,
     map::{minimap::MinimapData, Position},
 };
 

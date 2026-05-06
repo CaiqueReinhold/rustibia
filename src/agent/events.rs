@@ -1,11 +1,11 @@
 use bevy::{mesh::MeshTag, prelude::*, render::storage::ShaderStorageBuffer};
 
 use crate::{
-    actor::{
-        Actor, ActorHud, ActorInstance, ActorMaterial, LoadedMaterials, MoveActor, MoveQueue,
-        Moving, spawn_actor,
+    agent::{
+        Agent, AgentHud, AgentInstance, AgentMaterial, LoadedMaterials, MoveQueue, Moving,
+        StartAgentMove, spawn_agent,
     },
-    conf::actor::{ADDON_1_FLAG, ADDON_2_FLAG},
+    conf::agent::{ADDON_1_FLAG, ADDON_2_FLAG},
     core::{Appearances, InstanceManager},
     game_ui::GameUiAssets,
     map::{Map, Position},
@@ -16,10 +16,10 @@ pub fn on_spawn_agent(
     event: On<SpawnAgent>,
     mut commands: Commands,
     mut loaded_materials: ResMut<LoadedMaterials>,
-    mut materials: ResMut<Assets<ActorMaterial>>,
+    mut materials: ResMut<Assets<AgentMaterial>>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut buffers: ResMut<Assets<ShaderStorageBuffer>>,
-    mut instances: ResMut<InstanceManager<ActorInstance>>,
+    mut instances: ResMut<InstanceManager<AgentInstance>>,
     mut map: ResMut<Map>,
     ui_assets: Res<GameUiAssets>,
     appearances: Res<Appearances>,
@@ -29,7 +29,7 @@ pub fn on_spawn_agent(
         map.remove_agent(event.agent_id);
     }
 
-    let entity = spawn_actor(
+    let entity = spawn_agent(
         &mut commands,
         &mut loaded_materials,
         &mut materials,
@@ -79,23 +79,23 @@ pub fn on_move_agent(
         commands.entity(agent_entity).insert(event.from.clone());
     }
 
-    commands.trigger(MoveActor {
+    commands.trigger(StartAgentMove {
         agent_id: event.agent_id,
         direction: event.direction,
     });
 }
 
-pub fn on_remove_actor(
+pub fn on_remove_agent(
     event: On<RemoveAgent>,
     mut commands: Commands,
-    mut instances: ResMut<InstanceManager<ActorInstance>>,
-    actor_q: Query<(&MeshTag, Option<&ActorHud>), With<Actor>>,
+    mut instances: ResMut<InstanceManager<AgentInstance>>,
+    agent_q: Query<(&MeshTag, Option<&AgentHud>), With<Agent>>,
     mut map: ResMut<Map>,
 ) {
     let Some(agent_entity) = map.get_agent(event.agent_id) else {
         return;
     };
-    let Ok((tag, maybe_hud)) = actor_q.get(agent_entity) else {
+    let Ok((tag, maybe_hud)) = agent_q.get(agent_entity) else {
         return;
     };
     if let Some(hud) = maybe_hud {

@@ -11,23 +11,23 @@ mod instancing;
 mod material;
 pub mod movement;
 
-pub use crate::actor::components::*;
-pub use crate::actor::instancing::{LoadedMaterials, spawn_actor};
-pub use crate::actor::material::{ActorInstance, ActorMaterial};
-pub use crate::actor::movement::{MoveActor, MoveQueue, Moving, UpdateElevation};
+pub use crate::agent::components::*;
+pub use crate::agent::instancing::{LoadedMaterials, spawn_agent};
+pub use crate::agent::material::{AgentInstance, AgentMaterial};
+pub use crate::agent::movement::{MoveQueue, Moving, StartAgentMove, UpdateElevation};
 
-pub struct ActorPlugin;
+pub struct AgentPlugin;
 
-impl Plugin for ActorPlugin {
+impl Plugin for AgentPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(Material2dPlugin::<material::ActorMaterial>::default())
-            .init_resource::<InstanceManager<ActorInstance>>()
+        app.add_plugins(Material2dPlugin::<material::AgentMaterial>::default())
+            .init_resource::<InstanceManager<AgentInstance>>()
             .add_systems(Startup, instancing::init_instances_buffer)
             .add_systems(
                 Update,
                 (
-                    movement::move_actor,
-                    movement::process_actor_move_queues,
+                    movement::move_agent,
+                    movement::process_agent_move_queues,
                     movement::teleport_agents,
                 )
                     .chain()
@@ -35,13 +35,13 @@ impl Plugin for ActorPlugin {
             )
             .add_systems(
                 Update,
-                instancing::set_actor_animation_state.run_if(in_state(GameState::InGame)),
+                instancing::set_agent_animation_state.run_if(in_state(GameState::InGame)),
             )
             .add_systems(
                 Update,
-                instancing::update_actor_instances
+                instancing::update_agent_instances
                     .after(AnimationSet)
-                    .after(instancing::set_actor_animation_state)
+                    .after(instancing::set_agent_animation_state)
                     .run_if(in_state(GameState::InGame)),
             )
             .add_systems(
@@ -71,15 +71,15 @@ impl Plugin for ActorPlugin {
                 PostUpdate,
                 hud::update_hud_positions.run_if(in_state(GameState::InGame)),
             )
-            .add_observer(movement::on_actor_move)
-            .add_observer(movement::on_actor_change_direction)
+            .add_observer(movement::on_start_agent_move)
+            .add_observer(movement::on_agent_change_direction)
             .add_observer(movement::on_update_elevation)
             .add_observer(movement::on_teleport_agent)
             .add_observer(events::on_spawn_agent)
             .add_observer(events::on_move_agent)
-            .add_observer(events::on_remove_actor);
+            .add_observer(events::on_remove_agent);
 
         #[cfg(feature = "debug")]
-        app.add_systems(Update, (instancing::actor_rect,));
+        app.add_systems(Update, (instancing::agent_rect,));
     }
 }

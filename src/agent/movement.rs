@@ -3,9 +3,9 @@ use std::time::Duration;
 
 use bevy::prelude::*;
 
-use crate::actor::components::Actor;
-use crate::actor::{AgentId, WalkingDirection};
-use crate::conf::z_order::ACTOR_Z_OFFSET;
+use crate::agent::components::Agent;
+use crate::agent::{AgentId, WalkingDirection};
+use crate::conf::z_order::AGENT_Z_OFFSET;
 use crate::map::{Map, Position};
 use crate::network::events::{AgentChangedDirection, TeleportAgent};
 
@@ -25,7 +25,7 @@ pub struct ShouldTeleport {
 pub struct MoveQueue(pub VecDeque<(Position, WalkingDirection)>);
 
 #[derive(Event, Debug)]
-pub struct MoveActor {
+pub struct StartAgentMove {
     pub agent_id: AgentId,
     pub direction: WalkingDirection,
 }
@@ -35,10 +35,10 @@ pub struct UpdateElevation {
     pub pos: Position,
 }
 
-pub fn on_actor_move(
-    event: On<MoveActor>,
+pub fn on_start_agent_move(
+    event: On<StartAgentMove>,
     mut commands: Commands,
-    mut agent_q: Query<(&mut Actor, &Position)>,
+    mut agent_q: Query<(&mut Agent, &Position)>,
     map: Res<Map>,
 ) {
     let Some(entity) = map.get_agent(event.agent_id) else {
@@ -67,10 +67,10 @@ pub fn on_actor_move(
     });
 }
 
-pub fn on_actor_change_direction(
+pub fn on_agent_change_direction(
     event: On<AgentChangedDirection>,
     map: Res<Map>,
-    mut agent_q: Query<&mut Actor>,
+    mut agent_q: Query<&mut Agent>,
 ) {
     if let Some(agent_entity) = map.get_agent(event.agent_id) {
         if let Ok(mut agent) = agent_q.get_mut(agent_entity) {
@@ -81,18 +81,18 @@ pub fn on_actor_change_direction(
     }
 }
 
-pub fn move_actor(
+pub fn move_agent(
     mut commands: Commands,
-    mut moving_q: Query<(Entity, &mut Transform, &mut Moving), With<Actor>>,
-    mut actor_q: Query<&mut Actor>,
+    mut moving_q: Query<(Entity, &mut Transform, &mut Moving), With<Agent>>,
+    mut agent_q: Query<&mut Agent>,
     map: Res<Map>,
     time: Res<Time>,
 ) {
     for (entity, mut transform, mut moving) in moving_q.iter_mut() {
         moving.timer.tick(time.delta());
         if moving.timer.is_finished() {
-            let mut actor = actor_q.get_mut(entity).unwrap();
-            actor.set_changed();
+            let mut agent = agent_q.get_mut(entity).unwrap();
+            agent.set_changed();
 
             commands
                 .entity(entity)
@@ -101,7 +101,7 @@ pub fn move_actor(
 
             let elevation = map.get_elevation(&moving.end);
             transform.translation =
-                moving.end.to_world_with_elevation(elevation) + vec3(0.0, 0.0, ACTOR_Z_OFFSET);
+                moving.end.to_world_with_elevation(elevation) + vec3(0.0, 0.0, AGENT_Z_OFFSET);
             return;
         }
 
@@ -118,21 +118,21 @@ pub fn move_actor(
         transform.translation = Vec3::new(
             interpolated.x.round(),
             interpolated.y.round(),
-            f32::lerp(start.z, end.z, moving.timer.fraction()) + ACTOR_Z_OFFSET,
+            f32::lerp(start.z, end.z, moving.timer.fraction()) + AGENT_Z_OFFSET,
         );
     }
 }
 
 pub fn on_update_elevation(
     event: On<UpdateElevation>,
-    mut moving_q: Query<(&mut Transform, &Position), With<Actor>>,
+    mut moving_q: Query<(&mut Transform, &Position), With<Agent>>,
     map: Res<Map>,
 ) {
     let elevation = map.get_elevation(&event.pos);
     for (mut transform, position) in moving_q.iter_mut() {
         if *position == event.pos {
             transform.translation =
-                position.to_world_with_elevation(elevation) + vec3(0.0, 0.0, ACTOR_Z_OFFSET);
+                position.to_world_with_elevation(elevation) + vec3(0.0, 0.0, AGENT_Z_OFFSET);
         }
     }
 }
@@ -162,11 +162,11 @@ pub fn teleport_agents(
     }
 }
 
-pub fn process_actor_move_queues(
+pub fn process_agent_move_queues(
     mut commands: Commands,
-    mut queue_q: Query<(Entity, &Actor, &Position, &mut MoveQueue), Without<Moving>>,
+    mut queue_q: Query<(Entity, &Agent, &Position, &mut MoveQueue), Without<Moving>>,
 ) {
-    for (entity, actor, position, mut queue) in &mut queue_q {
+    for (entity, agent, position, mut queue) in &mut queue_q {
         let Some((move_from, direction)) = queue.0.pop_front() else {
             continue;
         };
@@ -179,8 +179,8 @@ pub fn process_actor_move_queues(
             }
         }
 
-        commands.trigger(MoveActor {
-            agent_id: actor.agent_id,
+        commands.trigger(StartAgentMove {
+            agent_id: agent.agent_id,
             direction,
         });
     }

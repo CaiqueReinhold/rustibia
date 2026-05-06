@@ -7,7 +7,7 @@ use bevy_text_outline::TextOutlinePlugin;
 
 // use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 
-mod actor;
+mod agent;
 mod camera;
 mod conf;
 mod core;
@@ -45,7 +45,7 @@ fn main() {
         .add_plugins((
             TextOutlinePlugin,
             core::CorePlugin,
-            actor::ActorPlugin,
+            agent::AgentPlugin,
             map::MapPlugin,
             game_ui::GameUiPlugin,
             items::ItemsPlugin,

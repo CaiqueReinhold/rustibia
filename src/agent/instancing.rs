@@ -10,27 +10,27 @@ use bevy::text::FontSmoothing;
 use bevy::ui::{UiTransform, Val2};
 use bevy_text_outline::TextOutline;
 
-use crate::actor::components::{Actor, ActorAnimConfigs};
-use crate::actor::{
-    ActorHud, AgentId, DisplayName, FacingDirection, Health, HealthState, Hud, HudBar, Mana,
+use crate::agent::components::{Agent, AgentAnimConfigs};
+use crate::agent::{
+    AgentHud, AgentId, DisplayName, FacingDirection, Health, HealthState, Hud, HudBar, Mana,
 };
-use crate::conf::actor::{HUD_BAR_HEIGHT, HUD_BAR_WIDTH};
+use crate::conf::agent::{HUD_BAR_HEIGHT, HUD_BAR_WIDTH};
 use crate::conf::ui::ui_colors;
 use crate::conf::ui::z_index::Z_AGENT_HUD;
-use crate::conf::z_order::ACTOR_Z_OFFSET;
+use crate::conf::z_order::AGENT_Z_OFFSET;
 use crate::core::OutfitId;
 use crate::core::{Appearances, InstanceManager, OutfitSprite, SpriteSheet};
 use crate::core::{MAX_LAYERS, SpriteAnimator, SpriteConfig};
 
-use crate::actor::{
-    material::{ActorInstance, ActorMaterial, ActorParams},
+use crate::agent::{
+    material::{AgentInstance, AgentMaterial, AgentParams},
     movement::{MoveQueue, Moving},
 };
 use crate::map::{Map, Position};
 
 #[derive(Resource, Default, Debug)]
 pub struct LoadedMaterials {
-    materials: HashMap<String, (Handle<Mesh>, Handle<ActorMaterial>)>,
+    materials: HashMap<String, (Handle<Mesh>, Handle<AgentMaterial>)>,
     buffer: Handle<ShaderStorageBuffer>,
 }
 
@@ -45,7 +45,7 @@ pub fn init_instances_buffer(
     commands.insert_resource(loaded_materials);
 }
 
-pub fn resolve_actor_sprite_ids(
+pub fn resolve_agent_sprite_ids(
     config: &SpriteConfig,
     phase: u32,
     direction: u32,
@@ -81,13 +81,13 @@ pub fn resolve_actor_sprite_ids(
     (sprite_ids, slot as u32)
 }
 
-pub fn spawn_actor(
+pub fn spawn_agent(
     commands: &mut Commands,
     loaded_materials: &mut LoadedMaterials,
-    materials: &mut Assets<ActorMaterial>,
+    materials: &mut Assets<AgentMaterial>,
     meshes: &mut Assets<Mesh>,
     buffers: &mut Assets<ShaderStorageBuffer>,
-    instances: &mut InstanceManager<ActorInstance>,
+    instances: &mut InstanceManager<AgentInstance>,
     font: &Handle<Font>,
     appearances: &Appearances,
     outfit_id: OutfitId,
@@ -117,7 +117,7 @@ pub fn spawn_actor(
         .get(&outfit.still_sprite.group)
         .unwrap();
 
-    let actor = Actor {
+    let agent = Agent {
         agent_id,
         direction: facing,
         addons,
@@ -133,7 +133,7 @@ pub fn spawn_actor(
     let index = instances.alloc_index();
     let instance = instances.get_mut(index);
     let (sprite_ids, layer_count) =
-        resolve_actor_sprite_ids(&outfit.still_sprite, 0, facing as u32, addons as u32, 0);
+        resolve_agent_sprite_ids(&outfit.still_sprite, 0, facing as u32, addons as u32, 0);
     instance.sprite_ids = sprite_ids;
     instance.layer_count = layer_count;
     instance.outfit_colors = outfit_colors.0 as u32
@@ -148,7 +148,7 @@ pub fn spawn_actor(
     let elevation = map.get_elevation(&position) as f32;
     let entity = commands
         .spawn((
-            actor,
+            agent,
             Mesh2d(mesh.clone()),
             MeshMaterial2d(material.clone()),
             MeshTag(index),
@@ -156,10 +156,10 @@ pub fn spawn_actor(
             Transform::from_xyz(
                 world_position.x - elevation,
                 world_position.y + elevation,
-                world_position.z + ACTOR_Z_OFFSET,
+                world_position.z + AGENT_Z_OFFSET,
             ),
             SpriteAnimator::new(Arc::clone(&outfit.still_sprite), facing as u32, 0, 0),
-            ActorAnimConfigs {
+            AgentAnimConfigs {
                 still: Arc::clone(&outfit.still_sprite),
                 moving: Arc::clone(&outfit.moving_sprite),
             },
@@ -289,7 +289,7 @@ pub fn spawn_actor(
         })
         .id();
 
-    commands.entity(entity).insert(ActorHud {
+    commands.entity(entity).insert(AgentHud {
         main_entity: hud_entity,
         health_bar: health_bar_entity,
         mana_bar: mana_bar_entity,
@@ -303,15 +303,15 @@ pub fn spawn_actor(
 fn init_material(
     outfit: &OutfitSprite,
     sheet: &SpriteSheet,
-    materials: &mut Assets<ActorMaterial>,
+    materials: &mut Assets<AgentMaterial>,
     meshes: &mut Assets<Mesh>,
     _buffers: &mut Assets<ShaderStorageBuffer>,
     loaded_materials: &mut LoadedMaterials,
 ) {
-    let params = ActorParams {
+    let params = AgentParams {
         atlas_grid: sheet.grid_size,
     };
-    let material_handle = materials.add(ActorMaterial {
+    let material_handle = materials.add(AgentMaterial {
         texture: sheet.texture.clone(),
         params,
         instances: loaded_materials.buffer.clone(),
@@ -324,10 +324,10 @@ fn init_material(
 }
 
 pub fn upload_instance_buffer(
-    mut instances: ResMut<InstanceManager<ActorInstance>>,
+    mut instances: ResMut<InstanceManager<AgentInstance>>,
     mut buffers: ResMut<Assets<ShaderStorageBuffer>>,
     loaded_materials: Res<LoadedMaterials>,
-    mut materials: ResMut<Assets<ActorMaterial>>,
+    mut materials: ResMut<Assets<AgentMaterial>>,
 ) {
     if !instances.is_dirty() {
         return;
@@ -344,18 +344,18 @@ pub fn upload_instance_buffer(
     }
 }
 
-pub fn set_actor_animation_state(
-    mut actors_q: Query<
+pub fn set_agent_animation_state(
+    mut agents_q: Query<
         (
-            &Actor,
+            &Agent,
             &mut SpriteAnimator,
             Option<&Moving>,
-            &ActorAnimConfigs,
+            &AgentAnimConfigs,
         ),
-        Or<(Changed<Actor>, Changed<Moving>)>,
+        Or<(Changed<Agent>, Changed<Moving>)>,
     >,
 ) {
-    for (actor, mut animator, moving, configs) in &mut actors_q {
+    for (agent, mut animator, moving, configs) in &mut agents_q {
         let new_config = if moving.is_some() {
             Arc::clone(&configs.moving)
         } else {
@@ -367,8 +367,8 @@ pub fn set_actor_animation_state(
             animator.timer.reset();
             animator.moving_animation = moving.is_some();
         }
-        animator.pattern_x = actor.direction as u32;
-        animator.pattern_z = actor.mounted as u32;
+        animator.pattern_x = agent.direction as u32;
+        animator.pattern_z = agent.mounted as u32;
 
         if let Some(moving) = moving {
             animator.current_phase = (moving.timer.fraction()
@@ -378,40 +378,40 @@ pub fn set_actor_animation_state(
     }
 }
 
-pub fn update_actor_instances(
-    actors_q: Query<
-        (&Actor, &SpriteAnimator, &MeshTag, Option<&Moving>),
-        Or<(Changed<SpriteAnimator>, Changed<Actor>, Changed<Moving>)>,
+pub fn update_agent_instances(
+    agents_q: Query<
+        (&Agent, &SpriteAnimator, &MeshTag, Option<&Moving>),
+        Or<(Changed<SpriteAnimator>, Changed<Agent>, Changed<Moving>)>,
     >,
-    mut instances: ResMut<InstanceManager<ActorInstance>>,
+    mut instances: ResMut<InstanceManager<AgentInstance>>,
 ) {
-    for (actor, animator, tag, moving) in &actors_q {
+    for (agent, animator, tag, moving) in &agents_q {
         let instance = instances.get_mut(tag.0);
 
-        let (sprite_ids, layer_count) = resolve_actor_sprite_ids(
+        let (sprite_ids, layer_count) = resolve_agent_sprite_ids(
             &animator.config,
             animator.current_phase,
-            actor.direction as u32,
-            actor.addons as u32,
-            actor.mounted as u32,
+            agent.direction as u32,
+            agent.addons as u32,
+            agent.mounted as u32,
         );
         instance.sprite_ids = sprite_ids;
         instance.layer_count = layer_count;
-        instance.outfit_colors = actor.outfit_colors.0 as u32
-            | ((actor.outfit_colors.1 as u32) << 8)
-            | ((actor.outfit_colors.2 as u32) << 16)
-            | ((actor.outfit_colors.3 as u32) << 24);
+        instance.outfit_colors = agent.outfit_colors.0 as u32
+            | ((agent.outfit_colors.1 as u32) << 8)
+            | ((agent.outfit_colors.2 as u32) << 16)
+            | ((agent.outfit_colors.3 as u32) << 24);
 
         let is_moving = moving.is_some() as usize;
-        let bbox = &actor.boxes[is_moving][actor.direction as usize];
+        let bbox = &agent.boxes[is_moving][agent.direction as usize];
         instance.bbox_min = bbox.min;
         instance.bbox_size = bbox.max;
     }
 }
 
 #[cfg(feature = "debug")]
-pub fn actor_rect(actors_q: Query<(&Transform, &Actor, Option<&Moving>)>, mut gizmos: Gizmos) {
-    for (pos, actor, moving) in &actors_q {
+pub fn agent_rect(agents_q: Query<(&Transform, &Agent, Option<&Moving>)>, mut gizmos: Gizmos) {
+    for (pos, agent, moving) in &agents_q {
         gizmos.circle_2d(pos.translation.truncate(), 2.0, Color::srgb(1.0, 0.0, 0.0));
 
         let moving = if moving.is_some() { 1 } else { 0 } as usize;
@@ -423,8 +423,8 @@ pub fn actor_rect(actors_q: Query<(&Transform, &Actor, Option<&Moving>)>, mut gi
 
         let mesh_start = pos.translation.truncate();
         let iso =
-            mesh_start + (actor.boxes[moving][actor.direction as usize].min * Vec2::new(0.5, -0.5));
-        let bbox_size = actor.boxes[moving][actor.direction as usize].max;
+            mesh_start + (agent.boxes[moving][agent.direction as usize].min * Vec2::new(0.5, -0.5));
+        let bbox_size = agent.boxes[moving][agent.direction as usize].max;
 
         gizmos.rect_2d(iso, bbox_size, Color::srgb(1.0, 1.0, 0.0));
     }

@@ -3,7 +3,7 @@ use std::{collections::VecDeque, time::Duration};
 use bevy::prelude::*;
 
 use crate::{
-    actor::{FacingDirection, MoveActor, Moving, UpdateElevation, WalkingDirection},
+    agent::{FacingDirection, Moving, StartAgentMove, UpdateElevation, WalkingDirection},
     camera::GameCamera,
     conf::map::TILE_SIZE,
     core::{ItemConfigs, TextMessageType},
@@ -108,7 +108,7 @@ pub fn process_move_queue(
                 queue.pending_walk_ack = Some(direction);
                 queue.predicted_pos = Some(new_position);
                 commands.trigger(SendMessage(ClientMessage::MovePlayer { direction }));
-                commands.trigger(MoveActor {
+                commands.trigger(StartAgentMove {
                     agent_id: player.agent_id,
                     direction,
                 });

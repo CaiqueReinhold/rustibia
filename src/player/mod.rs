@@ -40,7 +40,7 @@ impl Plugin for PlayerPlugin {
                 Update,
                 movement::update_player_elevation
                     .run_if(in_state(GameState::InGame))
-                    .after(crate::actor::movement::move_actor),
+                    .after(crate::agent::movement::move_agent),
             )
             .add_systems(
                 PostUpdate,

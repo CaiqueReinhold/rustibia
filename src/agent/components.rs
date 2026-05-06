@@ -3,7 +3,7 @@ use std::sync::Arc;
 use bevy::prelude::*;
 
 use crate::conf::{
-    actor::{SPEED_PARAM_A, SPEED_PARAM_B, SPEED_PARAM_C},
+    agent::{SPEED_PARAM_A, SPEED_PARAM_B, SPEED_PARAM_C},
     server::TICK_DURATION_MS,
 };
 use crate::core::SpriteConfig;
@@ -24,7 +24,7 @@ impl From<Mounted> for u32 {
 }
 
 #[derive(Component, Debug, Default)]
-pub struct Actor {
+pub struct Agent {
     // pub outfit_id: u32,
     pub agent_id: AgentId,
     pub direction: FacingDirection,
@@ -35,7 +35,7 @@ pub struct Actor {
     pub boxes: [[Rect; 4]; 2],
 }
 
-impl Actor {
+impl Agent {
     pub fn get_step_duration(&self, tile_friction: u8, is_diagonal: bool) -> u32 {
         let move_speed = (SPEED_PARAM_A * ((self.speed as f32) + SPEED_PARAM_B).ln()
             + SPEED_PARAM_C)
@@ -175,7 +175,7 @@ impl Mana {
 pub struct Hud;
 
 #[derive(Component, Debug, Clone)]
-pub struct ActorHud {
+pub struct AgentHud {
     pub main_entity: Entity,
     pub health_bar: Option<Entity>,
     pub mana_bar: Option<Entity>,
@@ -193,7 +193,7 @@ pub struct HudBar {
 // --- HUD components ---
 
 #[derive(Component)]
-pub struct ActorAnimConfigs {
+pub struct AgentAnimConfigs {
     pub still: Arc<SpriteConfig>,
     pub moving: Arc<SpriteConfig>,
 }

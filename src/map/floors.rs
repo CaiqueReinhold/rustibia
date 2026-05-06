@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use crate::{
-    actor::WalkingDirection,
+    agent::WalkingDirection,
     conf::map::{BASE_FLOOR, MAX_FLOOR, MIN_FLOOR},
     map::{Map, Position},
     player::components::Player,

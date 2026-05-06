@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 
 use crate::{
-    actor::{AgentId, FacingDirection, Health, Mana, WalkingDirection},
+    agent::{AgentId, FacingDirection, Health, Mana, WalkingDirection},
     conf::map::{TILES_X, TILES_Y},
     core::{OutfitColors, OutfitId, TextMessageType},
     items::{ContainerId, InventorySlot, ItemId},

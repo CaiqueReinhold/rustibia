@@ -3,7 +3,7 @@ use std::time::Duration;
 use bevy::prelude::*;
 
 use crate::{
-    actor::{FacingDirection, WalkingDirection},
+    agent::{FacingDirection, WalkingDirection},
     player::movement::{ChangePlayerDirection, MovePlayer},
 };
 

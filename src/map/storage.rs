@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use bevy::prelude::*;
 
-use crate::actor::AgentId;
+use crate::agent::AgentId;
 use crate::items::{Item, ItemFlag};
 use crate::map::position::Position;
 

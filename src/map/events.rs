@@ -3,7 +3,7 @@ use std::sync::Arc;
 use bevy::prelude::*;
 
 use crate::{
-    actor::{UpdateElevation, WalkingDirection},
+    agent::{UpdateElevation, WalkingDirection},
     conf::map::{TILES_X, TILES_Y},
     core::ItemConfigs,
     items::{ChangedTileQueue, Item},

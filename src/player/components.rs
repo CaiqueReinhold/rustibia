@@ -3,7 +3,7 @@ use std::sync::Arc;
 use bevy::{platform::collections::HashMap, prelude::*};
 
 use crate::{
-    actor::AgentId,
+    agent::AgentId,
     items::{InventorySlot, Item},
 };
 
