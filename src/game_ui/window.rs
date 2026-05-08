@@ -11,9 +11,8 @@ use std::sync::Mutex;
 
 use crate::{
     conf::ui::{
-        ui_colors,
+        SIDE_PANEL_WIDTH, ui_colors,
         z_index::{Z_DRAGGING_WINDOW, Z_WINDOW},
-        SIDE_PANEL_WIDTH,
     },
     game_ui::assets::GameUiAssets,
 };
@@ -711,10 +710,10 @@ fn on_minimize_window(
 
     if let Some(minimized) = minimized {
         let original_height = minimized.original_height;
-        if let Some(&scroll_child) = children.get(1) {
-            if let Ok(mut vis) = visibility_q.get_mut(scroll_child) {
-                *vis = Visibility::Inherited;
-            }
+        if let Some(&scroll_child) = children.get(1)
+            && let Ok(mut vis) = visibility_q.get_mut(scroll_child)
+        {
+            *vis = Visibility::Inherited;
         }
         node.min_height = Val::Px(WINDOW_MIN_HEIGHT);
         commands.entity(window_entity).insert(MinimizeAnimation {
@@ -1412,11 +1411,11 @@ fn inner_apply_order<T: Ord + Component + Copy + std::fmt::Debug>(
             position: t.translation,
         });
 
-        if let Some((prev_ent, prev)) = preview {
-            if i == prev.index {
-                info!("{}, {:?}", i, prev);
-                commands.entity(container).add_child(prev_ent);
-            }
+        if let Some((prev_ent, prev)) = preview
+            && i == prev.index
+        {
+            info!("{}, {:?}", i, prev);
+            commands.entity(container).add_child(prev_ent);
         }
     }
 }

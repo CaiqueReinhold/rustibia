@@ -72,12 +72,11 @@ pub fn on_agent_change_direction(
     map: Res<Map>,
     mut agent_q: Query<&mut Agent>,
 ) {
-    if let Some(agent_entity) = map.get_agent(event.agent_id) {
-        if let Ok(mut agent) = agent_q.get_mut(agent_entity) {
-            if agent.direction != event.facing {
-                agent.direction = event.facing;
-            }
-        }
+    if let Some(agent_entity) = map.get_agent(event.agent_id)
+        && let Ok(mut agent) = agent_q.get_mut(agent_entity)
+        && agent.direction != event.facing
+    {
+        agent.direction = event.facing;
     }
 }
 

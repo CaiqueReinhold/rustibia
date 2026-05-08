@@ -227,11 +227,11 @@ pub(super) fn save_dirty_chunks(
     IoTaskPool::get()
         .spawn(async move {
             for (path, bytes) in dirty {
-                if let Some(parent) = path.parent() {
-                    if let Err(e) = std::fs::create_dir_all(parent) {
-                        warn!("minimap: failed to create dir {parent:?}: {e}");
-                        continue;
-                    }
+                if let Some(parent) = path.parent()
+                    && let Err(e) = std::fs::create_dir_all(parent)
+                {
+                    warn!("minimap: failed to create dir {parent:?}: {e}");
+                    continue;
                 }
                 if let Err(e) = std::fs::write(&path, &bytes) {
                     warn!("minimap: failed to write {path:?}: {e}");
