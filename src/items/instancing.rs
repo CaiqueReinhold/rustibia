@@ -200,7 +200,7 @@ fn init_material(
 ) {
     let sheet = appearances.get_sheet(group);
     let material_handle = materials.add(ItemMaterial {
-        texture: sheet.texture.clone(),
+        texture: sheet.texture().clone(),
         atlas_grid: sheet.grid_size,
         mesh_size: sheet.sprite_size,
         instances: loaded_materials.buffer.clone(),

@@ -53,7 +53,7 @@ pub fn spawn_ui_item(
             height: Val::Px(UI_ITEM_SIZE),
             ..default()
         },
-        ImageNode::from_atlas_image(sheet.texture.clone(), atlas),
+        ImageNode::from_atlas_image(sheet.texture().clone(), atlas),
         Transform::from_xyz(position.x, position.y, 0.0),
         RenderLayers::layer(1),
     )

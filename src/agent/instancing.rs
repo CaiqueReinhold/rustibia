@@ -312,7 +312,7 @@ fn init_material(
         atlas_grid: sheet.grid_size,
     };
     let material_handle = materials.add(AgentMaterial {
-        texture: sheet.texture.clone(),
+        texture: sheet.texture().clone(),
         params,
         instances: loaded_materials.buffer.clone(),
     });

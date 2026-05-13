@@ -26,11 +26,10 @@ pub struct GameAssetsLoaded {
     pub sheets_loaded: bool,
 }
 
-pub fn start_load_tasks(mut commands: Commands, assets_server: Res<AssetServer>) {
-    let server_clone = assets_server.clone();
+pub fn start_load_tasks(mut commands: Commands) {
     let pool = IoTaskPool::get();
     let sprite_conf_task = pool.spawn(async { read_sprites_config() });
-    let sprite_sheet_task = pool.spawn(async move { read_sprite_sheets(&server_clone) });
+    let sprite_sheet_task = pool.spawn(async { read_sprite_sheets() });
     let items_task = pool.spawn(async { read_item_configs() });
 
     commands.insert_resource(LoadTasks {
@@ -44,6 +43,7 @@ pub fn pool_load_task(
     mut commands: Commands,
     mut tasks: ResMut<LoadTasks>,
     mut game_assets: ResMut<GameAssetsLoaded>,
+    asset_server: Res<AssetServer>,
 ) {
     info!("pooling load tasks");
     if tasks.sprite_conf_task.is_finished()
@@ -56,7 +56,12 @@ pub fn pool_load_task(
         );
         match results {
             (Some((items, outfits)), Some(sprite_sheet)) => {
-                commands.insert_resource(Appearances::new(sprite_sheet, items, outfits));
+                commands.insert_resource(Appearances::new(
+                    sprite_sheet,
+                    items,
+                    outfits,
+                    asset_server.clone(),
+                ));
                 game_assets.sheets_loaded = true;
                 info!("Sprites loaded");
             }

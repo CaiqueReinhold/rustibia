@@ -1,8 +1,10 @@
 use std::collections::HashMap;
 use std::fs;
-use std::sync::Arc;
+use std::sync::{Arc, OnceLock};
 use std::time::Duration;
 
+use bevy::asset::RenderAssetUsages;
+use bevy::image::ImageLoaderSettings;
 use bevy::prelude::*;
 use serde_json::*;
 
@@ -23,6 +25,7 @@ pub struct Appearances {
     sheets: HashMap<String, SpriteSheet>,
     items: HashMap<ItemId, Arc<SpriteConfig>>,
     outfits: HashMap<OutfitId, OutfitSprite>,
+    asset_server: AssetServer,
 }
 
 impl Appearances {
@@ -30,11 +33,13 @@ impl Appearances {
         sheets: HashMap<String, SpriteSheet>,
         items: HashMap<u16, Arc<SpriteConfig>>,
         outfits: HashMap<u16, OutfitSprite>,
+        asset_server: AssetServer,
     ) -> Self {
         Appearances {
             sheets,
             items,
             outfits,
+            asset_server,
         }
     }
 
@@ -47,15 +52,33 @@ impl Appearances {
     }
 
     pub fn get_sheet(&self, group: &str) -> &SpriteSheet {
-        self.sheets.get(group).unwrap()
+        let sheet = self.sheets.get(group).unwrap();
+        sheet.texture.get_or_init(|| {
+            self.asset_server.load_with_settings::<Image, _>(
+                format!("sheets/{}", sheet.sheet_name),
+                |s: &mut ImageLoaderSettings| {
+                    s.asset_usage = RenderAssetUsages::RENDER_WORLD;
+                },
+            )
+        });
+        sheet
     }
 }
 
 #[derive(Debug)]
 pub struct SpriteSheet {
-    pub texture: Handle<Image>,
+    pub sheet_name: String,
     pub grid_size: Vec2,
     pub sprite_size: Vec2,
+    texture: OnceLock<Handle<Image>>,
+}
+
+impl SpriteSheet {
+    pub fn texture(&self) -> &Handle<Image> {
+        self.texture
+            .get()
+            .expect("sprite sheet texture not initialized — access via Appearances::get_sheet")
+    }
 }
 
 // #[derive(Debug)]
@@ -209,7 +232,7 @@ fn read_animation(value: &Value) -> SpriteAnimation {
     }
 }
 
-pub fn read_sprite_sheets(a_server: &AssetServer) -> HashMap<String, SpriteSheet> {
+pub fn read_sprite_sheets() -> HashMap<String, SpriteSheet> {
     let Ok(contents) = fs::read_to_string("assets/configs/sheets.json") else {
         panic!("Could not read sheets file");
     };
@@ -229,14 +252,13 @@ pub fn read_sprite_sheets(a_server: &AssetServer) -> HashMap<String, SpriteSheet
         let sheet_name = sheet["sheet_name"].as_str().unwrap().to_string();
         let group = sheet["group"].as_str().unwrap().to_string();
 
-        let handle = a_server.load(format!("sheets/{}", sheet_name));
-
         sheets_map.insert(
             group,
             SpriteSheet {
-                texture: handle,
+                sheet_name,
                 grid_size,
                 sprite_size,
+                texture: OnceLock::new(),
             },
         );
     }
