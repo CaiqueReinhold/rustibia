@@ -137,9 +137,9 @@ impl HealthState {
             HealthState::Full
         } else if ratio >= 0.6 {
             HealthState::AmostFull
-        } else if ratio >= 0.3 {
-            HealthState::Half
         } else if ratio >= 0.5 {
+            HealthState::Half
+        } else if ratio >= 0.3 {
             HealthState::Low
         } else {
             HealthState::Lowest

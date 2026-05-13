@@ -4,6 +4,7 @@ use bevy::prelude::*;
 
 use crate::{
     agent::{FacingDirection, WalkingDirection},
+    game_ui::EnterChatMode,
     player::movement::{ChangePlayerDirection, MovePlayer},
 };
 
@@ -11,6 +12,7 @@ use crate::{
 pub enum PlayerAction {
     Move(WalkingDirection),
     ChangeDirection(FacingDirection),
+    EnterChatMode,
 }
 
 #[derive(Clone, Debug)]
@@ -104,6 +106,7 @@ impl Default for Keybinds {
                     KeyCombo::single(KeyC),
                     PlayerAction::Move(WalkingDirection::SouthEast),
                 ),
+                (KeyCombo::single(Enter), PlayerAction::EnterChatMode),
             ],
         }
     }
@@ -128,7 +131,14 @@ pub fn read_player_input(
     mut key_repeat: ResMut<KeyRepeatState>,
     mut commands: Commands,
     time: Res<Time>,
+    chat_mode: Res<crate::game_ui::ChatMode>,
 ) {
+    if chat_mode.active {
+        // Reset key-repeat so movement doesn't auto-resume when chat exits.
+        key_repeat.pressed_key = None;
+        key_repeat.timer.reset();
+        return;
+    }
     key_repeat.timer.tick(time.delta());
     let is_modifier = |k: &&KeyCode| {
         matches!(
@@ -180,6 +190,9 @@ fn route_action(action: &PlayerAction, commands: &mut Commands) {
         PlayerAction::Move(dir) => commands.trigger(MovePlayer { direction: *dir }),
         PlayerAction::ChangeDirection(dir) => {
             commands.trigger(ChangePlayerDirection { direction: *dir })
+        }
+        PlayerAction::EnterChatMode => {
+            commands.trigger(EnterChatMode);
         }
     }
 }

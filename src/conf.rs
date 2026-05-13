@@ -50,6 +50,7 @@ pub mod ui {
     pub const ITEM_SLOT_SIZE: f32 = 36.0;
     pub const UI_BAR_HEIGHT: f32 = 20.0;
     pub const MIN_DRAG_THRESHOLD: f32 = 5.0;
+    pub const SEPARATOR_HEIGHT: f32 = 5.0;
 
     pub mod z_index {
         pub const Z_WINDOW: i32 = 10;
@@ -71,6 +72,25 @@ pub mod ui {
         pub const FONT_COLOR_LOOK_MSG: Srgba = Srgba::rgb(0.0, 0.7372549, 0.0);
 
         pub const MANA_BAR_COLOR: Srgba = Srgba::new(0.0, 0.0, 0.7, 1.0);
+    }
+
+    pub mod chat {
+        use bevy::color::Srgba;
+
+        pub const TAB_HEIGHT: f32 = 22.0;
+        pub const TAB_MAX_WIDTH: f32 = 90.0;
+        pub const INPUT_HEIGHT: f32 = 24.0;
+        pub const HISTORY_CAP_DEFAULT: usize = 500;
+        pub const LINE_HEIGHT: f32 = 12.;
+
+        pub const UNREAD_TAB_COLOR: Srgba = Srgba::new(0.85, 0.20, 0.20, 1.0);
+        pub const TAB_TITLE_COLOR: Srgba = Srgba::new(0.95, 0.95, 0.95, 1.0);
+        pub const TAB_TITLE_COLOR_INACTIVE: Srgba = Srgba::new(0.5, 0.5, 0.5, 1.0);
+        pub const INPUT_BG_COLOR: Srgba = Srgba::new(0.098, 0.102, 0.106, 1.0);
+        pub const INPUT_PLACEHOLDER_COLOR: Srgba = Srgba::new(1.0, 1.0, 1.0, 0.4);
+
+        pub const LOCAL_CHANNEL_NAME: &str = "Local";
+        pub const LOCAL_CHANNEL_COLOR: Srgba = Srgba::new(0.94, 0.94, 0.0, 1.0);
     }
 }
 

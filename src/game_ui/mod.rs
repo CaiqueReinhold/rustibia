@@ -12,6 +12,7 @@ mod toppanel;
 mod window;
 
 pub use assets::GameUiAssets;
+pub use chat::{ChatMode, events::EnterChatMode};
 pub use game_overlay::GameViewport;
 pub use rightpanel::RightPanelDock;
 pub use window::{
@@ -32,7 +33,7 @@ pub struct GameUiPlugin;
 
 impl Plugin for GameUiPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins(window::UIWindowPlugin)
+        app.add_plugins((window::UIWindowPlugin, chat::ChatPlugin))
             .add_systems(OnEnter(GameState::InGame), spawn_main_ui)
             .add_systems(Startup, assets::setup_game_ui_assets)
             .add_systems(
@@ -47,16 +48,11 @@ impl Plugin for GameUiPlugin {
     }
 }
 
-// fn load_ui_assets(mut commands: Commands, asset_server: Res<AssetServer>) {
-// commands.insert_resource(UiAssets {
-//     resize_cursor: asset_server.load("ui/resize.png"),
-// });
-// }
-
 pub(crate) fn spawn_main_ui(
     mut commands: Commands,
     render_texture: Res<GameRenderTexture>,
     ui_assets: Res<GameUiAssets>,
+    chat_state: Res<chat::ChatState>,
 ) {
     let main_ui = commands
         .spawn((
@@ -87,7 +83,7 @@ pub(crate) fn spawn_main_ui(
 
     let top_panel = toppanel::spawn_top_panel(&mut commands, &ui_assets);
     let gameview = game_overlay::spawn_gameviewport(&mut commands, &render_texture, &ui_assets);
-    let chat = chat::spawn_chat(&mut commands, &ui_assets);
+    let chat = chat::spawn_chat_root(&mut commands, &chat_state, &ui_assets);
     commands
         .entity(middle_container)
         .add_children(&[top_panel, gameview, chat]);

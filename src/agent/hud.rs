@@ -44,24 +44,24 @@ pub fn update_hud_positions(
 }
 
 pub fn update_display_name_health_state(
-    mut commands: Commands,
-    health_q: Query<(&AgentHud, &Health), Changed<Health>>,
+    actors_q: Query<(&AgentHud, &Health), Changed<Health>>,
+    mut state_q: Query<&mut HealthState, With<DisplayName>>,
 ) {
-    for (agent_hud, health) in health_q.iter() {
-        commands
-            .entity(agent_hud.display_name)
-            .insert(HealthState::from_ratio(health.ratio()));
+    for (actor_hud, health) in actors_q.iter() {
+        if let Ok(mut state) = state_q.get_mut(actor_hud.display_name) {
+            *state = HealthState::from_ratio(health.ratio());
+        }
     }
 }
 
 pub fn update_display_name_color(
-    mut commands: Commands,
-    display_names_q: Query<(Entity, &HealthState), (With<DisplayName>, Changed<HealthState>)>,
+    mut display_names_q: Query<
+        (&HealthState, &mut TextColor),
+        (With<DisplayName>, Changed<HealthState>),
+    >,
 ) {
-    for (entity, health_state) in display_names_q.iter() {
-        commands
-            .entity(entity)
-            .insert(TextColor(health_state.color()));
+    for (health_state, mut color) in display_names_q.iter_mut() {
+        color.0 = health_state.color();
     }
 }
 
@@ -84,24 +84,21 @@ pub fn update_hud_bar_ratios(
 }
 
 pub fn update_hud_bar_health_state(
-    mut commands: Commands,
-    health_q: Query<(Entity, &HudBar), (Changed<HudBar>, With<HealthState>)>,
+    mut health_q: Query<(&HudBar, &mut HealthState), Changed<HudBar>>,
 ) {
-    for (entity, bar) in health_q.iter() {
-        commands
-            .entity(entity)
-            .insert(HealthState::from_ratio(bar.ratio));
+    for (bar, mut state) in health_q.iter_mut() {
+        *state = HealthState::from_ratio(bar.ratio);
     }
 }
 
 pub fn update_hud_bar_colors(
-    mut commands: Commands,
-    display_names_q: Query<(Entity, &HealthState), (With<HudBar>, Changed<HealthState>)>,
+    mut hud_bars_q: Query<
+        (&HealthState, &mut BackgroundColor),
+        (With<HudBar>, Changed<HealthState>),
+    >,
 ) {
-    for (entity, health_state) in display_names_q.iter() {
-        commands
-            .entity(entity)
-            .insert(BackgroundColor(health_state.color()));
+    for (health_state, mut bg) in hud_bars_q.iter_mut() {
+        bg.0 = health_state.color();
     }
 }
 
