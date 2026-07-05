@@ -4356,6 +4356,7 @@ dependencies = [
  "bevy_ui_text_input",
  "bytes",
  "chrono",
+ "cosmic-text",
  "futures",
  "pathfinding",
  "serde",

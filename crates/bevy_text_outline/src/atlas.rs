@@ -1,11 +1,11 @@
 use bevy::asset::AssetId;
+use bevy::asset::RenderAssetUsages;
+use bevy::ecs::component::Component;
 use bevy::image::{DynamicTextureAtlasBuilder, Image};
 use bevy::math::{Rect, UVec2};
 use bevy::platform::collections::HashMap;
 use bevy::prelude::{Assets, FromWorld, Handle, Resource, TextureAtlasLayout, World};
-use bevy::asset::RenderAssetUsages;
 use bevy::render::render_resource::{Extent3d, TextureDimension, TextureFormat};
-use bevy::ecs::component::Component;
 
 /// Cache key for a rasterized outline glyph.
 /// Encodes: (fill atlas image ID, glyph index in that atlas, physical outline width bits).
@@ -59,9 +59,7 @@ impl FromWorld for OutlineAtlas {
             RenderAssetUsages::MAIN_WORLD | RenderAssetUsages::RENDER_WORLD,
         );
 
-        let image_handle = world
-            .resource_mut::<Assets<Image>>()
-            .add(atlas_image);
+        let image_handle = world.resource_mut::<Assets<Image>>().add(atlas_image);
 
         let layout_handle = world
             .resource_mut::<Assets<TextureAtlasLayout>>()

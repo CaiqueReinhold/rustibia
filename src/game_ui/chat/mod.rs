@@ -19,9 +19,7 @@ pub struct ChatPlugin;
 
 impl Plugin for ChatPlugin {
     fn build(&self, app: &mut App) {
-        use bevy_ui_text_input::TextInputPlugin;
-        app.add_plugins(TextInputPlugin)
-            .init_resource::<state::ChatState>()
+        app.init_resource::<state::ChatState>()
             .init_resource::<state::ChatMode>()
             .add_observer(state::on_open_channel)
             .add_observer(state::on_close_channel)

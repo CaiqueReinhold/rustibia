@@ -15,6 +15,11 @@ pub struct ServerPong;
 #[derive(Event, Debug)]
 pub struct LoginError;
 
+/// The async connection task died (TCP connect failed or the stream
+/// closed) — detected via the closed message channel.
+#[derive(Event, Debug)]
+pub struct ConnectionLost;
+
 #[derive(Event, Debug)]
 pub struct SpawnPlayer {
     pub agent_id: AgentId,

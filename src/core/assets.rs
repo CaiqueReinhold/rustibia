@@ -86,7 +86,7 @@ pub fn pool_load_task(
 
 pub fn pool_all_assets_loaded(mut commands: Commands, game_assets: Res<GameAssetsLoaded>) {
     if game_assets.items_loaded && game_assets.sheets_loaded {
-        commands.set_state(GameState::Connecting);
+        commands.set_state(GameState::LoginScreen);
         commands.remove_resource::<GameAssetsLoaded>();
         commands.remove_resource::<LoadTasks>();
     }

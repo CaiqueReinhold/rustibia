@@ -4,7 +4,7 @@ use bevy::prelude::*;
 
 use crate::{
     agent::WalkingDirection,
-    map::{minimap::MinimapData, Position},
+    map::{Position, minimap::MinimapData},
 };
 
 #[derive(Resource)]

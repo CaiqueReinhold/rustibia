@@ -20,7 +20,7 @@ pub use text::TextMessageType;
 pub enum GameState {
     #[default]
     LoadingAssets,
-    // LoginScreen,
+    LoginScreen,
     Connecting,
     InGame,
 }

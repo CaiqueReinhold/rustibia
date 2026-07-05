@@ -7,6 +7,8 @@ mod assets;
 mod chat;
 mod game_overlay;
 mod leftpanel;
+mod login;
+mod modal;
 mod rightpanel;
 mod toppanel;
 mod window;
@@ -14,6 +16,7 @@ mod window;
 pub use assets::GameUiAssets;
 pub use chat::{ChatMode, events::EnterChatMode};
 pub use game_overlay::GameViewport;
+pub use modal::{DialogButton, DialogButtonId, DialogButtonPressed, ModalDialog, ModalOrder};
 pub use rightpanel::RightPanelDock;
 pub use window::{
     AddUIWindow, CloseUIWindow, Index, ReplaceUIWindowContent, UIWindow, UIWindowDock, UiWindowRef,
@@ -33,7 +36,8 @@ pub struct GameUiPlugin;
 
 impl Plugin for GameUiPlugin {
     fn build(&self, app: &mut App) {
-        app.add_plugins((window::UIWindowPlugin, chat::ChatPlugin))
+        app.add_plugins(bevy_ui_text_input::TextInputPlugin)
+            .add_plugins((window::UIWindowPlugin, chat::ChatPlugin, login::LoginPlugin))
             .add_systems(OnEnter(GameState::InGame), spawn_main_ui)
             .add_systems(Startup, assets::setup_game_ui_assets)
             .add_systems(
@@ -44,7 +48,9 @@ impl Plugin for GameUiPlugin {
                 Update,
                 game_overlay::update_viewport_size.run_if(in_state(GameState::InGame)),
             )
-            .add_systems(Update, update_ping.run_if(on_timer(Duration::from_secs(1))));
+            .add_systems(Update, update_ping.run_if(on_timer(Duration::from_secs(1))))
+            .init_resource::<modal::ModalOrder>()
+            .add_systems(Update, (modal::modal_keyboard, modal::modal_button_hover));
     }
 }
 

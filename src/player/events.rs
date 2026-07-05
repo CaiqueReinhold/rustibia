@@ -4,7 +4,7 @@ use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
 use bevy::render::storage::ShaderStorageBuffer;
 
-use crate::agent::{spawn_agent, AgentInstance, AgentMaterial, LoadedMaterials, MoveQueue};
+use crate::agent::{AgentInstance, AgentMaterial, LoadedMaterials, MoveQueue, spawn_agent};
 use crate::conf::agent::{ADDON_1_FLAG, ADDON_2_FLAG};
 use crate::core::{Appearances, GameState, InstanceManager, ItemConfigs};
 

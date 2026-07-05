@@ -52,10 +52,7 @@ fn draw_tile_grid(
     // Snap to tile grid: find top-left corner of the visible tile buffer
     let half_w = (TILES_X as f32 * TILE_SIZE) / 2.0;
     let half_h = (TILES_Y as f32 * TILE_SIZE) / 2.0;
-    let origin = Vec2::new(
-        (cam.x - half_w).round(),
-        (cam.y + half_h).round(),
-    );
+    let origin = Vec2::new((cam.x - half_w).round(), (cam.y + half_h).round());
 
     for ty in 0..TILES_Y {
         for tx in 0..TILES_X {
@@ -63,7 +60,11 @@ fn draw_tile_grid(
                 origin.x + (tx as f32 + 0.5) * TILE_SIZE,
                 origin.y - (ty as f32 + 0.5) * TILE_SIZE,
             );
-            gizmos.rect_2d(center, Vec2::splat(TILE_SIZE), Color::srgba(0.0, 1.0, 0.0, 0.25));
+            gizmos.rect_2d(
+                center,
+                Vec2::splat(TILE_SIZE),
+                Color::srgba(0.0, 1.0, 0.0, 0.25),
+            );
         }
     }
 }

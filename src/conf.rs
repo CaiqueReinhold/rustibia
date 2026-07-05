@@ -92,6 +92,34 @@ pub mod ui {
         pub const LOCAL_CHANNEL_NAME: &str = "Local";
         pub const LOCAL_CHANNEL_COLOR: Srgba = Srgba::new(0.94, 0.94, 0.0, 1.0);
     }
+
+    pub mod dialog {
+        use bevy::color::Srgba;
+
+        pub const DEFAULT_WIDTH: f32 = 300.0;
+        pub const TITLE_BAR_HEIGHT: f32 = 20.0;
+        pub const PADDING: f32 = 10.0;
+        pub const FIELD_HEIGHT: f32 = 24.0;
+        pub const BUTTON_HEIGHT: f32 = 22.0;
+        pub const BUTTON_MIN_WIDTH: f32 = 64.0;
+        pub const Z_MODAL_BASE: i32 = 100;
+        pub const DOUBLE_CLICK_SECS: f32 = 0.4;
+
+        pub const BACKDROP_COLOR: Srgba = Srgba::new(0.0, 0.0, 0.0, 0.4);
+        pub const TITLE_BAR_COLOR: Srgba = Srgba::new(0.187, 0.187, 0.187, 1.0);
+        pub const BUTTON_COLOR: Srgba = Srgba::new(0.34, 0.34, 0.34, 1.0);
+        pub const BUTTON_HOVER_COLOR: Srgba = Srgba::new(0.42, 0.42, 0.42, 1.0);
+        pub const FIELD_BG_COLOR: Srgba = Srgba::new(0.098, 0.102, 0.106, 1.0);
+        pub const ROW_SELECTED_COLOR: Srgba = Srgba::new(0.25, 0.32, 0.45, 1.0);
+    }
+
+    pub mod login {
+        use bevy::color::Srgba;
+
+        pub const LOGO_COLOR: Srgba = Srgba::new(0.91, 0.78, 0.38, 1.0);
+        pub const LOGO_FONT_SIZE: f32 = 56.0;
+        pub const LOGO_TOP_MARGIN: f32 = 40.0;
+    }
 }
 
 pub mod server {

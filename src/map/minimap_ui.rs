@@ -8,11 +8,11 @@ use bevy::{
 use crate::{
     conf::{
         minimap::{DEFAULT_ZOOM, IMAGE_SIZE, ZOOM_LEVELS},
-        ui::{ui_colors, z_index::Z_WINDOW, SIDE_PANEL_WIDTH},
+        ui::{SIDE_PANEL_WIDTH, ui_colors, z_index::Z_WINDOW},
     },
     core::GameState,
     game_ui::{GameUiAssets, Index, RightPanelDock, UIWindow, UIWindowDock, UiWindowRef, WindowId},
-    map::{minimap::MinimapData, Position},
+    map::{Position, minimap::MinimapData},
     player::components::Player,
 };
 

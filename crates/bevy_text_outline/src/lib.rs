@@ -6,7 +6,7 @@ pub mod prepare;
 
 use bevy::prelude::*;
 use bevy::render::{ExtractSchedule, RenderApp};
-use bevy::ui_render::{extract_text_sections, RenderUiSystems};
+use bevy::ui_render::{RenderUiSystems, extract_text_sections};
 
 use atlas::OutlineAtlas;
 pub use component::TextOutline;
@@ -33,10 +33,7 @@ impl Plugin for TextOutlinePlugin {
     fn build(&self, app: &mut App) {
         app.register_type::<TextOutline>()
             .init_resource::<OutlineAtlas>()
-            .add_systems(
-                PostUpdate,
-                prepare_outline_glyphs,
-            );
+            .add_systems(PostUpdate, prepare_outline_glyphs);
 
         if let Some(render_app) = app.get_sub_app_mut(RenderApp) {
             render_app.add_systems(

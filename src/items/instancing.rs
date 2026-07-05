@@ -2,9 +2,9 @@ use crate::{
     conf::z_order::{GROUND_PASS_OFFSET, TOP_Z_OFFSET},
     core::{Appearances, InstanceManager, SpriteAnimator, SpriteConfig},
     items::{
+        Item,
         item::ItemFlag,
         material::{ItemInstance, ItemMaterial},
-        Item,
     },
     map::{FloorEntities, Map, Position},
 };

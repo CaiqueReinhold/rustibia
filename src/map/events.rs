@@ -7,10 +7,10 @@ use crate::{
     conf::map::{TILES_X, TILES_Y},
     core::ItemConfigs,
     items::{ChangedTileQueue, Item},
-    map::{minimap::MinimapData, Map, Position},
+    map::{Map, Position, minimap::MinimapData},
     network::{
-        events::{DescribeMap, TileChanged},
         ItemStack,
+        events::{DescribeMap, TileChanged},
     },
 };
 

@@ -3,11 +3,11 @@ use std::sync::Arc;
 use bevy::{camera::visibility::RenderLayers, prelude::*};
 
 use crate::{
-    conf::ui::{z_index::DRAGGED_ITEM_UI_Z, UI_ITEM_SIZE},
+    conf::ui::{UI_ITEM_SIZE, z_index::DRAGGED_ITEM_UI_Z},
     core::{Appearances, SpriteAnimator},
     items::{
-        instancing::ItemState, Item, ItemDragEnded, ItemDragStarted, ItemMoveCanceled,
-        ItemMoveConfirmed, ItemPlacement,
+        Item, ItemDragEnded, ItemDragStarted, ItemMoveCanceled, ItemMoveConfirmed, ItemPlacement,
+        instancing::ItemState,
     },
     player::MouseHoverState,
 };
@@ -17,7 +17,6 @@ use crate::{
 pub struct UiItem {
     pub item: Arc<Item>,
 }
-
 
 #[derive(Component)]
 pub struct UiItemDragging {

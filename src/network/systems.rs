@@ -8,6 +8,7 @@ use std::io;
 
 use crate::{
     conf,
+    core::GameState,
     network::{
         events,
         messages::{ClientMessage, GameMessageCodec, ServerMessage},
@@ -23,6 +24,14 @@ pub struct Connect {
 #[derive(Event, Debug)]
 pub struct SendMessage(pub ClientMessage);
 
+/// Credentials the login screen hands to `connect()`. Currently always the
+/// fake test values; becomes real data when the server gains accounts.
+#[derive(Resource, Debug)]
+pub struct LoginCredentials {
+    pub character_id: u32,
+    pub auth_token: String,
+}
+
 #[derive(Resource, Debug)]
 pub struct ConnectionState {
     startup_messages: Option<Vec<ServerMessage>>,
@@ -30,10 +39,15 @@ pub struct ConnectionState {
     receiver: Receiver<ServerMessage>,
 }
 
-pub fn connect(mut commands: Commands) {
+/// Runs on `OnEnter(GameState::Connecting)`. `Connecting` is only reachable
+/// via the character list's confirm handler, which inserts
+/// [`LoginCredentials`] in the same command batch — so the `Res` here is
+/// guaranteed present. Keep that invariant if adding new paths into
+/// `Connecting` (e.g. a reconnect feature).
+pub fn connect(mut commands: Commands, credentials: Res<LoginCredentials>) {
     commands.trigger(Connect {
-        character_id: 1,
-        auth_token: "token".to_string(),
+        character_id: credentials.character_id,
+        auth_token: credentials.auth_token.clone(),
     });
 }
 
@@ -70,8 +84,23 @@ pub(super) fn on_connect(event: On<Connect>, mut commands: Commands) {
 }
 
 pub(super) fn receive_messages(mut commands: Commands, mut connection: ResMut<ConnectionState>) {
+    // The async task drops its sender when the TCP connection fails or
+    // closes. Without this check the client used to hang in Connecting
+    // forever when the server was unreachable.
+    if connection.receiver.is_closed() && connection.receiver.is_empty() {
+        commands.trigger(events::ConnectionLost);
+        return;
+    }
+
     if connection.startup_messages.is_some() {
         while let Ok(msg) = connection.receiver.try_recv() {
+            // A login rejection must route immediately — buffering it until
+            // DescribePlayer would swallow it forever (DescribePlayer never
+            // comes after a rejection).
+            if matches!(msg, ServerMessage::LoginError) {
+                events::route_event(msg, &mut commands);
+                return;
+            }
             if let ServerMessage::DescribePlayer { .. } = msg {
                 events::route_event(msg, &mut commands);
                 while let Some(start_msg) = connection.startup_messages.as_mut().unwrap().pop() {
@@ -87,6 +116,26 @@ pub(super) fn receive_messages(mut commands: Commands, mut connection: ResMut<Co
     while let Ok(msg) = connection.receiver.try_recv() {
         events::route_event(msg, &mut commands);
     }
+}
+
+/// Dropping ConnectionState drops the client-message sender, which ends
+/// the async task's select loop and closes the TCP stream.
+pub(super) fn on_login_error_cleanup(
+    _: On<events::LoginError>,
+    state: Res<State<GameState>>,
+    mut commands: Commands,
+) {
+    if *state.get() == GameState::Connecting {
+        commands.remove_resource::<ConnectionState>();
+    }
+}
+
+/// Not gated on `Connecting`: an in-game connection drop must also remove
+/// the resource, or `receive_messages` re-triggers `ConnectionLost` every
+/// frame forever. (`on_send_message` already tolerates the missing
+/// resource; in-game reconnect UI is future work.)
+pub(super) fn on_connection_lost_cleanup(_: On<events::ConnectionLost>, mut commands: Commands) {
+    commands.remove_resource::<ConnectionState>();
 }
 
 pub(super) fn on_send_message(event: On<SendMessage>, connection: Option<Res<ConnectionState>>) {
