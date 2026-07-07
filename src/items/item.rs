@@ -1,6 +1,11 @@
 use std::sync::Arc;
 
-use crate::{core::SpriteConfig, items::ContainerId, map::Position};
+use crate::{
+    conf::map::{CONTAINER_COORD_FLAG, INVENTORY_COORD_FLAG},
+    core::SpriteConfig,
+    items::ContainerId,
+    map::Position,
+};
 
 pub type ItemId = u16;
 
@@ -67,6 +72,31 @@ pub enum ItemPlacement {
     Inventory {
         slot: InventorySlot,
     },
+}
+
+impl ItemPlacement {
+    pub fn to_wire_position(&self) -> Position {
+        match self {
+            ItemPlacement::Map { position, .. } => position.clone(),
+            ItemPlacement::Container { container_id, slot } => Position {
+                x: CONTAINER_COORD_FLAG,
+                y: *container_id,
+                z: *slot as u8,
+            },
+            ItemPlacement::Inventory { slot } => Position {
+                x: INVENTORY_COORD_FLAG,
+                y: slot.as_id(),
+                z: 0,
+            },
+        }
+    }
+
+    pub fn wire_stack_index(&self) -> u8 {
+        match self {
+            ItemPlacement::Map { index, .. } => *index as u8,
+            _ => 0,
+        }
+    }
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -143,5 +173,65 @@ impl Item {
         let y = pos.y as u32 % sprite.pattern_y;
         let z = pos.z as u32 % sprite.pattern_z;
         (x, y, z)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::conf::map::{CONTAINER_COORD_FLAG, INVENTORY_COORD_FLAG};
+
+    #[test]
+    fn map_placement_encodes_as_its_position() {
+        let p = ItemPlacement::Map {
+            position: Position {
+                x: 100,
+                y: 200,
+                z: 7,
+            },
+            index: 3,
+        };
+        assert_eq!(
+            p.to_wire_position(),
+            Position {
+                x: 100,
+                y: 200,
+                z: 7
+            }
+        );
+        assert_eq!(p.wire_stack_index(), 3);
+    }
+
+    #[test]
+    fn container_placement_encodes_flag_id_slot() {
+        let p = ItemPlacement::Container {
+            container_id: 5,
+            slot: 9,
+        };
+        assert_eq!(
+            p.to_wire_position(),
+            Position {
+                x: CONTAINER_COORD_FLAG,
+                y: 5,
+                z: 9
+            }
+        );
+        assert_eq!(p.wire_stack_index(), 0);
+    }
+
+    #[test]
+    fn inventory_placement_encodes_flag_slot() {
+        let p = ItemPlacement::Inventory {
+            slot: InventorySlot::Head,
+        };
+        assert_eq!(
+            p.to_wire_position(),
+            Position {
+                x: INVENTORY_COORD_FLAG,
+                y: InventorySlot::Head.as_id(),
+                z: 0
+            }
+        );
+        assert_eq!(p.wire_stack_index(), 0);
     }
 }

@@ -78,6 +78,10 @@ impl Map {
         Some((item, index))
     }
 
+    pub fn item_at(&self, position: &Position, index: usize) -> Option<&Arc<Item>> {
+        self.tiles.get(position)?.items.get(index)
+    }
+
     pub fn get_tile_friction(&self, pos: &Position) -> Option<u8> {
         let tile = self.tiles.get(pos)?;
 

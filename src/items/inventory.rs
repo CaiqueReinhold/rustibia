@@ -8,7 +8,7 @@ use crate::{
         item::InventorySlot,
         ui_item::{UiItem, spawn_ui_item},
     },
-    player::{ItemDragState, MouseHoverState, components::PlayerInventory},
+    player::{InteractionMode, MouseHoverState, components::PlayerInventory},
 };
 
 #[derive(Component, Debug)]
@@ -346,9 +346,9 @@ fn on_enter_slot(
     mut commands: Commands,
     mut hover_state: ResMut<MouseHoverState>,
     slot_q: Query<&InventorySlotUi>,
-    dragging_item: Option<Res<ItemDragState>>,
+    mode: Res<InteractionMode>,
 ) {
-    if dragging_item.is_some_and(|state| state.crossed_threshold) {
+    if mode.drag_crossed_threshold() {
         commands.entity(event.entity).insert(Outline {
             width: Val::Px(1.0),
             offset: Val::Px(0.0),

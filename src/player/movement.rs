@@ -7,7 +7,7 @@ use crate::{
     camera::GameCamera,
     conf::map::TILE_SIZE,
     core::{ItemConfigs, TextMessageType},
-    items::{ChangedTileQueue, ItemDragEnded},
+    items::ChangedTileQueue,
     map::{self, Map, MinimapData, Position},
     network::{
         ClientMessage, SendMessage,
@@ -17,7 +17,7 @@ use crate::{
     },
     player::{
         components::Player,
-        interaction::{PendingUseAck, PendingWalkAction, WalkAction},
+        interaction::{PendingWalkAction, send_intent},
         pathfinding::{AutoWalkTarget, compute_path, compute_path_to_adjacent, is_adjacent},
     },
 };
@@ -311,27 +311,7 @@ pub fn fire_pending_action(
         return;
     }
 
-    match &pending.action {
-        WalkAction::UseItem {
-            msg,
-            target_window_id,
-        } => {
-            commands.trigger(SendMessage(msg.clone()));
-            commands.insert_resource(PendingUseAck {
-                target_window_id: *target_window_id,
-            });
-        }
-        WalkAction::MoveItem { msg } => {
-            commands.trigger(SendMessage(msg.clone()));
-            commands.trigger(ItemDragEnded);
-        }
-        WalkAction::UseItemWith { msg } => {
-            commands.trigger(SendMessage(msg.clone()));
-            commands.insert_resource(PendingUseAck {
-                target_window_id: None,
-            });
-        }
-    }
+    send_intent(&mut commands, &pending.intent);
 
     commands.remove_resource::<PendingWalkAction>();
     commands.remove_resource::<AutoWalkTarget>();

@@ -6,10 +6,7 @@ mod interaction;
 mod keyboard;
 mod movement;
 pub mod pathfinding;
-
-pub use interaction::{
-    ItemDragState, MouseHoverState, PendingLook, PendingUseAck, UseWithTargetingState,
-};
+pub use interaction::{InteractionMode, MouseHoverState, PendingLook, PendingUseAck};
 
 use crate::core::GameState;
 
@@ -18,6 +15,7 @@ pub struct PlayerPlugin;
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<interaction::MouseHoverState>()
+            .init_resource::<interaction::InteractionMode>()
             .init_resource::<keyboard::Keybinds>()
             .init_resource::<movement::MovementQueue>()
             .init_resource::<movement::PlayerElevation>()
@@ -54,6 +52,7 @@ impl Plugin for PlayerPlugin {
                 events::check_game_ready.run_if(in_state(GameState::Connecting)),
             )
             .add_observer(interaction::attach_observers)
+            .add_observer(interaction::on_interaction_intent)
             .add_observer(interaction::on_move_item_result)
             .add_observer(interaction::on_item_ack)
             .add_observer(movement::on_player_walk)
