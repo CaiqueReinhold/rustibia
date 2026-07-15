@@ -49,7 +49,7 @@ pub mod ui {
     pub const INVENTORY_HEIGHT: f32 = 170.0;
     pub const ITEM_SLOT_SIZE: f32 = 36.0;
     pub const UI_BAR_HEIGHT: f32 = 20.0;
-    pub const MIN_DRAG_THRESHOLD: f32 = 5.0;
+    pub const MIN_DRAG_THRESHOLD: f32 = 1.0;
     pub const SEPARATOR_HEIGHT: f32 = 5.0;
 
     pub mod z_index {

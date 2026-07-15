@@ -14,12 +14,6 @@ pub struct ItemDragStarted {
 pub struct ItemDragEnded;
 
 #[derive(Event)]
-pub struct ItemMoveCanceled;
-
-#[derive(Event)]
-pub struct ItemMoveConfirmed;
-
-#[derive(Event)]
 pub struct OpenParentContainer {
     pub container_id: ContainerId,
 }

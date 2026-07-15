@@ -15,8 +15,6 @@ pub struct ServerPong;
 #[derive(Event, Debug)]
 pub struct LoginError;
 
-/// The async connection task died (TCP connect failed or the stream
-/// closed) — detected via the closed message channel.
 #[derive(Event, Debug)]
 pub struct ConnectionLost;
 
@@ -69,18 +67,10 @@ pub struct TileChanged {
 }
 
 #[derive(Event, Debug)]
-pub struct MoveItemResult {
-    pub success: bool,
-}
-
-#[derive(Event, Debug)]
 pub struct ShowTextMessage {
     pub text: String,
     pub message_type: TextMessageType,
 }
-
-#[derive(Event, Debug)]
-pub struct UseItemAck;
 
 #[derive(Event, Debug)]
 pub struct OpenContainer {
@@ -222,17 +212,8 @@ pub fn route_event(msg: ServerMessage, commands: &mut Commands) {
         ServerMessage::PlayerPosition { position } => {
             commands.trigger(PlayerPosition { position });
         }
-        ServerMessage::MoveItemAck => {
-            commands.trigger(MoveItemResult { success: true });
-        }
-        ServerMessage::MoveItemDenied => {
-            commands.trigger(MoveItemResult { success: false });
-        }
         ServerMessage::TextMessage { text, message_type } => {
             commands.trigger(ShowTextMessage { text, message_type });
-        }
-        ServerMessage::UseItemAck => {
-            commands.trigger(UseItemAck);
         }
         ServerMessage::OpenContainer {
             container_id,

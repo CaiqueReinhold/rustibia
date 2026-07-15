@@ -82,21 +82,18 @@ const MSG_TILE_CHANGED: u8 = 3;
 const MSG_PLAYER_WALK_ACK: u8 = 4;
 const MSG_PLAYER_POS: u8 = 5;
 const MSG_DESCRIBE_PLAYER: u8 = 6;
-const MSG_MOVE_ITEM_ACK: u8 = 7;
-const MSG_MOVE_ITEM_DENIED: u8 = 8;
-const MSG_TEXT_MESSAGE: u8 = 9;
-const MSG_USE_ITEM_ACK: u8 = 10;
-const MSG_OPEN_CONTAINER: u8 = 11;
-const MSG_UPDATE_CONTAINER: u8 = 12;
-const MSG_CONTAINER_CLOSED: u8 = 13;
-const MSG_PLAYER_WALK_DENIED: u8 = 14;
-const MSG_INVETORY_SLOT_UPDATED: u8 = 15;
-const MSG_PLAYER_CAPACITY_UPDATED: u8 = 16;
-const MSG_AGENT_DIRECTION_CHANGED: u8 = 17;
-const MSG_REMOVE_AGENT: u8 = 18;
-const MSG_MOVE_AGENT: u8 = 19;
-const MSG_SPAWN_AGENT: u8 = 20;
-const MSG_TELEPORT_AGENT: u8 = 21;
+const MSG_TEXT_MESSAGE: u8 = 7;
+const MSG_OPEN_CONTAINER: u8 = 8;
+const MSG_UPDATE_CONTAINER: u8 = 9;
+const MSG_CONTAINER_CLOSED: u8 = 10;
+const MSG_PLAYER_WALK_DENIED: u8 = 11;
+const MSG_INVETORY_SLOT_UPDATED: u8 = 12;
+const MSG_PLAYER_CAPACITY_UPDATED: u8 = 13;
+const MSG_AGENT_DIRECTION_CHANGED: u8 = 14;
+const MSG_REMOVE_AGENT: u8 = 15;
+const MSG_MOVE_AGENT: u8 = 16;
+const MSG_SPAWN_AGENT: u8 = 17;
+const MSG_TELEPORT_AGENT: u8 = 18;
 
 #[derive(Clone, Debug)]
 pub enum ServerMessage {
@@ -140,13 +137,10 @@ pub enum ServerMessage {
     PlayerPosition {
         position: Position,
     },
-    MoveItemAck,
-    MoveItemDenied,
     TextMessage {
         text: String,
         message_type: TextMessageType,
     },
-    UseItemAck,
     OpenContainer {
         container_id: ContainerId,
         capacity: u8,
@@ -353,9 +347,6 @@ impl Decoder for GameMessageCodec {
                 let position = decode_position(buf);
                 Ok(Some(ServerMessage::PlayerPosition { position }))
             }
-            MSG_MOVE_ITEM_ACK => Ok(Some(ServerMessage::MoveItemAck)),
-            MSG_MOVE_ITEM_DENIED => Ok(Some(ServerMessage::MoveItemDenied)),
-            MSG_USE_ITEM_ACK => Ok(Some(ServerMessage::UseItemAck)),
             MSG_TEXT_MESSAGE => {
                 let text_len = buf.get_u16_le() as usize;
                 let text = String::from_utf8_lossy(&buf[..text_len]).into_owned();

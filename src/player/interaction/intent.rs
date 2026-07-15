@@ -3,12 +3,9 @@ use bevy::prelude::*;
 use crate::{
     core::TextMessageType,
     game_ui::WindowId,
-    items::{ItemDragEnded, ItemId, ItemMoveCanceled, ItemMoveConfirmed, ItemPlacement},
+    items::{ItemDragEnded, ItemId, ItemPlacement},
     map::{Position, minimap::MinimapData},
-    network::{
-        ClientMessage, SendMessage,
-        events::{MoveItemResult, ShowTextMessage},
-    },
+    network::{ClientMessage, SendMessage, events::ShowTextMessage},
     player::{
         components::Player,
         movement::MovementQueue,
@@ -19,7 +16,7 @@ use crate::{
     },
 };
 
-use super::mode::{InteractionMode, PendingLook, PendingUseAck};
+use super::mode::ContainerNavTarget;
 
 /// A semantic player action, produced by gesture handlers and consumed by
 /// `on_interaction_intent`. Encoding to `ClientMessage` happens at send time,
@@ -27,7 +24,7 @@ use super::mode::{InteractionMode, PendingLook, PendingUseAck};
 #[derive(Event, Debug, Clone)]
 pub enum InteractionIntent {
     WalkTo(Position),
-    Look(Position),
+    Look(ItemPlacement),
     MoveItem {
         origin: ItemPlacement,
         item_id: ItemId,
@@ -37,7 +34,8 @@ pub enum InteractionIntent {
     UseItem {
         target: ItemPlacement,
         item_id: ItemId,
-        /// Container window to reuse when the server ack opens a container.
+        /// When this use targets a container that lives inside an open container
+        /// window, the window to reopen the result into (in-place navigation).
         window_id: Option<WindowId>,
     },
     UseItemWith {
@@ -52,8 +50,8 @@ impl InteractionIntent {
     fn to_message(&self) -> Option<ClientMessage> {
         match self {
             InteractionIntent::WalkTo(_) => None,
-            InteractionIntent::Look(position) => Some(ClientMessage::Look {
-                position: position.clone(),
+            InteractionIntent::Look(placement) => Some(ClientMessage::Look {
+                position: placement.to_wire_position(),
             }),
             InteractionIntent::MoveItem {
                 origin,
@@ -127,22 +125,21 @@ pub fn send_intent(commands: &mut Commands, intent: &InteractionIntent) {
     };
     commands.trigger(SendMessage(msg));
     match intent {
-        InteractionIntent::WalkTo(_) => {}
-        InteractionIntent::Look(_) => {
-            commands.insert_resource(PendingLook);
-        }
+        // Fire-and-forget: the server is authoritative and will send the
+        // resulting state (a walk, a look text message, etc.) if the action
+        // succeeds. Nothing to track client-side.
+        InteractionIntent::WalkTo(_)
+        | InteractionIntent::Look(_)
+        | InteractionIntent::UseItemWith { .. } => {}
         InteractionIntent::MoveItem { .. } => {
             commands.trigger(ItemDragEnded);
         }
         InteractionIntent::UseItem { window_id, .. } => {
-            commands.insert_resource(PendingUseAck {
-                target_window_id: *window_id,
-            });
-        }
-        InteractionIntent::UseItemWith { .. } => {
-            commands.insert_resource(PendingUseAck {
-                target_window_id: None,
-            });
+            // Only when using a container nested inside an open container window:
+            // record which window the resulting OpenContainer should replace.
+            if let Some(window_id) = window_id {
+                commands.insert_resource(ContainerNavTarget(*window_id));
+            }
         }
     }
 }
@@ -159,7 +156,6 @@ pub fn on_interaction_intent(
     mut commands: Commands,
     minimap: Res<MinimapData>,
     mut move_queue: ResMut<MovementQueue>,
-    mut mode: ResMut<InteractionMode>,
     player_q: Single<&Position, With<Player>>,
 ) {
     let player_pos = player_q.into_inner();
@@ -184,15 +180,6 @@ pub fn on_interaction_intent(
         return;
     }
 
-    // Deferring a move-item: the visual drag ends now, the message fires
-    // on arrival.
-    if matches!(intent, InteractionIntent::MoveItem { .. }) {
-        if mode.is_dragging() {
-            *mode = InteractionMode::Idle;
-        }
-        commands.trigger(ItemMoveCanceled);
-    }
-
     let path = match required.as_slice() {
         [single] => compute_path_to_adjacent(player_pos, single, &minimap),
         [a, b] => compute_path_adjacent_to_both(player_pos, a, b, &minimap),
@@ -215,20 +202,5 @@ pub fn on_interaction_intent(
             });
         }
         None => show_no_way(&mut commands),
-    }
-}
-
-pub fn on_move_item_result(
-    event: On<MoveItemResult>,
-    mut commands: Commands,
-    mut mode: ResMut<InteractionMode>,
-) {
-    if mode.is_dragging() {
-        *mode = InteractionMode::Idle;
-    }
-    if event.success {
-        commands.trigger(ItemMoveConfirmed);
-    } else {
-        commands.trigger(ItemMoveCanceled);
     }
 }

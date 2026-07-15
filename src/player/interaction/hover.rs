@@ -66,14 +66,10 @@ pub(super) struct CursorTarget {
 
 #[derive(Debug, Clone, Copy)]
 pub(super) enum MapPick {
-    /// The topmost item on the tile (drag sources, plain use).
     Top,
-    /// Prefer the first item flagged `ForceUse`, falling back to the topmost
-    /// (use-with targets, e.g. aiming a rope at a hole).
     PreferForceUse,
 }
 
-/// Single source of truth for the tile → container → inventory hover cascade.
 pub(super) fn cursor_target(
     hover: &MouseHoverState,
     map: &Map,

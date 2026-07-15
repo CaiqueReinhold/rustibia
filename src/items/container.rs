@@ -11,7 +11,7 @@ use crate::{
         ClientMessage, SendMessage,
         events::{ContainerClosed, OpenContainer, UpdateContainer},
     },
-    player::{MouseHoverState, PendingUseAck},
+    player::{ContainerNavTarget, MouseHoverState},
 };
 
 pub type ContainerId = u16;
@@ -93,26 +93,37 @@ pub fn on_open_container(
     configs: Res<ItemConfigs>,
     ui_assets: Res<GameUiAssets>,
     loot_container_q: Query<(&LootContainerUI, &UiWindowRef)>,
-    pending_ack: Option<Res<PendingUseAck>>,
+    nav_target: Option<Res<ContainerNavTarget>>,
 ) {
-    let container = loot_container_q
+    let nav = nav_target.as_ref().map(|n| n.0);
+    let existing = loot_container_q
         .iter()
-        .find(|c| c.0.container_id == event.container_id);
-    if let Some((_, window_ref)) = container {
-        if let Some(ack) = &pending_ack {
-            if ack.target_window_id.is_some() && ack.target_window_id != Some(window_ref.window_id)
+        .find(|(c, _)| c.container_id == event.container_id)
+        .map(|(_, w)| w.window_id);
+
+    let target_window = match nav {
+        Some(nav_window) => {
+            if let Some(existing_window) = existing
+                && existing_window != nav_window
             {
                 commands.insert_resource(PreventContainerCloseEvent {
                     container_id: event.container_id,
                 });
                 commands.trigger(CloseUIWindow {
-                    window_id: window_ref.window_id,
+                    window_id: existing_window,
                 });
             }
-        } else {
-            return;
+            Some(nav_window)
         }
-    }
+        // No navigation in progress. If the container already has a window, leave
+        // in-place refreshes to UpdateContainer — rebuilding it here would tear
+        // the window down (and spuriously close it server-side). Otherwise this
+        // is a fresh open, so spawn a new window.
+        None => match existing {
+            Some(_) => return,
+            None => None,
+        },
+    };
 
     let container = LootContainerUI {
         container_id: event.container_id,
@@ -225,24 +236,23 @@ pub fn on_open_container(
         Vec::new()
     };
 
-    if let Some(window_id) = pending_ack.as_ref().and_then(|ack| ack.target_window_id) {
-        commands.trigger(ReplaceUIWindowContent {
+    match target_window {
+        Some(window_id) => commands.trigger(ReplaceUIWindowContent {
             window_id,
             content: grid,
             title: event.title.clone(),
             custom_buttons,
-        });
-    } else {
-        commands.trigger(AddUIWindow {
+        }),
+        None => commands.trigger(AddUIWindow {
             content: grid,
             default_height: LOOT_CONTAINER_DEFAULT_HEIGHT,
             title: event.title.clone(),
             custom_buttons,
-        });
+        }),
     }
 
-    if pending_ack.is_some() {
-        commands.remove_resource::<PendingUseAck>();
+    if nav.is_some() {
+        commands.remove_resource::<ContainerNavTarget>();
     }
 }
 
@@ -258,9 +268,7 @@ pub fn on_open_parent_container(
         return;
     };
 
-    commands.insert_resource(PendingUseAck {
-        target_window_id: Some(window_ref.window_id),
-    });
+    commands.insert_resource(ContainerNavTarget(window_ref.window_id));
     commands.trigger(SendMessage(ClientMessage::OpenParentContainer {
         container_id: event.container_id,
     }));
@@ -346,12 +354,15 @@ pub fn container_content_changed(
             if let Some(item) = container.items.get(i) {
                 commands.entity(child).with_children(|item_container| {
                     item_container
-                        .spawn(Node {
-                            width: Val::Percent(100.0),
-                            height: Val::Percent(100.0),
-                            padding: UiRect::all(Val::Px(2.0)),
-                            ..default()
-                        })
+                        .spawn((
+                            Node {
+                                width: Val::Percent(100.0),
+                                height: Val::Percent(100.0),
+                                padding: UiRect::all(Val::Px(2.0)),
+                                ..default()
+                            },
+                            Transform::default(),
+                        ))
                         .with_child(spawn_ui_item(
                             item,
                             &appearances,

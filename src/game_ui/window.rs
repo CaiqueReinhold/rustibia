@@ -15,6 +15,7 @@ use crate::{
         z_index::{Z_DRAGGING_WINDOW, Z_WINDOW},
     },
     game_ui::assets::GameUiAssets,
+    player::InteractionMode,
 };
 
 const WINDOW_MIN_HEIGHT: f32 = 32.0;
@@ -819,8 +820,13 @@ fn on_over_resize_handle(
     window: Single<Entity, With<Window>>,
     parent_q: Query<&ChildOf>,
     minimized_window_q: Query<&UIWindowMinimized>,
+    mode: Res<InteractionMode>,
 ) {
     event.propagate(false);
+
+    if mode.is_targeting() {
+        return;
+    }
 
     let parent = parent_q.get(event.entity).unwrap();
     if minimized_window_q.get(parent.parent()).is_ok() {
@@ -838,8 +844,13 @@ fn on_out_resize_handle(
     window: Single<Entity, With<Window>>,
     parent_q: Query<&ChildOf>,
     minimized_window_q: Query<&UIWindowMinimized>,
+    mode: Res<InteractionMode>,
 ) {
     event.propagate(false);
+
+    if mode.is_targeting() {
+        return;
+    }
 
     let parent = parent_q.get(event.entity).unwrap();
     if minimized_window_q.get(parent.parent()).is_ok() {

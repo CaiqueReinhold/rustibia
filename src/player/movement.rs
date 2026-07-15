@@ -138,7 +138,9 @@ pub fn on_ack_walk(
         move_queue.moves.clear();
         commands.trigger(SendMessage(ClientMessage::GetPlayerPosition));
     }
-    let direction = move_queue.pending_walk_ack.unwrap();
+    let Some(direction) = move_queue.pending_walk_ack else {
+        return;
+    };
     let source_pos = event.position.clone() - direction;
     map::events::on_player_walk_ack(
         &mut commands,

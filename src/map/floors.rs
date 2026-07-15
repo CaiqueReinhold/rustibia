@@ -15,7 +15,11 @@ pub struct FloorEntities {
 pub fn setup_floors(mut commands: Commands) {
     let mut floors = Vec::new();
     for _ in MIN_FLOOR..=MAX_FLOOR {
-        floors.push(commands.spawn(Transform::default()).id());
+        floors.push(
+            commands
+                .spawn((Transform::default(), GlobalTransform::default()))
+                .id(),
+        );
     }
     commands.insert_resource(FloorEntities {
         floors: floors.try_into().unwrap(),

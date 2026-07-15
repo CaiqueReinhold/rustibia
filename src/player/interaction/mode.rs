@@ -6,7 +6,7 @@ use bevy::window::CursorIcon;
 use crate::{
     game_ui::WindowId,
     items::{Item, ItemId, ItemPlacement},
-    network::events::UseItemAck,
+    network::events::{ContainerClosed, IventorySlotUpdated, TileChanged, UpdateContainer},
 };
 
 #[derive(Resource, Debug, Default)]
@@ -56,25 +56,7 @@ impl InteractionMode {
 }
 
 #[derive(Resource, Debug)]
-pub struct PendingUseAck {
-    pub target_window_id: Option<WindowId>,
-}
-
-#[derive(Resource, Debug)]
-pub struct PendingLook;
-
-pub fn on_item_ack(
-    _: On<UseItemAck>,
-    mut commands: Commands,
-    pending_ack: Option<Res<PendingUseAck>>,
-) {
-    if let Some(ack) = pending_ack
-        && ack.target_window_id.is_none()
-    {
-        commands.remove_resource::<PendingUseAck>();
-    }
-    // If the ack is for opening a container, the resource will be removed in the container system
-}
+pub struct ContainerNavTarget(pub WindowId);
 
 pub fn sync_targeting_cursor(
     mut commands: Commands,
@@ -86,6 +68,8 @@ pub fn sync_targeting_cursor(
     if active == *last_active {
         return;
     }
+
+    info!("Is targeting: {}. Last active: {}", active, *last_active);
     *last_active = active;
     let icon = if active {
         bevy::window::SystemCursorIcon::Crosshair
@@ -95,10 +79,7 @@ pub fn sync_targeting_cursor(
     commands.entity(*window_q).insert(CursorIcon::System(icon));
 }
 
-pub fn on_targeting_tile_changed(
-    event: On<crate::network::events::TileChanged>,
-    mut mode: ResMut<InteractionMode>,
-) {
+pub fn on_targeting_tile_changed(event: On<TileChanged>, mut mode: ResMut<InteractionMode>) {
     mode.clear_targeting_if_gone(|source, item_id| {
         let ItemPlacement::Map { position, index } = source else {
             return false;
@@ -117,7 +98,7 @@ pub fn on_targeting_tile_changed(
 }
 
 pub fn on_targeting_container_updated(
-    event: On<crate::network::events::UpdateContainer>,
+    event: On<UpdateContainer>,
     mut mode: ResMut<InteractionMode>,
 ) {
     mode.clear_targeting_if_gone(|source, item_id| {
@@ -137,7 +118,7 @@ pub fn on_targeting_container_updated(
 }
 
 pub fn on_targeting_container_closed(
-    event: On<crate::network::events::ContainerClosed>,
+    event: On<ContainerClosed>,
     mut mode: ResMut<InteractionMode>,
 ) {
     mode.clear_targeting_if_gone(|source, _| {
@@ -147,7 +128,7 @@ pub fn on_targeting_container_closed(
 }
 
 pub fn on_targeting_inventory_updated(
-    event: On<crate::network::events::IventorySlotUpdated>,
+    event: On<IventorySlotUpdated>,
     mut mode: ResMut<InteractionMode>,
 ) {
     mode.clear_targeting_if_gone(|source, item_id| {

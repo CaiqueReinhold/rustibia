@@ -6,7 +6,7 @@ mod interaction;
 mod keyboard;
 mod movement;
 pub mod pathfinding;
-pub use interaction::{InteractionMode, MouseHoverState, PendingLook, PendingUseAck};
+pub use interaction::{ContainerNavTarget, InteractionMode, MouseHoverState};
 
 use crate::core::GameState;
 
@@ -53,8 +53,6 @@ impl Plugin for PlayerPlugin {
             )
             .add_observer(interaction::attach_observers)
             .add_observer(interaction::on_interaction_intent)
-            .add_observer(interaction::on_move_item_result)
-            .add_observer(interaction::on_item_ack)
             .add_observer(movement::on_player_walk)
             .add_observer(movement::on_ack_walk)
             .add_observer(movement::on_player_position)

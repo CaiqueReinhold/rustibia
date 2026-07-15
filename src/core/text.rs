@@ -2,7 +2,6 @@ use crate::{
     conf::ui::ui_colors,
     game_ui::{GameUiAssets, GameViewport},
     network::events::ShowTextMessage,
-    player::PendingLook,
 };
 use bevy::prelude::*;
 use bevy::{camera::visibility::RenderLayers, text::FontSmoothing};
@@ -27,10 +26,6 @@ pub fn on_text_message(
     ui_assets: Res<GameUiAssets>,
     message_q: Query<(Entity, &TextMessage)>,
 ) {
-    if matches!(event.message_type, TextMessageType::Look) {
-        commands.remove_resource::<PendingLook>();
-    }
-
     let (viewport_node, viewport_transform) = *viewport_q;
     let top = match event.message_type {
         TextMessageType::ActionDenied => {

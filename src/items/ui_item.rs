@@ -5,10 +5,7 @@ use bevy::{camera::visibility::RenderLayers, prelude::*};
 use crate::{
     conf::ui::{UI_ITEM_SIZE, z_index::DRAGGED_ITEM_UI_Z},
     core::{Appearances, SpriteAnimator},
-    items::{
-        Item, ItemDragEnded, ItemDragStarted, ItemMoveCanceled, ItemMoveConfirmed, ItemPlacement,
-        instancing::ItemState,
-    },
+    items::{Item, ItemDragEnded, ItemDragStarted, ItemPlacement, instancing::ItemState},
     player::MouseHoverState,
 };
 
@@ -114,21 +111,9 @@ pub fn item_drag_started(
 pub fn item_drag_ended(
     _: On<ItemDragEnded>,
     mut commands: Commands,
-    drag_item_q: Query<Entity, With<UiItemDragging>>,
-) {
-    let Ok(entity) = drag_item_q.single() else {
-        return;
-    };
-
-    commands.entity(entity).insert(Visibility::Hidden);
-}
-
-pub fn item_move_canceled(
-    _: On<ItemMoveCanceled>,
-    drag_item_q: Query<(Entity, &UiItemDragging)>,
     state: Res<ItemState>,
     stack_item_q: Query<&Children>,
-    mut commands: Commands,
+    drag_item_q: Query<(Entity, &UiItemDragging)>,
 ) {
     let Ok((entity, drag_item)) = drag_item_q.single() else {
         return;
@@ -144,17 +129,6 @@ pub fn item_move_canceled(
             return;
         };
         commands.entity(*item).insert(Visibility::Visible);
-    };
-    commands.entity(entity).despawn();
-}
-
-pub fn item_move_confirmed(
-    _: On<ItemMoveConfirmed>,
-    drag_item_q: Query<Entity, With<UiItemDragging>>,
-    mut commands: Commands,
-) {
-    let Ok(entity) = drag_item_q.single() else {
-        return;
     };
     commands.entity(entity).despawn();
 }
