@@ -69,7 +69,9 @@ impl Plugin for AgentPlugin {
             )
             .add_systems(
                 PostUpdate,
-                hud::update_hud_positions.run_if(in_state(GameState::InGame)),
+                (hud::attach_huds_to_viewport, hud::update_hud_positions)
+                    .chain()
+                    .run_if(in_state(GameState::InGame)),
             )
             .add_observer(movement::on_start_agent_move)
             .add_observer(movement::on_agent_change_direction)

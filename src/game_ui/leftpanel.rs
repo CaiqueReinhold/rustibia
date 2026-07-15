@@ -1,5 +1,6 @@
 use bevy::prelude::*;
 
+use crate::conf::ui::z_index::Z_MAIN_UI;
 use crate::conf::ui::{SIDE_PANEL_WIDTH, ui_colors};
 use crate::game_ui::GameUiAssets;
 use crate::game_ui::window::{DockId, Index, UIWindowDock};
@@ -31,7 +32,7 @@ pub fn spawn_left_panel(commands: &mut Commands, ui_assets: &GameUiAssets) -> En
                 bottom: ui_colors::DARK_BORDER_COLOR.into(),
                 left: ui_colors::LIGHT_BORDER_COLOR.into(),
             },
-            ZIndex(1),
+            ZIndex(Z_MAIN_UI),
         ))
         .with_children(|parent| {
             parent.spawn((

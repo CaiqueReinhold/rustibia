@@ -72,7 +72,7 @@ fn is_floor_visible(map: &Map, pos: &Position, floor: u8) -> bool {
         return false;
     }
 
-    if has_oclusion(WalkingDirection::South, pos, floor, map) {
+    if has_oclusion(WalkingDirection::West, pos, floor, map) {
         return false;
     }
 

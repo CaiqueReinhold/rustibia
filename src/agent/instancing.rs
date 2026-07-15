@@ -16,7 +16,6 @@ use crate::agent::{
 };
 use crate::conf::agent::{HUD_BAR_HEIGHT, HUD_BAR_WIDTH};
 use crate::conf::ui::ui_colors;
-use crate::conf::ui::z_index::Z_AGENT_HUD;
 use crate::conf::z_order::AGENT_Z_OFFSET;
 use crate::core::OutfitId;
 use crate::core::{Appearances, InstanceManager, OutfitSprite, SpriteSheet};
@@ -74,7 +73,9 @@ pub fn resolve_agent_sprite_ids(
                 + direction)
                 * config.layers
                 + layer;
-            sprite_ids[slot] = config.sprite_ids[index as usize];
+            // Safe index (mirrors resolve_simple_sprite_ids): a stale/edge phase or
+            // pattern value must never panic — fall back to sprite 0.
+            sprite_ids[slot] = config.sprite_ids.get(index as usize).copied().unwrap_or(0);
             slot += 1;
         }
     }
@@ -196,7 +197,6 @@ pub fn spawn_agent(
                 top: Val::Px(0.0),
                 ..default()
             },
-            ZIndex(Z_AGENT_HUD),
             UiTransform::from_translation(Val2::new(Val::ZERO, Val::ZERO)),
             RenderLayers::layer(1),
             Pickable::IGNORE,
@@ -371,9 +371,12 @@ pub fn set_agent_animation_state(
         animator.pattern_z = agent.mounted as u32;
 
         if let Some(moving) = moving {
-            animator.current_phase = (moving.timer.fraction()
-                * (configs.moving.animation.total_animation_phases() as f32))
-                as u32;
+            let phase_count = configs.moving.animation.total_animation_phases().max(1);
+            // timer.fraction() reaches exactly 1.0 on the frame the move completes, which
+            // would make current_phase == phase_count (one past the last valid frame) and
+            // push resolve_agent_sprite_ids off the end of config.sprite_ids. Clamp it.
+            animator.current_phase =
+                ((moving.timer.fraction() * phase_count as f32) as u32).min(phase_count - 1);
         }
     }
 }

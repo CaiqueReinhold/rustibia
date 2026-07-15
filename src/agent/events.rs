@@ -8,7 +8,7 @@ use crate::{
     conf::agent::{ADDON_1_FLAG, ADDON_2_FLAG},
     core::{Appearances, InstanceManager},
     game_ui::GameUiAssets,
-    map::{Map, Position},
+    map::{FloorEntities, Map, Position},
     network::events::{MoveAgent, RemoveAgent, SpawnAgent},
 };
 
@@ -23,8 +23,16 @@ pub fn on_spawn_agent(
     mut map: ResMut<Map>,
     ui_assets: Res<GameUiAssets>,
     appearances: Res<Appearances>,
+    agent_q: Query<(&MeshTag, Option<&AgentHud>), With<Agent>>,
+    floor_ents: Res<FloorEntities>,
 ) {
     if let Some(entity) = map.get_agent(event.agent_id) {
+        if let Ok((tag, maybe_hud)) = agent_q.get(entity) {
+            if let Some(hud) = maybe_hud {
+                commands.entity(hud.main_entity).despawn();
+            }
+            instances.dealloc_index(tag.0);
+        }
         commands.entity(entity).despawn();
         map.remove_agent(event.agent_id);
     }
@@ -51,6 +59,10 @@ pub fn on_spawn_agent(
         event.agent_id,
     );
     map.add_agent(event.agent_id, entity);
+
+    commands
+        .entity(floor_ents.floors[event.position.z as usize])
+        .add_child(entity);
 }
 
 pub fn on_move_agent(

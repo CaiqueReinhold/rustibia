@@ -5,25 +5,55 @@ use crate::agent::{DisplayName, Health, HudBar, Mana};
 use crate::camera::GameCamera;
 use crate::conf::viewport::{GAME_VIEW_HEIGHT, GAME_VIEW_WIDTH};
 use crate::game_ui::GameViewport;
+use crate::map::Position;
+use crate::player::components::Player;
+
+pub fn attach_huds_to_viewport(
+    mut commands: Commands,
+    viewport_q: Query<Entity, With<GameViewport>>,
+    orphan_huds: Query<Entity, (With<Hud>, Without<ChildOf>)>,
+) {
+    let Ok(viewport) = viewport_q.single() else {
+        return;
+    };
+    for hud in orphan_huds.iter() {
+        commands.entity(viewport).add_child(hud);
+    }
+}
 
 pub fn update_hud_positions(
+    mut commands: Commands,
     game_cam_q: Query<&GlobalTransform, With<GameCamera>>,
-    agents_q: Query<(&GlobalTransform, &AgentHud), With<Agent>>,
+    player_pos_q: Query<&Position, With<Player>>,
+    agents_q: Query<(&GlobalTransform, &AgentHud, &Position), With<Agent>>,
     mut hud_q: Query<&mut UiTransform, With<Hud>>,
-    viewport_q: Query<(&ComputedNode, &UiGlobalTransform), With<GameViewport>>,
+    viewport_q: Query<&ComputedNode, With<GameViewport>>,
 ) {
     let Ok(game_cam_gt) = game_cam_q.single() else {
         return;
     };
-    let Ok((computed, ui_gt)) = viewport_q.single() else {
+    let Ok(computed) = viewport_q.single() else {
+        return;
+    };
+    let Ok(player_pos) = player_pos_q.single() else {
         return;
     };
 
     let cam_pos = game_cam_gt.translation().truncate();
     let size = computed.size();
-    let top_left = ui_gt.translation - size * 0.5;
 
-    for (agent_gt, display_name) in agents_q.iter() {
+    for (agent_gt, display_name, position) in agents_q.iter() {
+        if position.z != player_pos.z {
+            commands
+                .entity(display_name.main_entity)
+                .insert(Visibility::Hidden);
+            continue;
+        }
+
+        commands
+            .entity(display_name.main_entity)
+            .insert(Visibility::Visible);
+
         let world_pos = agent_gt.translation().truncate();
 
         // Normalize to [0, 1] UV within the game view (mirrors update_hover_state in reverse).
@@ -33,12 +63,13 @@ pub fn update_hud_positions(
                 - display_name.world_y_offset / GAME_VIEW_HEIGHT,
         );
 
-        // Map UV to logical window pixel position (y-down, top-left origin).
-        let screen_px = top_left + uv * size;
+        // HUD nodes are children of the GameViewport, so this is viewport-local
+        // (y-down, top-left origin). The viewport's Overflow::clip() then pixel-clips
+        // the HUD at the view edge as the agent walks out of frame.
+        let local_px = uv * size;
 
         if let Ok(mut tranf) = hud_q.get_mut(display_name.main_entity) {
-            tranf.translation =
-                Val2::new(Val::Px(screen_px.x.round()), Val::Px(screen_px.y.round()));
+            tranf.translation = Val2::new(Val::Px(local_px.x.round()), Val::Px(local_px.y.round()));
         }
     }
 }

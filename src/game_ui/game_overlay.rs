@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 use crate::camera::GameRenderTexture;
 use crate::conf::ui::ui_colors;
+use crate::conf::ui::z_index::Z_MAIN_UI;
 use crate::conf::viewport::{GAME_VIEW_HEIGHT, GAME_VIEW_WIDTH};
 use crate::game_ui::GameUiAssets;
 
@@ -76,6 +77,7 @@ pub fn spawn_gameviewport(
                 },
                 ..default()
             },
+            ZIndex(Z_MAIN_UI),
         ))
         .with_children(|view| {
             view.spawn((
@@ -98,6 +100,10 @@ pub fn spawn_gameviewport(
                 Node {
                     height: Val::Percent(100.0),
                     width: Val::Percent(100.0),
+                    // Clip agent HUDs (parented here) to the visible render rect so
+                    // labels/bars are pixel-clipped at the edge instead of spilling
+                    // over the side panels as an agent walks out of view.
+                    overflow: Overflow::clip(),
                     ..default()
                 },
                 ImageNode::new(render_texture.0.clone()),

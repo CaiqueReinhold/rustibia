@@ -6,8 +6,9 @@ use bevy::prelude::*;
 use crate::agent::components::Agent;
 use crate::agent::{AgentId, WalkingDirection};
 use crate::conf::z_order::AGENT_Z_OFFSET;
-use crate::map::{Map, Position};
+use crate::map::{FloorEntities, Map, Position};
 use crate::network::events::{AgentChangedDirection, TeleportAgent};
+use crate::player::components::Player;
 
 #[derive(Component, Debug)]
 pub struct Moving {
@@ -54,11 +55,6 @@ pub fn on_start_agent_move(
     let tile_modifier = map.get_tile_friction(&end_position).unwrap_or(0);
     let step_time_ms = agent.get_step_duration(tile_modifier, event.direction.is_diagonal());
 
-    info!(
-        "agent {} -> move from {} to {}. Tile friction: {}. step_time_ms: {}",
-        event.agent_id, start_position, end_position, tile_modifier, step_time_ms
-    );
-
     agent.direction = facing;
     commands.entity(entity).insert(Moving {
         start: start_position.clone(),
@@ -101,7 +97,7 @@ pub fn move_agent(
             let elevation = map.get_elevation(&moving.end);
             transform.translation =
                 moving.end.to_world_with_elevation(elevation) + vec3(0.0, 0.0, AGENT_Z_OFFSET);
-            return;
+            continue;
         }
 
         let start = moving.start.to_world();
@@ -146,10 +142,17 @@ pub fn on_teleport_agent(event: On<TeleportAgent>, mut commands: Commands, map: 
 
 pub fn teleport_agents(
     mut commands: Commands,
-    mut agents_q: Query<(Entity, &ShouldTeleport, &mut Transform, Option<&Moving>)>,
+    mut agents_q: Query<(
+        Entity,
+        &ShouldTeleport,
+        &mut Transform,
+        Option<&Moving>,
+        Option<&Player>,
+    )>,
     map: Res<Map>,
+    floor_ents: Res<FloorEntities>,
 ) {
-    for (entity, teleport, mut transform, moving) in agents_q.iter_mut() {
+    for (entity, teleport, mut transform, moving, player) in agents_q.iter_mut() {
         if moving.is_none() {
             let elevation = map.get_elevation(&teleport.position);
             transform.translation = teleport.position.to_world_with_elevation(elevation);
@@ -157,6 +160,13 @@ pub fn teleport_agents(
                 .entity(entity)
                 .insert(teleport.position.clone())
                 .remove::<ShouldTeleport>();
+
+            if player.is_none() {
+                commands.entity(entity).detach_all_related::<ChildOf>();
+                commands
+                    .entity(floor_ents.floors[teleport.position.z as usize])
+                    .add_child(entity);
+            }
         }
     }
 }
@@ -174,7 +184,7 @@ pub fn process_agent_move_queues(
             if queue.0.is_empty() {
                 commands.entity(entity).insert(move_from);
             } else {
-                return;
+                continue;
             }
         }
 

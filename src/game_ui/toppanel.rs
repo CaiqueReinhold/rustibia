@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use crate::agent::{Health, HealthState, HudBar, Mana};
+use crate::conf::ui::z_index::Z_MAIN_UI;
 use crate::conf::ui::{TOP_BAR_HEIGHT, UI_BAR_HEIGHT, ui_colors};
 use crate::game_ui::assets::GameUiAssets;
 use crate::player::components::Player;
@@ -39,7 +40,7 @@ pub fn spawn_top_panel(commands: &mut Commands, ui_assets: &GameUiAssets) -> Ent
                 bottom: ui_colors::DARK_BORDER_COLOR.into(),
                 left: ui_colors::LIGHT_BORDER_COLOR.into(),
             },
-            ZIndex(5),
+            ZIndex(Z_MAIN_UI),
         ))
         .id();
 

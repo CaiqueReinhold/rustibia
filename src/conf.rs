@@ -53,10 +53,10 @@ pub mod ui {
     pub const SEPARATOR_HEIGHT: f32 = 5.0;
 
     pub mod z_index {
-        pub const Z_WINDOW: i32 = 10;
+        pub const Z_MAIN_UI: i32 = 10;
+        pub const Z_WINDOW: i32 = 11;
         pub const Z_DRAGGING_WINDOW: i32 = 20;
         pub const DRAGGED_ITEM_UI_Z: i32 = 100;
-        pub const Z_AGENT_HUD: i32 = 10;
     }
 
     pub mod ui_colors {
