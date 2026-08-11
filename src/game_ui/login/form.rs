@@ -14,6 +14,7 @@ use crate::game_ui::login::{LoginPhase, PendingLoginError};
 use crate::game_ui::{
     DialogButton, DialogButtonId, DialogButtonPressed, GameUiAssets, ModalDialog, ModalOrder,
 };
+use crate::network::login::FetchCharacters;
 
 /// Both fields must be non-blank. Values are otherwise unchecked —
 /// the login is fake until the server has real accounts.
@@ -103,9 +104,6 @@ pub(super) fn spawn_login_form(
             PasswordDisplay,
             Node {
                 position_type: PositionType::Absolute,
-                // Mirrors the wrapper's 1px border + 3px padding in
-                // `spawn_text_field` (top has an extra ~1px nudge for
-                // optical centering of the bullet glyphs). Keep in sync.
                 left: Val::Px(3.0),
                 top: Val::Px(4.0),
                 flex_direction: FlexDirection::Row,
@@ -296,7 +294,11 @@ pub(super) fn on_attempt_login(
         return;
     };
     if is_valid(email.get(), password.get()) {
-        commands.set_state(LoginPhase::CharacterList);
+        commands.trigger(FetchCharacters {
+            email: email.get().to_owned(),
+            password: password.get().to_owned(),
+        });
+        commands.set_state(LoginPhase::LoadingCharacters);
     } else {
         let root = ModalDialog::message(
             "Login Error",

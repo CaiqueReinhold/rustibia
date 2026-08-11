@@ -16,6 +16,7 @@ mod window;
 pub use assets::GameUiAssets;
 pub use chat::{ChatMode, events::EnterChatMode};
 pub use game_overlay::GameViewport;
+pub use login::{LoginPhase, PendingLoginError};
 pub use modal::{DialogButton, DialogButtonId, DialogButtonPressed, ModalDialog, ModalOrder};
 pub use rightpanel::RightPanelDock;
 pub use window::{

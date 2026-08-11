@@ -130,7 +130,6 @@ impl ModalDialog {
                     justify_content: JustifyContent::Center,
                     ..default()
                 },
-                BackgroundColor(conf::BACKDROP_COLOR.into()),
                 GlobalZIndex(conf::Z_MODAL_BASE + order.0 as i32),
                 RenderLayers::layer(1),
             ))
@@ -150,8 +149,19 @@ impl ModalDialog {
                     bottom: ui_colors::DARK_BORDER_COLOR.into(),
                     left: ui_colors::LIGHT_BORDER_COLOR.into(),
                 },
+            ))
+            .id();
+        commands.entity(root).add_child(panel);
+
+        let panel_inner = commands
+            .spawn((
+                Node {
+                    width: Val::Percent(100.0),
+                    flex_direction: FlexDirection::Column,
+                    ..default()
+                },
                 ImageNode {
-                    image: ui_assets.background_dark.clone(),
+                    image: ui_assets.background_light.clone(),
                     image_mode: NodeImageMode::Tiled {
                         tile_x: true,
                         tile_y: true,
@@ -161,7 +171,7 @@ impl ModalDialog {
                 },
             ))
             .id();
-        commands.entity(root).add_child(panel);
+        commands.entity(panel).add_child(panel_inner);
 
         let title_bar = commands
             .spawn((
@@ -173,7 +183,15 @@ impl ModalDialog {
                     flex_shrink: 0.0,
                     ..default()
                 },
-                BackgroundColor(conf::TITLE_BAR_COLOR.into()),
+                ImageNode {
+                    image: ui_assets.background_dark.clone(),
+                    image_mode: NodeImageMode::Tiled {
+                        tile_x: true,
+                        tile_y: true,
+                        stretch_value: 1.0,
+                    },
+                    ..default()
+                },
             ))
             .with_child((
                 Text::new(self.title),
@@ -185,6 +203,37 @@ impl ModalDialog {
                 TextColor(Color::WHITE),
             ))
             .id();
+
+        let content_outer = commands
+            .spawn((
+                Node {
+                    width: Val::Percent(100.0),
+                    border: UiRect::new(Val::Px(2.0), Val::Px(2.0), Val::Px(0.0), Val::Px(2.0)),
+                    flex_direction: FlexDirection::Column,
+                    ..default()
+                },
+                BorderColor::all(ui_colors::DARK_BORDER_COLOR),
+            ))
+            .id();
+
+        let content_inner = commands
+            .spawn((
+                Node {
+                    width: Val::Percent(100.0),
+                    border: UiRect::all(Val::Px(1.0)),
+                    flex_direction: FlexDirection::Column,
+                    ..default()
+                },
+                BorderColor {
+                    top: ui_colors::DARK_BORDER_COLOR.into(),
+                    right: ui_colors::LIGHT_BORDER_COLOR.into(),
+                    bottom: ui_colors::LIGHT_BORDER_COLOR.into(),
+                    left: ui_colors::DARK_BORDER_COLOR.into(),
+                },
+            ))
+            .id();
+
+        commands.entity(content_outer).add_child(content_inner);
 
         let content = commands
             .spawn((
@@ -212,6 +261,10 @@ impl ModalDialog {
                 ..default()
             })
             .id();
+
+        commands
+            .entity(content_inner)
+            .add_children(&[content, button_row]);
 
         for button in &self.buttons {
             let id = button.id;
@@ -255,8 +308,8 @@ impl ModalDialog {
         }
 
         commands
-            .entity(panel)
-            .add_children(&[title_bar, content, button_row]);
+            .entity(panel_inner)
+            .add_children(&[title_bar, content_outer]);
 
         ModalDialogHandle { root, content }
     }

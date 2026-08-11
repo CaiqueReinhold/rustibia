@@ -17,18 +17,14 @@ use crate::{
 
 #[derive(Event, Debug)]
 pub struct Connect {
-    pub character_id: u32,
     pub auth_token: String,
 }
 
 #[derive(Event, Debug)]
 pub struct SendMessage(pub ClientMessage);
 
-/// Credentials the login screen hands to `connect()`. Currently always the
-/// fake test values; becomes real data when the server gains accounts.
 #[derive(Resource, Debug)]
 pub struct LoginCredentials {
-    pub character_id: u32,
     pub auth_token: String,
 }
 
@@ -46,7 +42,6 @@ pub struct ConnectionState {
 /// `Connecting` (e.g. a reconnect feature).
 pub fn connect(mut commands: Commands, credentials: Res<LoginCredentials>) {
     commands.trigger(Connect {
-        character_id: credentials.character_id,
         auth_token: credentials.auth_token.clone(),
     });
 }
@@ -68,7 +63,6 @@ pub(super) fn on_connect(event: On<Connect>, mut commands: Commands) {
 
     if cli_send
         .send_blocking(ClientMessage::Login {
-            character_id: event.character_id,
             auth_token: event.auth_token.clone(),
         })
         .is_err()

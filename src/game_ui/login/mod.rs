@@ -16,6 +16,7 @@ mod form;
 pub enum LoginPhase {
     #[default]
     EnterGame,
+    LoadingCharacters,
     CharacterList,
 }
 

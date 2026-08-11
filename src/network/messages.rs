@@ -32,7 +32,6 @@ const CLI_LOOK: u8 = 11;
 pub enum ClientMessage {
     Ping,
     Login {
-        character_id: u32,
         auth_token: String,
     },
     MovePlayer {
@@ -535,12 +534,8 @@ impl Encoder for GameMessageCodec {
             ClientMessage::Ping => {
                 dst.put_u8(CLI_PING);
             }
-            ClientMessage::Login {
-                character_id,
-                auth_token,
-            } => {
+            ClientMessage::Login { auth_token } => {
                 dst.put_u8(CLI_LOGIN);
-                dst.put_u32_le(character_id);
                 dst.put_slice(auth_token.as_bytes());
             }
             ClientMessage::MovePlayer { direction } => {

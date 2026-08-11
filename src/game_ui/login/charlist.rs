@@ -3,12 +3,11 @@ use bevy::input::keyboard::KeyCode;
 use bevy::prelude::*;
 
 use crate::conf::ui::{dialog as conf, ui_colors};
-use crate::core::GameState;
 use crate::game_ui::login::LoginPhase;
 use crate::game_ui::{
     DialogButton, DialogButtonId, DialogButtonPressed, GameUiAssets, ModalDialog, ModalOrder,
 };
-use crate::network::LoginCredentials;
+use crate::network::login::{CharacterList, GenerateLoginToken};
 
 /// Clamped arrow-key stepping over the character rows.
 pub(super) fn step_selection(selected: usize, delta: i32, len: usize) -> usize {
@@ -17,28 +16,6 @@ pub(super) fn step_selection(selected: usize, delta: i32, len: usize) -> usize {
     }
     (selected as i32 + delta).clamp(0, len as i32 - 1) as usize
 }
-
-pub struct CharacterEntry {
-    pub name: &'static str,
-    pub world: &'static str,
-}
-
-/// Fake entries until the server provides real character data. All of them
-/// connect as the single test character (id 1).
-pub const CHARACTERS: &[CharacterEntry] = &[
-    CharacterEntry {
-        name: "Sir Baeloc",
-        world: "Rustibia",
-    },
-    CharacterEntry {
-        name: "Elyndra",
-        world: "Rustibia",
-    },
-    CharacterEntry {
-        name: "Grimtooth",
-        world: "Rustibia",
-    },
-];
 
 #[derive(Component)]
 pub struct CharacterListDialog {
@@ -57,6 +34,7 @@ pub(super) fn spawn_character_list(
     mut commands: Commands,
     ui_assets: Res<GameUiAssets>,
     mut order: ResMut<ModalOrder>,
+    characters: Res<CharacterList>,
 ) {
     let handle = ModalDialog::new("Select Character")
         .with_buttons([DialogButton::ok(), DialogButton::cancel()])
@@ -86,7 +64,7 @@ pub(super) fn spawn_character_list(
         ))
         .id();
 
-    for (index, character) in CHARACTERS.iter().enumerate() {
+    for (index, character) in characters.characters.iter().enumerate() {
         let row = commands
             .spawn((
                 CharacterRow(index),
@@ -98,7 +76,16 @@ pub(super) fn spawn_character_list(
                 BackgroundColor(Color::NONE),
             ))
             .with_child((
-                Text::new(format!("{} \u{2014} {}", character.name, character.world)),
+                Text::new(format!("{} \u{2014} {}", character.name, character.level)),
+                TextFont {
+                    font: ui_assets.font.clone(),
+                    font_size: 11.0,
+                    ..default()
+                },
+                TextColor(ui_colors::FONT_COLOR_CONTENT.into()),
+            ))
+            .with_child((
+                Text::new(character.vocation.clone()),
                 TextFont {
                     font: ui_assets.font.clone(),
                     font_size: 11.0,
@@ -169,6 +156,7 @@ pub(super) fn despawn_character_list(
 pub(super) fn keyboard_navigation(
     keyboard: Res<ButtonInput<KeyCode>>,
     mut dialogs: Query<&mut CharacterListDialog>,
+    characters: Res<CharacterList>,
 ) {
     let Ok(mut state) = dialogs.single_mut() else {
         return;
@@ -180,7 +168,7 @@ pub(super) fn keyboard_navigation(
     } else {
         return;
     };
-    let next = step_selection(state.selected, delta, CHARACTERS.len());
+    let next = step_selection(state.selected, delta, characters.characters.len());
     if next != state.selected {
         state.selected = next;
     }
@@ -219,12 +207,19 @@ pub(super) fn on_charlist_dialog_button(
     }
 }
 
-pub(super) fn on_confirm_character(_: On<ConfirmCharacter>, mut commands: Commands) {
-    commands.insert_resource(LoginCredentials {
-        character_id: 1,
-        auth_token: "token".to_string(),
+pub(super) fn on_confirm_character(
+    _: On<ConfirmCharacter>,
+    mut commands: Commands,
+    characters: Res<CharacterList>,
+    char_list_q: Single<&CharacterListDialog>,
+) {
+    let char = characters.characters.get(char_list_q.selected);
+    let Some(char) = char else {
+        return;
+    };
+    commands.trigger(GenerateLoginToken {
+        character_id: char.id,
     });
-    commands.set_state(GameState::Connecting);
 }
 
 #[cfg(test)]

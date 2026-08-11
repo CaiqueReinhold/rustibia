@@ -24,6 +24,10 @@ bevy_ui_text_input = "0.7"
 # trait to read the cursor position out of `TextInputBuffer.editor`.
 cosmic-text = "0.16"
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
+# `blocking` carries its own tokio runtime on a background thread; the async
+# client would panic on Bevy's IoTaskPool, which has no tokio reactor.
+reqwest = { version = "0.13.4", features = ["json", "blocking"] }
+strfmt = "0.2.5"
 
 [features]
 debug = []

@@ -87,7 +87,7 @@ pub mod ui {
         pub const TAB_TITLE_COLOR: Srgba = Srgba::new(0.95, 0.95, 0.95, 1.0);
         pub const TAB_TITLE_COLOR_INACTIVE: Srgba = Srgba::new(0.5, 0.5, 0.5, 1.0);
         pub const INPUT_BG_COLOR: Srgba = Srgba::new(0.098, 0.102, 0.106, 1.0);
-        pub const INPUT_PLACEHOLDER_COLOR: Srgba = Srgba::new(1.0, 1.0, 1.0, 0.4);
+        pub const INPUT_PLACEHOLDER_COLOR: Srgba = Srgba::new(1.0, 1.0, 1.0, 0.2);
 
         pub const LOCAL_CHANNEL_NAME: &str = "Local";
         pub const LOCAL_CHANNEL_COLOR: Srgba = Srgba::new(0.94, 0.94, 0.0, 1.0);
@@ -105,8 +105,6 @@ pub mod ui {
         pub const Z_MODAL_BASE: i32 = 100;
         pub const DOUBLE_CLICK_SECS: f32 = 0.4;
 
-        pub const BACKDROP_COLOR: Srgba = Srgba::new(0.0, 0.0, 0.0, 0.4);
-        pub const TITLE_BAR_COLOR: Srgba = Srgba::new(0.187, 0.187, 0.187, 1.0);
         pub const BUTTON_COLOR: Srgba = Srgba::new(0.34, 0.34, 0.34, 1.0);
         pub const BUTTON_HOVER_COLOR: Srgba = Srgba::new(0.42, 0.42, 0.42, 1.0);
         pub const FIELD_BG_COLOR: Srgba = Srgba::new(0.098, 0.102, 0.106, 1.0);
@@ -125,6 +123,9 @@ pub mod ui {
 pub mod server {
     pub const TICK_DURATION_MS: u32 = 50;
     pub const SERVER_ADDRESS: &str = "127.0.0.1:5555";
+    pub const AUTH_ENDPOINT: &str = "http://127.0.0.1:8080/api/auth";
+    pub const CHAR_LIST_ENDPOINT: &str = "http://127.0.0.1:8080/api/characters";
+    pub const GAME_TOKEN_ENDPOINT: &str = "http://127.0.0.1:8080/api/characters/{id}/token";
 }
 
 pub mod minimap {
