@@ -4,7 +4,9 @@ use bevy_text_outline::TextOutline;
 use crate::conf::ui::{chat as conf, ui_colors};
 use crate::game_ui::GameUiAssets;
 use crate::game_ui::chat::channels_dialog::OpenChannelsDialog;
-use crate::game_ui::chat::events::{ActivateChannel, CloseChannel, MessageAppendedUi, OpenChannel};
+use crate::game_ui::chat::events::{
+    ActivateChannel, ChannelClosedUi, ChannelOpenedUi, CloseChannel, MessageAppendedUi,
+};
 use crate::game_ui::chat::state::{ChannelId, ChatState};
 
 #[derive(Component)]
@@ -259,8 +261,12 @@ fn rebuild_tab_strip(
     }
 }
 
+/// Driven by `ChannelOpenedUi`, not `OpenChannel`, so it reads a `ChatState` that
+/// already contains the new channel. Observing `OpenChannel` made this a sibling of
+/// the observer that pushes the channel, and sibling observers are unordered — the
+/// rebuild could run first and silently omit the tab.
 pub fn rebuild_tabs_on_open(
-    _event: On<OpenChannel>,
+    _event: On<ChannelOpenedUi>,
     mut commands: Commands,
     state: Res<ChatState>,
     row_q: Query<Entity, With<TabsRow>>,
@@ -270,8 +276,9 @@ pub fn rebuild_tabs_on_open(
     rebuild_tab_strip(&mut commands, &state, &row_q, &existing_tabs_q, &ui_assets);
 }
 
+/// Driven by `ChannelClosedUi` for the same reason as [`rebuild_tabs_on_open`].
 pub fn rebuild_tabs_on_close(
-    _event: On<CloseChannel>,
+    _event: On<ChannelClosedUi>,
     mut commands: Commands,
     state: Res<ChatState>,
     row_q: Query<Entity, With<TabsRow>>,

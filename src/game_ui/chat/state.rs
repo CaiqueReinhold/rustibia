@@ -8,8 +8,8 @@ use chrono::{DateTime, Local};
 
 use crate::conf::ui::chat as conf;
 use crate::game_ui::chat::events::{
-    ActivateChannel, AppendChatMessage, CloseChannel, EnterChatMode, ExitChatMode,
-    MessageAppendedUi, MessageTrimmedUi, OpenChannel,
+    ActivateChannel, AppendChatMessage, ChannelClosedUi, ChannelOpenedUi, CloseChannel,
+    EnterChatMode, ExitChatMode, MessageAppendedUi, MessageTrimmedUi, OpenChannel,
 };
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
@@ -130,11 +130,15 @@ pub fn on_open_channel(
 ) {
     let id = event.config.id;
     if state.is_open(id) {
+        // Already present: nothing for the strip to rebuild, so no ChannelOpenedUi.
         commands.trigger(ActivateChannel { channel_id: id });
         return;
     }
     state.channels.push(Channel::new(event.config.clone()));
+    // Order matters: `ActivateChannel` updates `active` first so the rebuild that
+    // follows spawns the new tab already styled as the active one.
     commands.trigger(ActivateChannel { channel_id: id });
+    commands.trigger(ChannelOpenedUi);
 }
 
 pub fn on_close_channel(
@@ -155,6 +159,7 @@ pub fn on_close_channel(
             channel_id: ChannelId::Local,
         });
     }
+    commands.trigger(ChannelClosedUi);
 }
 
 pub fn on_activate_channel(event: On<ActivateChannel>, mut state: ResMut<ChatState>) {

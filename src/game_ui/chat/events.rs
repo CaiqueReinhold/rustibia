@@ -48,3 +48,17 @@ pub struct MessageTrimmedUi {
     pub channel_id: ChannelId,
     pub sequence: u64,
 }
+
+/// Fired by the state-mutation observer after `OpenChannel` has been applied.
+///
+/// The tab strip must rebuild from post-mutation `ChatState`. Observing
+/// `OpenChannel` directly is a race: that observer is a sibling of the one that
+/// pushes the channel, and Bevy does not order sibling observers, so the rebuild
+/// could read a `ChatState` without the new channel and silently drop the tab.
+#[derive(Event)]
+pub struct ChannelOpenedUi;
+
+/// Fired by the state-mutation observer after `CloseChannel` has been applied.
+/// Same reasoning as [`ChannelOpenedUi`].
+#[derive(Event)]
+pub struct ChannelClosedUi;
