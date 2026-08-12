@@ -12,14 +12,19 @@ use crate::game_ui::chat::events::{
 };
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash, Debug)]
-pub struct ChannelId(pub u32);
-
-pub const LOCAL_CHANNEL_ID: ChannelId = ChannelId(0);
+pub enum ChannelId {
+    /// Local speech — everything said in range. Always open, never closeable.
+    Local,
+    /// A server channel, keyed by the id from `MSG_CHANNEL_LIST`.
+    Server(u16),
+    /// A private conversation, keyed by the other party's `player_pms` id.
+    Private(u16),
+}
 
 #[derive(Clone, Debug)]
 pub struct ChannelConfig {
     pub id: ChannelId,
-    pub name: &'static str,
+    pub name: String,
     pub closeable: bool,
     pub text_color: Color,
 }
@@ -68,16 +73,9 @@ pub struct ChatState {
 
 impl Default for ChatState {
     fn default() -> Self {
-        let local = local_channel_config();
-        let world = ChannelConfig {
-            id: ChannelId(2),
-            name: "World Chat",
-            closeable: true,
-            text_color: Color::Srgba(conf::LOCAL_CHANNEL_COLOR),
-        };
         Self {
-            channels: vec![Channel::new(local.clone()), Channel::new(world)],
-            active: LOCAL_CHANNEL_ID,
+            channels: vec![Channel::new(local_channel_config())],
+            active: ChannelId::Local,
             history_cap: conf::HISTORY_CAP_DEFAULT,
             available: Vec::new(),
         }
@@ -105,8 +103,8 @@ pub struct ChatMode {
 
 pub fn local_channel_config() -> ChannelConfig {
     ChannelConfig {
-        id: LOCAL_CHANNEL_ID,
-        name: conf::LOCAL_CHANNEL_NAME,
+        id: ChannelId::Local,
+        name: conf::LOCAL_CHANNEL_NAME.to_owned(),
         closeable: false,
         text_color: Color::Srgba(conf::LOCAL_CHANNEL_COLOR),
     }
@@ -141,7 +139,7 @@ pub fn on_close_channel(
     state.channels.retain(|c| c.config.id != event.channel_id);
     if was_active {
         commands.trigger(ActivateChannel {
-            channel_id: LOCAL_CHANNEL_ID,
+            channel_id: ChannelId::Local,
         });
     }
 }

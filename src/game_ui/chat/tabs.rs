@@ -67,7 +67,7 @@ pub fn spawn_tab_strip(
             spawn_tab_entity(
                 commands,
                 channel.config.id,
-                channel.config.name,
+                &channel.config.name,
                 channel.config.id == state.active,
                 channel.unread,
                 ui_assets,
@@ -243,7 +243,7 @@ fn rebuild_tab_strip(
         new_children.push(spawn_tab_entity(
             commands,
             channel.config.id,
-            channel.config.name,
+            &channel.config.name,
             channel.config.id == state.active,
             channel.unread,
             ui_assets,
