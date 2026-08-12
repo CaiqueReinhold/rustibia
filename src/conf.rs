@@ -169,3 +169,23 @@ pub mod paths {
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The server enforces its own `chat.max_message_length` and the client has no
+    /// access to server config, so the constant is duplicated. If they diverge, the
+    /// input field lets the player compose messages the server silently refuses —
+    /// which compiles fine and only shows up in play. This test is the tripwire.
+    ///
+    /// Server value: `crates/server/assets/game_conf.yaml`, `chat.max_message_length`.
+    #[test]
+    fn max_message_length_matches_the_server() {
+        assert_eq!(
+            ui::chat::MAX_MESSAGE_LENGTH,
+            255,
+            "must equal chat.max_message_length in the server's game_conf.yaml"
+        );
+    }
+}
