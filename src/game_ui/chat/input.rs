@@ -129,8 +129,23 @@ pub fn keyboard_exit_chat_mode(
 
 /// React to `bevy_ui_text_input::SubmitText` (fired on Enter while focused)
 /// — emit `SubmitChatInput` and exit chat mode.
-pub fn on_text_input_submit(mut events: MessageReader<SubmitText>, mut commands: Commands) {
+///
+/// `SubmitText` is a global message, not a per-entity one, so every focused text
+/// field in the game raises it — including the channels dialog's player-name field.
+/// Without the entity guard, pressing Enter there would speak the typed name into
+/// whatever chat tab happened to be active.
+pub fn on_text_input_submit(
+    mut events: MessageReader<SubmitText>,
+    field_q: Query<Entity, With<ChatInputField>>,
+    mut commands: Commands,
+) {
+    let Ok(chat_field) = field_q.single() else {
+        return;
+    };
     for event in events.read() {
+        if event.entity != chat_field {
+            continue;
+        }
         let text = event.text.trim().to_string();
         if !text.is_empty() {
             commands.trigger(SubmitChatInput { text });

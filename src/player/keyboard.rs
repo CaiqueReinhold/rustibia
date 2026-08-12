@@ -132,9 +132,13 @@ pub fn read_player_input(
     mut commands: Commands,
     time: Res<Time>,
     chat_mode: Res<crate::game_ui::ChatMode>,
+    input_focus: Res<bevy::input_focus::InputFocus>,
 ) {
-    if chat_mode.active {
-        // Reset key-repeat so movement doesn't auto-resume when chat exits.
+    // `chat_mode` covers the chat bar; `input_focus` covers every other text field,
+    // such as the channels dialog's player-name entry. Without the second check,
+    // typing a name there would also walk the character and fire keybinds.
+    if chat_mode.active || input_focus.0.is_some() {
+        // Reset key-repeat so movement doesn't auto-resume when typing ends.
         key_repeat.pressed_key = None;
         key_repeat.timer.reset();
         return;
