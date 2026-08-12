@@ -14,7 +14,7 @@ pub use instances::*;
 pub use items::ItemConfigs;
 pub use sprite::*;
 pub use systems::PingState;
-pub use text::TextMessageType;
+pub use text::{ChatMessageType, TextMessageType};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, States, Default)]
 pub enum GameState {
