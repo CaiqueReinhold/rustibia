@@ -7,7 +7,7 @@ use thiserror::Error;
 use crate::{
     agent::{AgentId, FacingDirection, Health, Mana, WalkingDirection},
     conf::map::{STACK_MAX_VISIBLE_ITEMS, TILES_X, TILES_Y},
-    core::{OutfitColors, OutfitId, TextMessageType},
+    core::{ChatMessageType, OutfitColors, OutfitId, TextMessageType},
     items::{ContainerId, InventorySlot, ItemId},
     map::Position,
 };
@@ -27,6 +27,11 @@ const CLI_CHANGE_DIRECTION: u8 = 8;
 const CLI_LOGOUT: u8 = 9;
 const CLI_USE_ITEM_WITH: u8 = 10;
 const CLI_LOOK: u8 = 11;
+const CLI_SAY: u8 = 12;
+const CLI_REQUEST_CHANNELS: u8 = 13;
+const CLI_OPEN_CHANNEL: u8 = 14;
+const CLI_CLOSE_CHANNEL: u8 = 15;
+const CLI_OPEN_PM_CHAT: u8 = 16;
 
 #[derive(Clone, Debug)]
 pub enum ClientMessage {
@@ -70,6 +75,21 @@ pub enum ClientMessage {
     },
     Look {
         position: Position,
+    },
+    Say {
+        message: String,
+        message_type: ChatMessageType,
+        target: u16,
+    },
+    RequestChannels,
+    OpenChannel {
+        channel: u16,
+    },
+    CloseChannel {
+        channel: u16,
+    },
+    OpenPmChat {
+        name: String,
     },
 }
 
@@ -602,6 +622,31 @@ impl Encoder for GameMessageCodec {
                 dst.put_u8(CLI_LOOK);
                 encode_position(position, dst);
             }
+            ClientMessage::Say {
+                message,
+                message_type,
+                target,
+            } => {
+                dst.put_u8(CLI_SAY);
+                dst.put_u8(encode_chat_message_type(message_type));
+                dst.put_u16_le(target);
+                // Trailing: the server derives the length from the frame, matching
+                // CLI_LOGIN. Do not write an inline length here.
+                dst.put_slice(message.as_bytes());
+            }
+            ClientMessage::RequestChannels => dst.put_u8(CLI_REQUEST_CHANNELS),
+            ClientMessage::OpenChannel { channel } => {
+                dst.put_u8(CLI_OPEN_CHANNEL);
+                dst.put_u16_le(channel);
+            }
+            ClientMessage::CloseChannel { channel } => {
+                dst.put_u8(CLI_CLOSE_CHANNEL);
+                dst.put_u16_le(channel);
+            }
+            ClientMessage::OpenPmChat { name } => {
+                dst.put_u8(CLI_OPEN_PM_CHAT);
+                dst.put_slice(name.as_bytes());
+            }
         }
 
         let payload_len = (dst.len() - len_offset - 2) as u16;
@@ -639,4 +684,86 @@ fn encode_facing(d: &FacingDirection, dst: &mut BytesMut) {
         FacingDirection::West => 4,
     };
     dst.put_u8(value);
+}
+
+fn encode_chat_message_type(t: ChatMessageType) -> u8 {
+    match t {
+        ChatMessageType::Local => 0x01,
+        ChatMessageType::Private => 0x02,
+        ChatMessageType::Channel => 0x03,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use asynchronous_codec::Encoder;
+
+    /// Encodes `msg` and returns the payload with the 2-byte length prefix stripped,
+    /// after asserting the prefix matches the real payload length.
+    fn payload_of(msg: ClientMessage) -> Vec<u8> {
+        let mut codec = GameMessageCodec {};
+        let mut buf = BytesMut::new();
+        codec.encode(msg, &mut buf).unwrap();
+        let declared = u16::from_le_bytes([buf[0], buf[1]]) as usize;
+        assert_eq!(declared, buf.len() - 2, "length prefix must cover the payload");
+        buf[2..].to_vec()
+    }
+
+    #[test]
+    fn say_encodes_type_target_then_trailing_message() {
+        let payload = payload_of(ClientMessage::Say {
+            message: "hello".to_owned(),
+            message_type: ChatMessageType::Local,
+            target: 0,
+        });
+        assert_eq!(payload[0], CLI_SAY);
+        assert_eq!(payload[1], 0x01, "Local");
+        assert_eq!(u16::from_le_bytes([payload[2], payload[3]]), 0);
+        assert_eq!(&payload[4..], b"hello", "message is trailing, no inline length");
+    }
+
+    #[test]
+    fn say_carries_the_channel_in_target() {
+        let payload = payload_of(ClientMessage::Say {
+            message: "hi".to_owned(),
+            message_type: ChatMessageType::Channel,
+            target: 7,
+        });
+        assert_eq!(payload[1], 0x03, "Channel");
+        assert_eq!(u16::from_le_bytes([payload[2], payload[3]]), 7);
+    }
+
+    #[test]
+    fn private_say_uses_type_two() {
+        let payload = payload_of(ClientMessage::Say {
+            message: "psst".to_owned(),
+            message_type: ChatMessageType::Private,
+            target: 3,
+        });
+        assert_eq!(payload[1], 0x02, "Private");
+        assert_eq!(u16::from_le_bytes([payload[2], payload[3]]), 3);
+    }
+
+    #[test]
+    fn channel_control_messages_encode() {
+        assert_eq!(payload_of(ClientMessage::RequestChannels), vec![CLI_REQUEST_CHANNELS]);
+
+        let payload = payload_of(ClientMessage::OpenChannel { channel: 2 });
+        assert_eq!(payload[0], CLI_OPEN_CHANNEL);
+        assert_eq!(u16::from_le_bytes([payload[1], payload[2]]), 2);
+
+        let payload = payload_of(ClientMessage::CloseChannel { channel: 2 });
+        assert_eq!(payload[0], CLI_CLOSE_CHANNEL);
+        assert_eq!(u16::from_le_bytes([payload[1], payload[2]]), 2);
+    }
+
+    #[test]
+    fn open_pm_chat_encodes_a_trailing_name() {
+        let payload = payload_of(ClientMessage::OpenPmChat {
+            name: "Rizael".to_owned(),
+        });
+        assert_eq!(payload[0], CLI_OPEN_PM_CHAT);
+        assert_eq!(&payload[1..], b"Rizael");
+    }
 }
