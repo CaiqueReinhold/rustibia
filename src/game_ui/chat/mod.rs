@@ -7,6 +7,7 @@ use crate::game_ui::GameUiAssets;
 pub mod events;
 pub mod input;
 pub mod messages;
+pub mod network;
 pub mod routing;
 pub mod state;
 pub mod tabs;
@@ -36,6 +37,12 @@ impl Plugin for ChatPlugin {
             .add_observer(messages::on_message_appended_ui_render)
             .add_observer(messages::on_message_trimmed_ui_render)
             .add_observer(input::on_submit_chat_input)
+            .add_observer(network::on_channel_list_received)
+            .add_observer(network::on_player_introduced)
+            .add_observer(network::on_chat_message_received)
+            .add_observer(network::on_open_channel_wire)
+            .add_observer(network::on_close_channel_wire)
+            .add_systems(OnEnter(GameState::InGame), network::request_channels)
             .add_systems(
                 Update,
                 (
