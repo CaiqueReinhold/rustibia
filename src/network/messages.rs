@@ -113,6 +113,9 @@ const MSG_REMOVE_AGENT: u8 = 15;
 const MSG_MOVE_AGENT: u8 = 16;
 const MSG_SPAWN_AGENT: u8 = 17;
 const MSG_TELEPORT_AGENT: u8 = 18;
+const MSG_CHAT_MESSAGE: u8 = 19;
+const MSG_CHANNEL_LIST: u8 = 20;
+const MSG_INTRODUCE_PLAYER: u8 = 21;
 
 #[derive(Clone, Debug)]
 pub enum ServerMessage {
@@ -206,6 +209,19 @@ pub enum ServerMessage {
     TeleportAgent {
         agent_id: AgentId,
         position: Position,
+    },
+    ChatMessage {
+        author: u16,
+        message_type: ChatMessageType,
+        channel: u16,
+        text: String,
+    },
+    ChannelList {
+        channels: Vec<(u16, String)>,
+    },
+    IntroducePlayer {
+        local_id: u16,
+        name: String,
     },
 }
 
@@ -457,6 +473,39 @@ impl Decoder for GameMessageCodec {
                 agent_id: buf.get_u16_le(),
                 position: decode_position(buf),
             })),
+            MSG_CHAT_MESSAGE => {
+                let author = buf.get_u16_le();
+                let message_type = decode_chat_message_type(buf.get_u8())?;
+                let channel = buf.get_u16_le();
+                let text_len = buf.get_u16_le() as usize;
+                let text = String::from_utf8_lossy(&buf[..text_len]).into_owned();
+                buf.advance(text_len);
+                Ok(Some(ServerMessage::ChatMessage {
+                    author,
+                    message_type,
+                    channel,
+                    text,
+                }))
+            }
+            MSG_CHANNEL_LIST => {
+                let count = buf.get_u16_le() as usize;
+                let mut channels = Vec::with_capacity(count);
+                for _ in 0..count {
+                    let id = buf.get_u16_le();
+                    let name_len = buf.get_u16_le() as usize;
+                    let name = String::from_utf8_lossy(&buf[..name_len]).into_owned();
+                    buf.advance(name_len);
+                    channels.push((id, name));
+                }
+                Ok(Some(ServerMessage::ChannelList { channels }))
+            }
+            MSG_INTRODUCE_PLAYER => {
+                let local_id = buf.get_u16_le();
+                let name_len = buf.get_u16_le() as usize;
+                let name = String::from_utf8_lossy(&buf[..name_len]).into_owned();
+                buf.advance(name_len);
+                Ok(Some(ServerMessage::IntroducePlayer { local_id, name }))
+            }
             _ => Err(MessageDecodeError::WrongSequence),
         }
     }
@@ -514,6 +563,15 @@ fn decode_text_type(b: u8) -> Result<TextMessageType, MessageDecodeError> {
     match b {
         1 => Ok(TextMessageType::ActionDenied),
         2 => Ok(TextMessageType::Look),
+        _ => Err(MessageDecodeError::WrongSequence),
+    }
+}
+
+fn decode_chat_message_type(b: u8) -> Result<ChatMessageType, MessageDecodeError> {
+    match b {
+        0x01 => Ok(ChatMessageType::Local),
+        0x02 => Ok(ChatMessageType::Private),
+        0x03 => Ok(ChatMessageType::Channel),
         _ => Err(MessageDecodeError::WrongSequence),
     }
 }
@@ -765,5 +823,110 @@ mod tests {
         });
         assert_eq!(payload[0], CLI_OPEN_PM_CHAT);
         assert_eq!(&payload[1..], b"Rizael");
+    }
+
+    use asynchronous_codec::Decoder;
+
+    /// Wraps `payload` in the 2-byte length prefix the codec expects.
+    fn frame(payload: &[u8]) -> BytesMut {
+        let mut buf = BytesMut::new();
+        buf.extend_from_slice(&(payload.len() as u16).to_le_bytes());
+        buf.extend_from_slice(payload);
+        buf
+    }
+
+    #[test]
+    fn decodes_a_chat_message() {
+        let mut payload = vec![MSG_CHAT_MESSAGE];
+        payload.extend_from_slice(&3u16.to_le_bytes()); // author
+        payload.push(0x03); // Channel
+        payload.extend_from_slice(&7u16.to_le_bytes()); // channel
+        payload.extend_from_slice(&5u16.to_le_bytes()); // len
+        payload.extend_from_slice(b"hello");
+
+        let mut codec = GameMessageCodec {};
+        let mut buf = frame(&payload);
+        match codec.decode(&mut buf).unwrap().unwrap() {
+            ServerMessage::ChatMessage {
+                author,
+                message_type,
+                channel,
+                text,
+            } => {
+                assert_eq!(author, 3);
+                assert!(matches!(message_type, ChatMessageType::Channel));
+                assert_eq!(channel, 7);
+                assert_eq!(text, "hello");
+            }
+            other => panic!("expected ChatMessage, got {other:?}"),
+        }
+        assert!(buf.is_empty(), "the frame must be fully consumed");
+    }
+
+    #[test]
+    fn decodes_introduce_player() {
+        let mut payload = vec![MSG_INTRODUCE_PLAYER];
+        payload.extend_from_slice(&9u16.to_le_bytes());
+        payload.extend_from_slice(&6u16.to_le_bytes());
+        payload.extend_from_slice(b"Rizael");
+
+        let mut codec = GameMessageCodec {};
+        let mut buf = frame(&payload);
+        match codec.decode(&mut buf).unwrap().unwrap() {
+            ServerMessage::IntroducePlayer { local_id, name } => {
+                assert_eq!(local_id, 9);
+                assert_eq!(name, "Rizael");
+            }
+            other => panic!("expected IntroducePlayer, got {other:?}"),
+        }
+        assert!(buf.is_empty());
+    }
+
+    /// Three entries with different-length names and a non-contiguous third id. A
+    /// single-entry test cannot tell a correct loop from one that stops after the
+    /// first entry, or that writes an index instead of the real id.
+    #[test]
+    fn decodes_every_entry_of_a_channel_list() {
+        let entries: [(u16, &[u8]); 3] = [
+            (1, b"World Chat"),
+            (2, b"Advertising"),
+            (7, b"Help"),
+        ];
+        let mut payload = vec![MSG_CHANNEL_LIST];
+        payload.extend_from_slice(&(entries.len() as u16).to_le_bytes());
+        for (id, name) in entries.iter() {
+            payload.extend_from_slice(&id.to_le_bytes());
+            payload.extend_from_slice(&(name.len() as u16).to_le_bytes());
+            payload.extend_from_slice(name);
+        }
+
+        let mut codec = GameMessageCodec {};
+        let mut buf = frame(&payload);
+        match codec.decode(&mut buf).unwrap().unwrap() {
+            ServerMessage::ChannelList { channels } => {
+                assert_eq!(channels.len(), 3);
+                assert_eq!(channels[0], (1, "World Chat".to_owned()));
+                assert_eq!(channels[1], (2, "Advertising".to_owned()));
+                assert_eq!(channels[2], (7, "Help".to_owned()));
+            }
+            other => panic!("expected ChannelList, got {other:?}"),
+        }
+        assert!(buf.is_empty(), "the frame must be fully consumed");
+    }
+
+    #[test]
+    fn rejects_an_unknown_chat_message_type() {
+        let mut payload = vec![MSG_CHAT_MESSAGE];
+        payload.extend_from_slice(&0u16.to_le_bytes());
+        payload.push(0x09); // not a valid type
+        payload.extend_from_slice(&0u16.to_le_bytes());
+        payload.extend_from_slice(&0u16.to_le_bytes());
+
+        let mut codec = GameMessageCodec {};
+        let mut buf = frame(&payload);
+        assert!(matches!(
+            codec.decode(&mut buf),
+            Err(MessageDecodeError::WrongSequence)
+        ));
     }
 }

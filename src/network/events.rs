@@ -290,5 +290,9 @@ pub fn route_event(msg: ServerMessage, commands: &mut Commands) {
         ServerMessage::TeleportAgent { agent_id, position } => {
             commands.trigger(TeleportAgent { agent_id, position });
         }
+        // TODO(chat wire task 4): route to real events.
+        ServerMessage::ChatMessage { .. }
+        | ServerMessage::ChannelList { .. }
+        | ServerMessage::IntroducePlayer { .. } => {}
     }
 }
