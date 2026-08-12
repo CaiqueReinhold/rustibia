@@ -77,23 +77,18 @@ pub enum ClientMessage {
         position: Position,
     },
     // Not yet constructed anywhere: chat UI wiring lands in a later task.
-    #[allow(dead_code)]
     Say {
         message: String,
         message_type: ChatMessageType,
         target: u16,
     },
-    #[allow(dead_code)]
     RequestChannels,
-    #[allow(dead_code)]
     OpenChannel {
         channel: u16,
     },
-    #[allow(dead_code)]
     CloseChannel {
         channel: u16,
     },
-    #[allow(dead_code)]
     OpenPmChat {
         name: String,
     },

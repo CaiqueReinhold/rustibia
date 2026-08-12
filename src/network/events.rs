@@ -143,7 +143,6 @@ pub struct SpawnAgent {
 
 // Not yet observed anywhere: chat UI wiring lands in a later task.
 #[derive(Event, Debug)]
-#[allow(dead_code)]
 pub struct ChatMessageReceived {
     pub author: u16,
     pub message_type: ChatMessageType,
@@ -152,13 +151,11 @@ pub struct ChatMessageReceived {
 }
 
 #[derive(Event, Debug)]
-#[allow(dead_code)]
 pub struct ChannelListReceived {
     pub channels: Vec<(u16, String)>,
 }
 
 #[derive(Event, Debug)]
-#[allow(dead_code)]
 pub struct PlayerIntroduced {
     pub local_id: u16,
     pub name: String,
