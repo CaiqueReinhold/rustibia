@@ -4,6 +4,7 @@ use crate::conf::ui::{CHAT_BOX_HEIGHT, SEPARATOR_HEIGHT, ui_colors};
 use crate::core::GameState;
 use crate::game_ui::GameUiAssets;
 
+pub mod channels_dialog;
 pub mod events;
 pub mod input;
 pub mod messages;
@@ -42,6 +43,8 @@ impl Plugin for ChatPlugin {
             .add_observer(network::on_chat_message_received)
             .add_observer(network::on_open_channel_wire)
             .add_observer(network::on_close_channel_wire)
+            .add_observer(channels_dialog::on_open_channels_dialog)
+            .add_observer(channels_dialog::on_channels_dialog_button)
             .add_systems(OnEnter(GameState::InGame), network::request_channels)
             .add_systems(
                 Update,

@@ -3,6 +3,7 @@ use bevy_text_outline::TextOutline;
 
 use crate::conf::ui::{chat as conf, ui_colors};
 use crate::game_ui::GameUiAssets;
+use crate::game_ui::chat::channels_dialog::OpenChannelsDialog;
 use crate::game_ui::chat::events::{ActivateChannel, CloseChannel, MessageAppendedUi, OpenChannel};
 use crate::game_ui::chat::state::{ChannelId, ChatState};
 
@@ -219,6 +220,9 @@ fn add_channel_buttons(
                 ..default()
             },
         ))
+        .observe(|_: On<Pointer<Click>>, mut commands: Commands| {
+            commands.trigger(OpenChannelsDialog);
+        })
         .id();
     commands.entity(parent).add_child(plus);
 }
