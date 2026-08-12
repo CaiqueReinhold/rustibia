@@ -7,6 +7,7 @@ use crate::game_ui::GameUiAssets;
 pub mod events;
 pub mod input;
 pub mod messages;
+pub mod routing;
 pub mod state;
 pub mod tabs;
 
