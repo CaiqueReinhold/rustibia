@@ -91,6 +91,13 @@ pub mod ui {
 
         pub const LOCAL_CHANNEL_NAME: &str = "Local";
         pub const LOCAL_CHANNEL_COLOR: Srgba = Srgba::new(0.94, 0.94, 0.0, 1.0);
+
+        /// Must equal the server's `chat.max_message_length` in
+        /// `crates/server/assets/game_conf.yaml`. The client has no access to server
+        /// config, so the value is duplicated and pinned by a test on each side —
+        /// a divergence would otherwise show up only as messages the server silently
+        /// refuses. Both sides count characters, not bytes.
+        pub const MAX_MESSAGE_LENGTH: usize = 255;
     }
 
     pub mod dialog {

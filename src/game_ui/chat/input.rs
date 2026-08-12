@@ -82,6 +82,7 @@ pub fn spawn_input(commands: &mut Commands, ui_assets: &GameUiAssets) -> Entity 
                 mode: TextInputMode::SingleLine,
                 clear_on_submit: true,
                 is_enabled: false,
+                max_chars: Some(conf::MAX_MESSAGE_LENGTH),
                 ..default()
             },
             TextInputContents::default(),
@@ -157,20 +158,33 @@ pub fn on_chat_mode_changed(
     }
 }
 
-/// `SubmitChatInput` is observed here so the message is appended into the
-/// active channel as a loopback.
+/// Sends what was typed to the server, and renders a local copy only when the server
+/// will not echo one back. See `routing::outbound_for`.
 pub fn on_submit_chat_input(
     event: On<SubmitChatInput>,
     state: Res<ChatState>,
     mut commands: Commands,
 ) {
     use crate::game_ui::chat::events::AppendChatMessage;
+    use crate::game_ui::chat::routing::outbound_for;
+    use crate::network::{ClientMessage, SendMessage};
+
     let active = state.active;
-    commands.trigger(AppendChatMessage {
-        message: ChatMessage {
-            text: event.text.clone(),
-            channel_id: Some(active),
-            author: None,
-        },
-    });
+    let out = outbound_for(active);
+
+    commands.trigger(SendMessage(ClientMessage::Say {
+        message: event.text.clone(),
+        message_type: out.message_type,
+        target: out.target,
+    }));
+
+    if out.echo {
+        commands.trigger(AppendChatMessage {
+            message: ChatMessage {
+                text: event.text.clone(),
+                channel_id: Some(active),
+                author: None,
+            },
+        });
+    }
 }
