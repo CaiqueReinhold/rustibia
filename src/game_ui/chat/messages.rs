@@ -213,6 +213,17 @@ fn spawn_message_row(
                 ..default()
             },
         ));
+        if let Some(author) = &stored.message.author {
+            c.spawn((
+                Text::new(format!("{author}: ")),
+                TextColor(text_color),
+                TextFont {
+                    font: ui_assets.font.clone(),
+                    font_size: 11.0,
+                    ..default()
+                },
+            ));
+        }
         c.spawn((
             Text::new(stored.message.text.clone()),
             TextColor(text_color),

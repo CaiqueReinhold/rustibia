@@ -170,6 +170,7 @@ pub fn on_submit_chat_input(
         message: ChatMessage {
             text: event.text.clone(),
             channel_id: Some(active),
+            author: None,
         },
     });
 }

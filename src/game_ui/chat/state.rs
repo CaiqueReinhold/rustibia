@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::collections::VecDeque;
 
 use bevy::color::Color;
@@ -33,6 +34,8 @@ pub struct ChannelConfig {
 pub struct ChatMessage {
     pub text: String,
     pub channel_id: Option<ChannelId>,
+    /// Resolved at append time, not render time. `None` for client-generated lines.
+    pub author: Option<String>,
 }
 
 #[derive(Debug)]
@@ -69,6 +72,14 @@ pub struct ChatState {
     pub active: ChannelId,
     pub history_cap: usize,
     pub available: Vec<ChannelConfig>,
+    /// `player_pms` id → display name, learned from `MSG_INTRODUCE_PLAYER`. Never
+    /// pruned: the server guarantees one introduction per author per session, so an
+    /// entry dropped here could never be relearned.
+    pub player_names: HashMap<u16, String>,
+    /// Set when `CLI_OPEN_PM_CHAT` is sent, cleared by the matching introduction.
+    /// `MSG_INTRODUCE_PLAYER` answers that request *and* precedes a first message
+    /// from an unknown author, and nothing in the message distinguishes the two.
+    pub pending_pm_open: Option<String>,
 }
 
 impl Default for ChatState {
@@ -78,6 +89,8 @@ impl Default for ChatState {
             active: ChannelId::Local,
             history_cap: conf::HISTORY_CAP_DEFAULT,
             available: Vec::new(),
+            player_names: HashMap::new(),
+            pending_pm_open: None,
         }
     }
 }
@@ -180,6 +193,7 @@ pub fn on_append_chat_message(
             message: ChatMessage {
                 text: event.message.text.clone(),
                 channel_id: event.message.channel_id,
+                author: event.message.author.clone(),
             },
         };
 
