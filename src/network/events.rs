@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use crate::{
     agent::{AgentId, FacingDirection, Health, Mana, WalkingDirection},
     conf::map::{TILES_X, TILES_Y},
-    core::{OutfitColors, OutfitId, TextMessageType},
+    core::{ChatMessageType, OutfitColors, OutfitId, TextMessageType},
     items::{ContainerId, InventorySlot, ItemId},
     map::Position,
     network::{ServerMessage, messages::ItemStack},
@@ -139,6 +139,29 @@ pub struct SpawnAgent {
     pub name: String,
     pub health: Health,
     pub speed: u16,
+}
+
+// Not yet observed anywhere: chat UI wiring lands in a later task.
+#[derive(Event, Debug)]
+#[allow(dead_code)]
+pub struct ChatMessageReceived {
+    pub author: u16,
+    pub message_type: ChatMessageType,
+    pub channel: u16,
+    pub text: String,
+}
+
+#[derive(Event, Debug)]
+#[allow(dead_code)]
+pub struct ChannelListReceived {
+    pub channels: Vec<(u16, String)>,
+}
+
+#[derive(Event, Debug)]
+#[allow(dead_code)]
+pub struct PlayerIntroduced {
+    pub local_id: u16,
+    pub name: String,
 }
 
 pub fn route_event(msg: ServerMessage, commands: &mut Commands) {
@@ -290,9 +313,24 @@ pub fn route_event(msg: ServerMessage, commands: &mut Commands) {
         ServerMessage::TeleportAgent { agent_id, position } => {
             commands.trigger(TeleportAgent { agent_id, position });
         }
-        // TODO(chat wire task 4): route to real events.
-        ServerMessage::ChatMessage { .. }
-        | ServerMessage::ChannelList { .. }
-        | ServerMessage::IntroducePlayer { .. } => {}
+        ServerMessage::ChatMessage {
+            author,
+            message_type,
+            channel,
+            text,
+        } => {
+            commands.trigger(ChatMessageReceived {
+                author,
+                message_type,
+                channel,
+                text,
+            });
+        }
+        ServerMessage::ChannelList { channels } => {
+            commands.trigger(ChannelListReceived { channels });
+        }
+        ServerMessage::IntroducePlayer { local_id, name } => {
+            commands.trigger(PlayerIntroduced { local_id, name });
+        }
     }
 }

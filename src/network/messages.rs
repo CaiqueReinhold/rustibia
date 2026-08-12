@@ -76,18 +76,24 @@ pub enum ClientMessage {
     Look {
         position: Position,
     },
+    // Not yet constructed anywhere: chat UI wiring lands in a later task.
+    #[allow(dead_code)]
     Say {
         message: String,
         message_type: ChatMessageType,
         target: u16,
     },
+    #[allow(dead_code)]
     RequestChannels,
+    #[allow(dead_code)]
     OpenChannel {
         channel: u16,
     },
+    #[allow(dead_code)]
     CloseChannel {
         channel: u16,
     },
+    #[allow(dead_code)]
     OpenPmChat {
         name: String,
     },
@@ -764,7 +770,11 @@ mod tests {
         let mut buf = BytesMut::new();
         codec.encode(msg, &mut buf).unwrap();
         let declared = u16::from_le_bytes([buf[0], buf[1]]) as usize;
-        assert_eq!(declared, buf.len() - 2, "length prefix must cover the payload");
+        assert_eq!(
+            declared,
+            buf.len() - 2,
+            "length prefix must cover the payload"
+        );
         buf[2..].to_vec()
     }
 
@@ -778,7 +788,11 @@ mod tests {
         assert_eq!(payload[0], CLI_SAY);
         assert_eq!(payload[1], 0x01, "Local");
         assert_eq!(u16::from_le_bytes([payload[2], payload[3]]), 0);
-        assert_eq!(&payload[4..], b"hello", "message is trailing, no inline length");
+        assert_eq!(
+            &payload[4..],
+            b"hello",
+            "message is trailing, no inline length"
+        );
     }
 
     #[test]
@@ -805,7 +819,10 @@ mod tests {
 
     #[test]
     fn channel_control_messages_encode() {
-        assert_eq!(payload_of(ClientMessage::RequestChannels), vec![CLI_REQUEST_CHANNELS]);
+        assert_eq!(
+            payload_of(ClientMessage::RequestChannels),
+            vec![CLI_REQUEST_CHANNELS]
+        );
 
         let payload = payload_of(ClientMessage::OpenChannel { channel: 2 });
         assert_eq!(payload[0], CLI_OPEN_CHANNEL);
@@ -887,11 +904,7 @@ mod tests {
     /// first entry, or that writes an index instead of the real id.
     #[test]
     fn decodes_every_entry_of_a_channel_list() {
-        let entries: [(u16, &[u8]); 3] = [
-            (1, b"World Chat"),
-            (2, b"Advertising"),
-            (7, b"Help"),
-        ];
+        let entries: [(u16, &[u8]); 3] = [(1, b"World Chat"), (2, b"Advertising"), (7, b"Help")];
         let mut payload = vec![MSG_CHANNEL_LIST];
         payload.extend_from_slice(&(entries.len() as u16).to_le_bytes());
         for (id, name) in entries.iter() {
