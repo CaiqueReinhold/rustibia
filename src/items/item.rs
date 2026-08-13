@@ -122,7 +122,7 @@ pub enum ItemFlag {
 pub struct ItemConfig {
     pub id: ItemId,
     pub flags: Vec<ItemFlag>,
-    pub friction: Option<u8>,
+    pub friction: Option<u16>,
     pub slot: Option<InventorySlot>,
     pub minimap_color: Option<u8>,
     pub elevation: Option<u8>,

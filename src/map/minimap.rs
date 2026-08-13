@@ -51,8 +51,13 @@ impl MinimapData {
         (ChunkKey { cx, cy, z: pos.z }, ly * CHUNK_SIZE as usize + lx)
     }
 
-    pub fn update_tile(&mut self, pos: &Position, color: u8, friction: u8) {
-        let new_friction = Some(friction);
+    pub fn update_tile(&mut self, pos: &Position, color: u8, friction: u16) {
+        // Chunks persist to disk one byte per friction with 0xFF reserved for
+        // "unvisited", so values above 254 clamp rather than widening the format
+        // and invalidating every player's explored map. The minimap only uses this
+        // for A* passability and relative cost, and "very expensive but passable"
+        // is the right signal for a slow tile.
+        let new_friction = Some(friction.min(254) as u8);
         let (key, offset) = Self::key_and_offset(pos);
         let chunk = self.chunks.entry(key).or_insert_with(MinimapChunk::new);
         let tile = &mut chunk.tiles[offset];

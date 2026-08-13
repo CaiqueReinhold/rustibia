@@ -36,7 +36,7 @@ pub struct Agent {
 }
 
 impl Agent {
-    pub fn get_step_duration(&self, tile_friction: u8, is_diagonal: bool) -> u32 {
+    pub fn get_step_duration(&self, tile_friction: u16, is_diagonal: bool) -> u32 {
         let move_speed = (SPEED_PARAM_A * ((self.speed as f32) + SPEED_PARAM_B).ln()
             + SPEED_PARAM_C)
             .round()
@@ -196,4 +196,34 @@ pub struct HudBar {
 pub struct AgentAnimConfigs {
     pub still: Arc<SpriteConfig>,
     pub moving: Arc<SpriteConfig>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Paired with `walk_ticks_match_the_client` in the server's
+    /// `entities/agent.rs`. The two formulas are deliberate duplicates across two
+    /// repositories: a divergence compiles cleanly on both sides and simply
+    /// desyncs movement, so each side pins the same three answers.
+    ///
+    /// The server asserts ticks; these are the same numbers times the 50ms tick.
+    /// Speed 120 matches the server fixture's Speed skill.
+    #[test]
+    fn step_duration_matches_the_server() {
+        let agent = Agent {
+            speed: 120,
+            ..Default::default()
+        };
+
+        assert_eq!(agent.get_step_duration(150, false), 500, "10 ticks");
+        assert_eq!(
+            agent.get_step_duration(150, true),
+            1250,
+            "25 ticks diagonal"
+        );
+        // 260 is the friction of `ornamented stone floor` (id 21718), one of the
+        // ten values this side used to truncate through a `u8`.
+        assert_eq!(agent.get_step_duration(260, false), 900, "18 ticks");
+    }
 }

@@ -31,7 +31,15 @@ pub fn read_item_configs() -> HashMap<ItemId, Arc<ItemConfig>> {
 fn read_item_config(config: &Value) -> Option<Arc<ItemConfig>> {
     let id = config["id"].as_u64()? as ItemId;
     let minimap_color = config["minimap_color"].as_u64().map(|v| v as u8);
-    let friction = Some(config["ground_speed"].as_u64()? as u8);
+    // Only ground items carry friction, mirroring the server's data invariant that
+    // `tile_friction` appears on exactly its ground items and nothing else. Without
+    // the condition every item would hold `Some(0)` and `get_tile_friction`'s
+    // "first item with a value" rule would resolve to the bottom of the stack.
+    let friction = if config["is_ground"].as_bool().unwrap_or(false) {
+        Some(config["ground_speed"].as_u64().unwrap_or(0) as u16)
+    } else {
+        None
+    };
     let slot = if config["slot"].is_null() {
         None
     } else {

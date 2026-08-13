@@ -82,17 +82,18 @@ impl Map {
         self.tiles.get(position)?.items.get(index)
     }
 
-    pub fn get_tile_friction(&self, pos: &Position) -> Option<u8> {
+    pub fn get_tile_friction(&self, pos: &Position) -> Option<u16> {
         let tile = self.tiles.get(pos)?;
 
         if !self.can_walk(pos) {
             return None;
         }
 
-        tile.items
-            .iter()
-            .find(|i| i.config.has_flag(ItemFlag::Ground))
-            .and_then(|i| i.config.friction)
+        // The server takes the first item carrying a `tile_friction` attribute
+        // (`GameMap::tile_friction`). Matching that rule rather than filtering on
+        // the Ground flag separately keeps the two sides from drifting apart; the
+        // parse in `core::items` is what makes the two selections equivalent.
+        tile.items.iter().find_map(|i| i.config.friction)
     }
 
     pub fn get_items(&self, pos: &Position) -> Option<impl Iterator<Item = &Item>> {
@@ -160,4 +161,80 @@ impl Map {
 
 pub(super) fn init_map(mut commands: Commands) {
     commands.init_resource::<Map>();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::items::{ItemConfig, ItemFlag, ItemId};
+
+    fn item(id: ItemId, flags: Vec<ItemFlag>, friction: Option<u16>) -> Arc<Item> {
+        Arc::new(Item::new(
+            Arc::new(ItemConfig {
+                id,
+                flags,
+                friction,
+                slot: None,
+                minimap_color: None,
+                elevation: None,
+            }),
+            1,
+        ))
+    }
+
+    fn at(x: u16, y: u16) -> Position {
+        Position { x, y, z: 7 }
+    }
+
+    /// The rule is the server's: first item carrying a value, not first item
+    /// carrying the Ground flag. Items stacked above the ground have no friction,
+    /// so the two agree — this pins that they keep agreeing.
+    #[test]
+    fn friction_comes_from_the_first_item_that_has_it() {
+        let mut map = Map::default();
+        map.replace_tile(
+            vec![
+                item(100, vec![ItemFlag::Ground], Some(150)),
+                item(200, Vec::new(), None),
+            ],
+            &at(10, 10),
+        );
+
+        assert_eq!(map.get_tile_friction(&at(10, 10)), Some(150));
+    }
+
+    /// The regression this task exists for: 260 used to truncate through a `u8`
+    /// into 4, predicting a 50ms step where the server charges 900ms.
+    #[test]
+    fn friction_above_255_survives() {
+        let mut map = Map::default();
+        map.replace_tile(
+            vec![item(21718, vec![ItemFlag::Ground], Some(260))],
+            &at(10, 10),
+        );
+
+        assert_eq!(map.get_tile_friction(&at(10, 10)), Some(260));
+    }
+
+    /// An unwalkable tile has no friction to report, which is what keeps the
+    /// minimap's A* from routing through it.
+    #[test]
+    fn an_unwalkable_tile_reports_no_friction() {
+        let mut map = Map::default();
+        map.replace_tile(
+            vec![
+                item(100, vec![ItemFlag::Ground], Some(150)),
+                item(200, vec![ItemFlag::Unpass], None),
+            ],
+            &at(10, 10),
+        );
+
+        assert_eq!(map.get_tile_friction(&at(10, 10)), None);
+    }
+
+    #[test]
+    fn an_unknown_tile_reports_no_friction() {
+        let map = Map::default();
+        assert_eq!(map.get_tile_friction(&at(10, 10)), None);
+    }
 }
