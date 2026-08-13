@@ -39,25 +39,36 @@ pub struct UpdateElevation {
 pub fn on_start_agent_move(
     event: On<StartAgentMove>,
     mut commands: Commands,
-    mut agent_q: Query<(&mut Agent, &Position)>,
+    mut agent_q: Query<(&mut Agent, &Position, &mut Transform)>,
     map: Res<Map>,
 ) {
     let Some(entity) = map.get_agent(event.agent_id) else {
         return;
     };
-    let Ok((mut agent, position)) = agent_q.get_mut(entity) else {
+    let Ok((mut agent, position, mut transform)) = agent_q.get_mut(entity) else {
         return;
     };
 
     let start_position = position.clone();
     let facing = event.direction.facing();
     let end_position = start_position.clone() + event.direction;
-    let tile_modifier = map.get_tile_friction(&end_position).unwrap_or(0);
-    let step_time_ms = agent.get_step_duration(tile_modifier, event.direction.is_diagonal());
-
     agent.direction = facing;
+
+    let Some(tile_modifier) = map.get_tile_friction(&end_position) else {
+        // This client has no friction for the destination, so any step duration
+        // would be invented — and a made-up short one used to free the send gate
+        // a frame later, straight into a full server cooldown. Place the agent
+        // instead, the same way `move_agent` does when a step completes.
+        let elevation = map.get_elevation(&end_position);
+        transform.translation =
+            end_position.to_world_with_elevation(elevation) + vec3(0.0, 0.0, AGENT_Z_OFFSET);
+        commands.entity(entity).insert(end_position);
+        return;
+    };
+
+    let step_time_ms = agent.get_step_duration(tile_modifier, event.direction.is_diagonal());
     commands.entity(entity).insert(Moving {
-        start: start_position.clone(),
+        start: start_position,
         end: end_position,
         timer: Timer::new(Duration::from_millis(step_time_ms as u64), TimerMode::Once),
     });
@@ -192,5 +203,60 @@ pub fn process_agent_move_queues(
             agent_id: agent.agent_id,
             direction,
         });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::agent::FacingDirection;
+
+    fn at(x: u16, y: u16) -> Position {
+        Position { x, y, z: 7 }
+    }
+
+    /// An agent can be told to walk onto a tile this client has never been sent —
+    /// it happens at the viewport edge. There is no honest step duration for that,
+    /// so the agent is placed rather than glided at a made-up speed.
+    #[test]
+    fn an_unknown_destination_friction_snaps_instead_of_gliding() {
+        let mut world = World::new();
+        let mut map = Map::default();
+        let entity = world
+            .spawn((
+                Agent {
+                    agent_id: 1,
+                    speed: 120,
+                    ..Default::default()
+                },
+                at(100, 100),
+                Transform::default(),
+            ))
+            .id();
+        map.add_agent(1, entity);
+        // No tile is inserted anywhere, so the destination has no friction.
+        world.insert_resource(map);
+        world.add_observer(on_start_agent_move);
+
+        world.trigger(StartAgentMove {
+            agent_id: 1,
+            direction: WalkingDirection::East,
+        });
+        world.flush();
+
+        assert!(
+            world.get::<Moving>(entity).is_none(),
+            "no interpolation without a real step duration"
+        );
+        assert_eq!(
+            world.get::<Position>(entity),
+            Some(&at(101, 100)),
+            "the agent still arrives"
+        );
+        assert_eq!(
+            world.get::<Agent>(entity).unwrap().direction,
+            FacingDirection::East,
+            "and still turns"
+        );
     }
 }
