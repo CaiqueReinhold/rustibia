@@ -9,7 +9,7 @@ use crate::{
     core::{Appearances, InstanceManager},
     game_ui::GameUiAssets,
     map::{FloorEntities, Map, Position},
-    network::events::{MoveAgent, RemoveAgent, SpawnAgent},
+    network::events::{ClientOutdated, MoveAgent, RemoveAgent, SpawnAgent},
 };
 
 pub fn on_spawn_agent(
@@ -37,7 +37,7 @@ pub fn on_spawn_agent(
         map.remove_agent(event.agent_id);
     }
 
-    let entity = spawn_agent(
+    let Some(entity) = spawn_agent(
         &mut commands,
         &mut loaded_materials,
         &mut materials,
@@ -57,7 +57,10 @@ pub fn on_spawn_agent(
         Some(event.health.clone()),
         None,
         event.agent_id,
-    );
+    ) else {
+        commands.trigger(ClientOutdated);
+        return;
+    };
     map.add_agent(event.agent_id, entity);
 
     commands

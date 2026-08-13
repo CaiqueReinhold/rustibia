@@ -5,7 +5,7 @@ use bevy::shader::ShaderRef;
 use bevy::sprite_render::{AlphaMode2d, Material2d};
 
 #[repr(C)]
-#[derive(ShaderType, Clone, Copy, Debug, Default)]
+#[derive(ShaderType, Clone, Copy, Debug, Default, PartialEq)]
 pub struct ItemInstance {
     pub sprite_id: u32,
     pub _pad: u32, // required std430 alignment padding before vec2

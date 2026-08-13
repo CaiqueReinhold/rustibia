@@ -43,12 +43,20 @@ impl Appearances {
         }
     }
 
+    /// Every id reaching here came from an [`crate::items::Item`], and an
+    /// `Item` is only built after its id was found in `ItemConfigs` — so a
+    /// miss means items.json and sprite.json disagree, which is a broken
+    /// install rather than anything the server said.
     pub fn get_item(&self, id: ItemId) -> Arc<SpriteConfig> {
-        Arc::clone(self.items.get(&id).unwrap())
+        Arc::clone(
+            self.items.get(&id).unwrap_or_else(|| {
+                panic!("item {id} is in items.json but missing from sprite.json")
+            }),
+        )
     }
 
-    pub fn get_outfit(&self, id: OutfitId) -> &OutfitSprite {
-        self.outfits.get(&id).unwrap()
+    pub fn get_outfit(&self, id: OutfitId) -> Option<&OutfitSprite> {
+        self.outfits.get(&id)
     }
 
     pub fn get_sheet(&self, group: &str) -> &SpriteSheet {

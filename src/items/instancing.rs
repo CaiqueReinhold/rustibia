@@ -219,8 +219,9 @@ pub fn update_item_instances(
     mut instances: ResMut<InstanceManager<ItemInstance>>,
 ) {
     for (animator, tag) in &items_q {
-        let instance = instances.get_mut(tag.0);
-        instance.sprite_id = animator.current_sprite_ids[0];
+        instances.update(tag.0, |instance| {
+            instance.sprite_id = animator.current_sprite_ids[0];
+        });
     }
 }
 
@@ -234,12 +235,13 @@ pub fn upload_instance_buffer(
         return;
     }
 
-    if let Some(ssb) = buffers.get_mut(&loaded_materials.buffer) {
-        ssb.set_data(instances.get_buffer_data());
-        instances.reset_dirty();
-    }
+    let Some(ssb) = buffers.get_mut(&loaded_materials.buffer) else {
+        return;
+    };
+    ssb.set_data(instances.get_buffer_data());
+    instances.reset_dirty();
 
     for (_, mat) in loaded_materials.materials.values() {
-        let _ = materials.get_mut(mat).unwrap();
+        let _ = materials.get_mut(mat);
     }
 }

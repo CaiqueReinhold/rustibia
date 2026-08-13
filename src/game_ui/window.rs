@@ -15,6 +15,7 @@ use crate::{
         z_index::{Z_DRAGGING_WINDOW, Z_WINDOW},
     },
     game_ui::assets::GameUiAssets,
+    game_ui::scaling::{logical_center, logical_rect, logical_size, to_logical},
     player::InteractionMode,
 };
 
@@ -290,14 +291,13 @@ fn check_dock_hover(
     let position = location.position;
 
     for (dock, transform, node) in dock_q.iter() {
-        let half = node.size() / Vec2::splat(2.0);
-        let top_left = transform.translation - half;
-        let bottom_right = transform.translation + half;
+        // The pointer is logical and the dock's layout is physical.
+        let rect = logical_rect(node, transform);
 
-        if position.x > top_left.x
-            && position.y > top_left.y
-            && position.x < bottom_right.x
-            && position.y < bottom_right.y
+        if position.x > rect.min.x
+            && position.y > rect.min.y
+            && position.x < rect.max.x
+            && position.y < rect.max.y
         {
             if current.dock != Some(dock.id) {
                 current.dock = Some(dock.id);
@@ -792,7 +792,8 @@ fn find_available_container(
         .unwrap();
 
     for (entity, node, children) in containers {
-        let container_height = node.size().y;
+        // `height` comes from `Val::Px` sizes, so compare in logical pixels.
+        let container_height = logical_size(node).y;
         let mut sum_children_height: f32 = 0.0;
 
         let Some(children) = children else {
@@ -803,7 +804,7 @@ fn find_available_container(
             let Ok(node) = node_q.get(c) else {
                 continue;
             };
-            sum_children_height += node.size().y;
+            sum_children_height += logical_size(node).y;
         }
 
         if (container_height - sum_children_height) >= height {
@@ -882,8 +883,8 @@ fn on_resize_start(
     commands
         .entity(resize_handle.parent())
         .insert(ResizeIntent {
-            start_height: node.size().y,
-            new_height: node.size().y,
+            start_height: logical_size(node).y,
+            new_height: logical_size(node).y,
         });
 }
 
@@ -916,11 +917,11 @@ fn resize_window(
     }
 
     let (_, dock_layout) = dock_q.iter().find(|(d, _)| d.id == window.dock_id).unwrap();
-    let dock_total_size = dock_layout.size().y;
+    let dock_total_size = logical_size(dock_layout).y;
     let other_windows_allocated_size: f32 = window_q
         .iter()
         .filter(|(_, w, _, _)| w.dock_id == window.dock_id && w.id != window.id)
-        .map(|(_, _, _, cn)| cn.size().y)
+        .map(|(_, _, _, cn)| logical_size(cn).y)
         .sum();
     let mut need_to_reclaim: f32 = 0.0;
 
@@ -930,9 +931,9 @@ fn resize_window(
             .filter(|(_, w, i, cn)| {
                 w.dock_id == window.dock_id
                     && *i > index
-                    && (cn.size().y - WINDOW_MIN_HEIGHT) >= 0.0
+                    && (logical_size(cn).y - WINDOW_MIN_HEIGHT) >= 0.0
             })
-            .map(|(e, _, i, cn)| (e, i, cn.size().y - WINDOW_MIN_HEIGHT))
+            .map(|(e, _, i, cn)| (e, i, logical_size(cn).y - WINDOW_MIN_HEIGHT))
             .collect();
         windows_to_shrink.sort_by_key(|(_, i, _)| Reverse(i.0));
         let total_reclaimable_size: f32 = windows_to_shrink.iter().map(|(_, _, size)| *size).sum();
@@ -975,19 +976,22 @@ fn start_drag_window(
     dock_q: Query<(Entity, &UIWindowDock)>,
     titles_q: Query<&ChildOf, With<UIWindowTitleBar>>,
     window_q: Query<(Entity, &UIWindow, &Index, &UiGlobalTransform)>,
+    computed_q: Query<&ComputedNode>,
     mut window_node_q: Query<&mut Node, With<UIWindow>>,
 ) {
     event.propagate(false);
 
     let parent = titles_q.get(event.event_target()).unwrap();
     let (windown_entity, window, index, transform) = window_q.get(parent.parent()).unwrap();
+    let computed = computed_q.get(parent.parent()).unwrap();
 
     commands.entity(parent.parent()).insert((
         DraggingIntent {
             window: window.id,
             start_dock: window.dock_id,
             start_pointer_location: event.pointer_location.position,
-            start_position: transform.translation,
+            // Logical, so it stays comparable with the pointer location above.
+            start_position: logical_center(computed, transform),
             current_index: index.0,
             current_dock: Some(window.dock_id),
             prev_index: index.0,
@@ -1084,7 +1088,8 @@ fn on_drag_window(
         .map(|(_, t, n)| (t, n))
         .next()
         .unwrap();
-    let dock_start_position = dock_layout.translation - (dock_node.size() / Vec2::splat(2.0));
+    // Everything below is logical, to match the pointer position.
+    let dock_start_position = logical_rect(dock_node, dock_layout).min;
     let offseted_pointer_position = pointer_position - dock_start_position;
 
     let windows: Vec<&ComputedNode> = windows_q
@@ -1097,8 +1102,9 @@ fn on_drag_window(
     let mut target_index = windows.len() - 1;
     let mut top = 0.0;
     for (i, node) in windows.into_iter().enumerate() {
-        let mid = top + node.size().y / 2.0;
-        let bottom = top + node.size().y;
+        let height = logical_size(node).y;
+        let mid = top + height / 2.0;
+        let bottom = top + height;
 
         if i < drag.current_index {
             if offseted_pointer_position.y < mid {
@@ -1110,7 +1116,7 @@ fn on_drag_window(
             break;
         }
 
-        top += node.size().y;
+        top += height;
     }
 
     if target_index != drag.current_index {
@@ -1198,7 +1204,12 @@ fn on_transfer_window(
 
 fn window_follow_pointer(
     pointer_q: Query<&PointerLocation>,
-    mut drag_q: Query<(&mut UiTransform, &UiGlobalTransform, &DraggingIntent)>,
+    mut drag_q: Query<(
+        &mut UiTransform,
+        &UiGlobalTransform,
+        &ComputedNode,
+        &DraggingIntent,
+    )>,
 ) {
     if pointer_q.is_empty() || drag_q.is_empty() {
         return;
@@ -1207,11 +1218,13 @@ fn window_follow_pointer(
     let Some(pointer_location) = pointer_q.single().unwrap().location() else {
         return;
     };
-    let (mut transform, global_transform, intent) = drag_q.single_mut().unwrap();
+    let (mut transform, global_transform, computed, intent) = drag_q.single_mut().unwrap();
 
     let current_translation = val2_to_vec2(transform.translation);
 
-    let current_position = global_transform.translation - current_translation;
+    // `UiTransform` is logical and `UiGlobalTransform` is physical, so the global
+    // position has to come back to logical before the two are subtracted.
+    let current_position = logical_center(computed, global_transform) - current_translation;
     let pointer_offset = intent.start_position - intent.start_pointer_location;
     let diff = pointer_location.position - current_position + pointer_offset;
     transform.translation = Val2::px(diff.x, diff.y);
@@ -1317,6 +1330,7 @@ fn check_window_position_changed(
         (
             Entity,
             &UiGlobalTransform,
+            &ComputedNode,
             &PreviousPosition,
             &mut UiTransform,
         ),
@@ -1329,9 +1343,11 @@ fn check_window_position_changed(
     }
 
     let drag_window = drag_q.single().unwrap();
-    for (entity, gtransform, prev, mut transform) in window_q.iter_mut() {
+    for (entity, gtransform, computed, prev, mut transform) in window_q.iter_mut() {
         if gtransform.translation != prev.position && entity != drag_window {
-            let t = prev.position - gtransform.translation;
+            // Both positions are physical; the offset they produce is written back
+            // as `Val::Px`, so it has to be converted before it is applied.
+            let t = to_logical(computed, prev.position - gtransform.translation);
             transform.translation = Val2::px(t.x, t.y);
             commands.entity(entity).insert(SnapToPlace);
         }

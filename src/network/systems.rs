@@ -7,7 +7,7 @@ use futures::{FutureExt, SinkExt, StreamExt};
 use std::io;
 
 use crate::{
-    conf,
+    config,
     core::GameState,
     network::{
         events,
@@ -53,7 +53,7 @@ pub(super) fn on_connect(event: On<Connect>, mut commands: Commands) {
     IoTaskPool::get()
         .spawn(async move {
             let conn =
-                PersistentConnection::new(conf::server::SERVER_ADDRESS, srv_send, cli_recv).await;
+                PersistentConnection::new(&config::CONFIG.server_address, srv_send, cli_recv).await;
             if let Ok(conn) = conn {
                 return conn.run().await;
             }
@@ -97,7 +97,7 @@ pub(super) fn receive_messages(mut commands: Commands, mut connection: ResMut<Co
             }
             if let ServerMessage::DescribePlayer { .. } = msg {
                 events::route_event(msg, &mut commands);
-                while let Some(start_msg) = connection.startup_messages.as_mut().unwrap().pop() {
+                for start_msg in connection.startup_messages.as_mut().unwrap().drain(..) {
                     events::route_event(start_msg, &mut commands);
                 }
                 connection.startup_messages = None;
@@ -124,11 +124,12 @@ pub(super) fn on_login_error_cleanup(
     }
 }
 
-/// Not gated on `Connecting`: an in-game connection drop must also remove
-/// the resource, or `receive_messages` re-triggers `ConnectionLost` every
-/// frame forever. (`on_send_message` already tolerates the missing
-/// resource; in-game reconnect UI is future work.)
 pub(super) fn on_connection_lost_cleanup(_: On<events::ConnectionLost>, mut commands: Commands) {
+    commands.remove_resource::<ConnectionState>();
+}
+
+pub(super) fn on_client_outdated(_: On<events::ClientOutdated>, mut commands: Commands) {
+    error!("Client is outdated: the server sent game data this client does not have");
     commands.remove_resource::<ConnectionState>();
 }
 
@@ -200,5 +201,83 @@ impl PersistentConnection {
         info!("loop ended");
 
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::agent::{FacingDirection, Health, Mana};
+    use crate::map::Position;
+    use bevy::ecs::system::RunSystemOnce;
+
+    #[derive(Resource, Default)]
+    struct Routed(Vec<&'static str>);
+
+    fn describe_player() -> ServerMessage {
+        ServerMessage::DescribePlayer {
+            agent_id: 1,
+            position: Position { x: 0, y: 0, z: 7 },
+            facing: FacingDirection::South,
+            name: "Rizael".to_string(),
+            level: 1,
+            health: Health { current: 1, max: 1 },
+            mana: Mana { current: 1, max: 1 },
+            outfit: (128, (0, 0, 0, 0)),
+            speed: 100,
+            capacity: 0,
+            inventory_head: None,
+            inventory_amulet: None,
+            inventory_backpack: None,
+            inventory_chest: None,
+            inventory_right_hand: None,
+            inventory_left_hand: None,
+            inventory_legs: None,
+            inventory_feet: None,
+            inventory_ring: None,
+            inventory_trinket: None,
+        }
+    }
+
+    /// The buffer exists because the world can't be built before the player is
+    /// described — but the server's own order still has to survive the wait, or
+    /// the client applies, say, a SpawnAgent before the map it stands on.
+    #[test]
+    fn buffered_startup_messages_replay_in_the_order_they_arrived() {
+        let mut world = World::new();
+        world.init_resource::<Routed>();
+        world.add_observer(|_: On<events::SpawnPlayer>, mut r: ResMut<Routed>| r.0.push("player"));
+        world.add_observer(|_: On<events::PlayerPosition>, mut r: ResMut<Routed>| {
+            r.0.push("position")
+        });
+        world.add_observer(|_: On<events::ContainerClosed>, mut r: ResMut<Routed>| {
+            r.0.push("container")
+        });
+
+        let (cli_send, _cli_recv) = bounded::<ClientMessage>(5);
+        let (srv_send, srv_recv) = bounded(5);
+        srv_send
+            .send_blocking(ServerMessage::PlayerPosition {
+                position: Position { x: 1, y: 2, z: 7 },
+            })
+            .unwrap();
+        srv_send
+            .send_blocking(ServerMessage::ContainerClosed { container_id: 3 })
+            .unwrap();
+        srv_send.send_blocking(describe_player()).unwrap();
+
+        world.insert_resource(ConnectionState {
+            startup_messages: Some(Vec::new()),
+            sender: cli_send,
+            receiver: srv_recv,
+        });
+
+        world.run_system_once(receive_messages).unwrap();
+
+        assert_eq!(
+            world.resource::<Routed>().0,
+            vec!["player", "position", "container"],
+            "DescribePlayer routes first, then the buffer in arrival order"
+        );
     }
 }

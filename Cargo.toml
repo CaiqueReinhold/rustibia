@@ -27,10 +27,13 @@ chrono = { version = "0.4", default-features = false, features = ["clock"] }
 # `blocking` carries its own tokio runtime on a background thread; the async
 # client would panic on Bevy's IoTaskPool, which has no tokio reactor.
 reqwest = { version = "0.13.4", features = ["json", "blocking"] }
-strfmt = "0.2.5"
+serde_yaml = "0.9"
 
 [features]
 debug = []
 
 [profile.release]
 opt-level = 3
+
+[build-dependencies]
+winresource = "0.1.31"

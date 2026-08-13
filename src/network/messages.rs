@@ -262,6 +262,58 @@ pub enum MessageDecodeError {
     ReadError(#[from] std::io::Error),
     #[error("Wrong sequence")]
     WrongSequence,
+    #[error("Payload ended mid-field")]
+    Truncated,
+    #[error("{0} unread byte(s) left in the payload")]
+    TrailingBytes(usize),
+}
+
+/// A bounds-checked cursor over a single frame's payload.
+///
+/// Every read returns [`MessageDecodeError::Truncated`] instead of panicking
+/// when the payload runs out, which is what keeps a malformed or truncated
+/// packet from killing the connection task.
+struct Reader<'a> {
+    buf: &'a [u8],
+}
+
+impl<'a> Reader<'a> {
+    fn new(buf: &'a [u8]) -> Self {
+        Self { buf }
+    }
+
+    fn remaining(&self) -> usize {
+        self.buf.len()
+    }
+
+    fn read_bytes(&mut self, len: usize) -> Result<&'a [u8], MessageDecodeError> {
+        if self.buf.len() < len {
+            return Err(MessageDecodeError::Truncated);
+        }
+        let (head, tail) = self.buf.split_at(len);
+        self.buf = tail;
+        Ok(head)
+    }
+
+    fn read_u8(&mut self) -> Result<u8, MessageDecodeError> {
+        Ok(self.read_bytes(1)?[0])
+    }
+
+    fn read_u16_le(&mut self) -> Result<u16, MessageDecodeError> {
+        let b = self.read_bytes(2)?;
+        Ok(u16::from_le_bytes([b[0], b[1]]))
+    }
+
+    fn read_u32_le(&mut self) -> Result<u32, MessageDecodeError> {
+        let b = self.read_bytes(4)?;
+        Ok(u32::from_le_bytes([b[0], b[1], b[2], b[3]]))
+    }
+
+    /// Reads a `len`-byte string. Invalid UTF-8 is replaced rather than
+    /// rejected — a mangled name is not worth dropping the connection over.
+    fn read_string(&mut self, len: usize) -> Result<String, MessageDecodeError> {
+        Ok(String::from_utf8_lossy(self.read_bytes(len)?).into_owned())
+    }
 }
 
 pub struct GameMessageCodec {}
@@ -281,277 +333,285 @@ impl Decoder for GameMessageCodec {
             return Ok(None);
         }
 
+        // Split the frame off before decoding anything: every read below is
+        // then bounded by this payload, so a corrupt message can neither run
+        // into the next frame's bytes nor leave the stream misaligned. The
+        // frame is consumed either way, so an error here is reportable
+        // without desyncing the framing.
         buf.advance(2);
+        let payload = buf.split_to(payload_len);
 
-        match buf.get_u8() {
-            MSG_PONG => Ok(Some(ServerMessage::Pong)),
-            MSG_LOGIN_ERROR => Ok(Some(ServerMessage::LoginError)),
-            MSG_DESCRIBE_PLAYER => {
-                let agent_id = buf.get_u16_le();
-                let position = decode_position(buf);
-                let facing = decode_facing(buf)?;
-                let name_len = buf.get_u16_le() as usize;
-                let name = String::from_utf8_lossy(&buf[..name_len]).into_owned();
-                buf.advance(name_len);
-                let level = buf.get_u16_le();
-                let health = Health {
-                    current: buf.get_u32_le(),
-                    max: buf.get_u32_le(),
-                };
-                let mana = Mana {
-                    current: buf.get_u32_le(),
-                    max: buf.get_u32_le(),
-                };
-                let outfit = buf.get_u16_le();
-                let color1 = buf.get_u8();
-                let color2 = buf.get_u8();
-                let color3 = buf.get_u8();
-                let color4 = buf.get_u8();
-                let speed = buf.get_u16_le();
-                let capacity = buf.get_u32_le();
-                let inventory_head = decode_optional_item(buf);
-                let inventory_amulet = decode_optional_item(buf);
-                let inventory_backpack = decode_optional_item(buf);
-                let inventory_chest = decode_optional_item(buf);
-                let inventory_right_hand = decode_optional_item(buf);
-                let inventory_left_hand = decode_optional_item(buf);
-                let inventory_legs = decode_optional_item(buf);
-                let inventory_feet = decode_optional_item(buf);
-                let inventory_ring = decode_optional_item(buf);
-                let inventory_trinket = decode_optional_item(buf);
-                Ok(Some(ServerMessage::DescribePlayer {
-                    agent_id,
-                    position,
-                    facing,
-                    name,
-                    level,
-                    health,
-                    mana,
-                    outfit: (outfit, (color1, color2, color3, color4)),
-                    speed,
-                    capacity,
-                    inventory_head,
-                    inventory_amulet,
-                    inventory_backpack,
-                    inventory_chest,
-                    inventory_right_hand,
-                    inventory_left_hand,
-                    inventory_legs,
-                    inventory_feet,
-                    inventory_ring,
-                    inventory_trinket,
-                }))
-            }
-            MSG_DESCRIBE_MAP => {
-                let center = decode_position(buf);
-                let floor = buf.get_u8();
-                let mut tiles = Box::new([[None; STACK_MAX_VISIBLE_ITEMS]; TILES_X * TILES_Y]);
-                for tile in tiles.iter_mut() {
-                    *tile = decode_tile(buf);
-                }
-                Ok(Some(ServerMessage::DescribeMap {
-                    tiles,
-                    floor,
-                    center,
-                }))
-            }
-            MSG_TILE_CHANGED => {
-                let position = decode_position(buf);
-                let items = Box::new(decode_tile(buf));
-                Ok(Some(ServerMessage::TileChanged { position, items }))
-            }
-            MSG_PLAYER_WALK_ACK => {
-                let position = decode_position(buf);
-                // payload_len - 1 (msg type) - 12 (position) = bytes remaining for tiles
-                let mut floor_tiles: Vec<(u8, Box<[ItemStack]>)> = Vec::new();
-                let mut floor = buf.get_u8();
-                while floor != 0xFF {
-                    let tiles_len = buf.get_u8();
-                    let mut tiles = Vec::new();
-                    for _ in 0..tiles_len {
-                        tiles.push(decode_tile(buf));
-                    }
-                    floor_tiles.push((floor, tiles.into_boxed_slice()));
-                    floor = buf.get_u8();
-                }
-                Ok(Some(ServerMessage::PlayerWalkAck {
-                    position,
-                    tiles: floor_tiles,
-                }))
-            }
-            MSG_PLAYER_POS => {
-                let position = decode_position(buf);
-                Ok(Some(ServerMessage::PlayerPosition { position }))
-            }
-            MSG_TEXT_MESSAGE => {
-                let text_len = buf.get_u16_le() as usize;
-                let text = String::from_utf8_lossy(&buf[..text_len]).into_owned();
-                buf.advance(text_len);
-                let message_type = decode_text_type(buf.get_u8())?;
-                Ok(Some(ServerMessage::TextMessage { text, message_type }))
-            }
-            MSG_OPEN_CONTAINER => {
-                let container_id = buf.get_u16_le();
-                let capacity = buf.get_u8();
-                let has_parent = buf.get_u8() != 0;
-                let title_len = buf.get_u8() as usize;
-                let title = String::from_utf8_lossy(&buf[..title_len]).into_owned();
-                buf.advance(title_len);
-                let items = decode_items(buf);
-                Ok(Some(ServerMessage::OpenContainer {
-                    container_id,
-                    capacity,
-                    has_parent,
-                    title,
-                    items,
-                }))
-            }
-            MSG_UPDATE_CONTAINER => {
-                let container_id = buf.get_u16_le();
-                let items = decode_items(buf);
-                Ok(Some(ServerMessage::UpdateContainer {
-                    container_id,
-                    items,
-                }))
-            }
-            MSG_CONTAINER_CLOSED => {
-                let container_id = buf.get_u16_le();
-                Ok(Some(ServerMessage::ContainerClosed { container_id }))
-            }
-            MSG_PLAYER_WALK_DENIED => Ok(Some(ServerMessage::PlayerWalkDenied)),
-            MSG_INVETORY_SLOT_UPDATED => {
-                let slot = InventorySlot::from_id(buf.get_u8());
-                let Some(slot) = slot else {
-                    return Err(MessageDecodeError::WrongSequence);
-                };
-                let item_id = decode_optional_item(buf);
-                Ok(Some(ServerMessage::IventorySlotUpdated { slot, item_id }))
-            }
-            MSG_PLAYER_CAPACITY_UPDATED => {
-                let capacity = buf.get_u32_le();
-                Ok(Some(ServerMessage::PlayerCapacityUpdated { capacity }))
-            }
-            MSG_AGENT_DIRECTION_CHANGED => Ok(Some(ServerMessage::AgentChangedDirection {
-                agent_id: buf.get_u16_le(),
-                facing: decode_facing(buf)?,
-            })),
-            MSG_REMOVE_AGENT => Ok(Some(ServerMessage::RemoveAgent {
-                agent_id: buf.get_u16_le(),
-            })),
-            MSG_MOVE_AGENT => Ok(Some(ServerMessage::MoveAgent {
-                agent_id: buf.get_u16_le(),
-                direction: decode_direction(buf)?,
-                from: decode_position(buf),
-            })),
-            MSG_SPAWN_AGENT => {
-                let agent_id = buf.get_u16_le();
-                let position = decode_position(buf);
-                let facing = decode_facing(buf)?;
-                let name_len = buf.get_u16_le() as usize;
-                let name = String::from_utf8_lossy(&buf[..name_len]).into_owned();
-                buf.advance(name_len);
-                let health = Health {
-                    current: buf.get_u32_le(),
-                    max: buf.get_u32_le(),
-                };
-                let outfit_id = buf.get_u16_le();
-                let color1 = buf.get_u8();
-                let color2 = buf.get_u8();
-                let color3 = buf.get_u8();
-                let color4 = buf.get_u8();
-                let speed = buf.get_u16_le();
-                Ok(Some(ServerMessage::SpawnAgent {
-                    agent_id,
-                    outfit: (outfit_id, (color1, color2, color3, color4)),
-                    position,
-                    facing,
-                    name,
-                    health,
-                    speed,
-                }))
-            }
-            MSG_TELEPORT_AGENT => Ok(Some(ServerMessage::TeleportAgent {
-                agent_id: buf.get_u16_le(),
-                position: decode_position(buf),
-            })),
-            MSG_CHAT_MESSAGE => {
-                let author = buf.get_u16_le();
-                let message_type = decode_chat_message_type(buf.get_u8())?;
-                let channel = buf.get_u16_le();
-                let text_len = buf.get_u16_le() as usize;
-                let text = String::from_utf8_lossy(&buf[..text_len]).into_owned();
-                buf.advance(text_len);
-                Ok(Some(ServerMessage::ChatMessage {
-                    author,
-                    message_type,
-                    channel,
-                    text,
-                }))
-            }
-            MSG_CHANNEL_LIST => {
-                let count = buf.get_u16_le() as usize;
-                let mut channels = Vec::with_capacity(count);
-                for _ in 0..count {
-                    let id = buf.get_u16_le();
-                    let name_len = buf.get_u16_le() as usize;
-                    let name = String::from_utf8_lossy(&buf[..name_len]).into_owned();
-                    buf.advance(name_len);
-                    channels.push((id, name));
-                }
-                Ok(Some(ServerMessage::ChannelList { channels }))
-            }
-            MSG_INTRODUCE_PLAYER => {
-                let local_id = buf.get_u16_le();
-                let name_len = buf.get_u16_le() as usize;
-                let name = String::from_utf8_lossy(&buf[..name_len]).into_owned();
-                buf.advance(name_len);
-                Ok(Some(ServerMessage::IntroducePlayer { local_id, name }))
-            }
-            _ => Err(MessageDecodeError::WrongSequence),
+        let mut reader = Reader::new(&payload);
+        let message = decode_message(&mut reader)?;
+        if reader.remaining() != 0 {
+            return Err(MessageDecodeError::TrailingBytes(reader.remaining()));
         }
+
+        Ok(Some(message))
     }
 }
 
-fn decode_tile(buf: &mut BytesMut) -> ItemStack {
+fn decode_message(buf: &mut Reader) -> Result<ServerMessage, MessageDecodeError> {
+    match buf.read_u8()? {
+        MSG_PONG => Ok(ServerMessage::Pong),
+        MSG_LOGIN_ERROR => Ok(ServerMessage::LoginError),
+        MSG_DESCRIBE_PLAYER => {
+            let agent_id = buf.read_u16_le()?;
+            let position = decode_position(buf)?;
+            let facing = decode_facing(buf)?;
+            let name_len = buf.read_u16_le()? as usize;
+            let name = buf.read_string(name_len)?;
+            let level = buf.read_u16_le()?;
+            let health = Health {
+                current: buf.read_u32_le()?,
+                max: buf.read_u32_le()?,
+            };
+            let mana = Mana {
+                current: buf.read_u32_le()?,
+                max: buf.read_u32_le()?,
+            };
+            let outfit = buf.read_u16_le()?;
+            let color1 = buf.read_u8()?;
+            let color2 = buf.read_u8()?;
+            let color3 = buf.read_u8()?;
+            let color4 = buf.read_u8()?;
+            let speed = buf.read_u16_le()?;
+            let capacity = buf.read_u32_le()?;
+            let inventory_head = decode_optional_item(buf)?;
+            let inventory_amulet = decode_optional_item(buf)?;
+            let inventory_backpack = decode_optional_item(buf)?;
+            let inventory_chest = decode_optional_item(buf)?;
+            let inventory_right_hand = decode_optional_item(buf)?;
+            let inventory_left_hand = decode_optional_item(buf)?;
+            let inventory_legs = decode_optional_item(buf)?;
+            let inventory_feet = decode_optional_item(buf)?;
+            let inventory_ring = decode_optional_item(buf)?;
+            let inventory_trinket = decode_optional_item(buf)?;
+            Ok(ServerMessage::DescribePlayer {
+                agent_id,
+                position,
+                facing,
+                name,
+                level,
+                health,
+                mana,
+                outfit: (outfit, (color1, color2, color3, color4)),
+                speed,
+                capacity,
+                inventory_head,
+                inventory_amulet,
+                inventory_backpack,
+                inventory_chest,
+                inventory_right_hand,
+                inventory_left_hand,
+                inventory_legs,
+                inventory_feet,
+                inventory_ring,
+                inventory_trinket,
+            })
+        }
+        MSG_DESCRIBE_MAP => {
+            let center = decode_position(buf)?;
+            let floor = buf.read_u8()?;
+            let mut tiles = Box::new([[None; STACK_MAX_VISIBLE_ITEMS]; TILES_X * TILES_Y]);
+            for tile in tiles.iter_mut() {
+                *tile = decode_tile(buf)?;
+            }
+            Ok(ServerMessage::DescribeMap {
+                tiles,
+                floor,
+                center,
+            })
+        }
+        MSG_TILE_CHANGED => {
+            let position = decode_position(buf)?;
+            let items = Box::new(decode_tile(buf)?);
+            Ok(ServerMessage::TileChanged { position, items })
+        }
+        MSG_PLAYER_WALK_ACK => {
+            let position = decode_position(buf)?;
+            let mut floor_tiles: Vec<(u8, Box<[ItemStack]>)> = Vec::new();
+            let mut floor = buf.read_u8()?;
+            while floor != 0xFF {
+                let tiles_len = buf.read_u8()?;
+                let mut tiles = Vec::with_capacity(tiles_len as usize);
+                for _ in 0..tiles_len {
+                    tiles.push(decode_tile(buf)?);
+                }
+                floor_tiles.push((floor, tiles.into_boxed_slice()));
+                floor = buf.read_u8()?;
+            }
+            Ok(ServerMessage::PlayerWalkAck {
+                position,
+                tiles: floor_tiles,
+            })
+        }
+        MSG_PLAYER_POS => {
+            let position = decode_position(buf)?;
+            Ok(ServerMessage::PlayerPosition { position })
+        }
+        MSG_TEXT_MESSAGE => {
+            let text_len = buf.read_u16_le()? as usize;
+            let text = buf.read_string(text_len)?;
+            let message_type = decode_text_type(buf.read_u8()?)?;
+            Ok(ServerMessage::TextMessage { text, message_type })
+        }
+        MSG_OPEN_CONTAINER => {
+            let container_id = buf.read_u16_le()?;
+            let capacity = buf.read_u8()?;
+            let has_parent = buf.read_u8()? != 0;
+            let title_len = buf.read_u8()? as usize;
+            let title = buf.read_string(title_len)?;
+            let items = decode_items(buf)?;
+            Ok(ServerMessage::OpenContainer {
+                container_id,
+                capacity,
+                has_parent,
+                title,
+                items,
+            })
+        }
+        MSG_UPDATE_CONTAINER => {
+            let container_id = buf.read_u16_le()?;
+            let items = decode_items(buf)?;
+            Ok(ServerMessage::UpdateContainer {
+                container_id,
+                items,
+            })
+        }
+        MSG_CONTAINER_CLOSED => {
+            let container_id = buf.read_u16_le()?;
+            Ok(ServerMessage::ContainerClosed { container_id })
+        }
+        MSG_PLAYER_WALK_DENIED => Ok(ServerMessage::PlayerWalkDenied),
+        MSG_INVETORY_SLOT_UPDATED => {
+            let slot = InventorySlot::from_id(buf.read_u8()?);
+            let Some(slot) = slot else {
+                return Err(MessageDecodeError::WrongSequence);
+            };
+            let item_id = decode_optional_item(buf)?;
+            Ok(ServerMessage::IventorySlotUpdated { slot, item_id })
+        }
+        MSG_PLAYER_CAPACITY_UPDATED => {
+            let capacity = buf.read_u32_le()?;
+            Ok(ServerMessage::PlayerCapacityUpdated { capacity })
+        }
+        MSG_AGENT_DIRECTION_CHANGED => Ok(ServerMessage::AgentChangedDirection {
+            agent_id: buf.read_u16_le()?,
+            facing: decode_facing(buf)?,
+        }),
+        MSG_REMOVE_AGENT => Ok(ServerMessage::RemoveAgent {
+            agent_id: buf.read_u16_le()?,
+        }),
+        MSG_MOVE_AGENT => Ok(ServerMessage::MoveAgent {
+            agent_id: buf.read_u16_le()?,
+            direction: decode_direction(buf)?,
+            from: decode_position(buf)?,
+        }),
+        MSG_SPAWN_AGENT => {
+            let agent_id = buf.read_u16_le()?;
+            let position = decode_position(buf)?;
+            let facing = decode_facing(buf)?;
+            let name_len = buf.read_u16_le()? as usize;
+            let name = buf.read_string(name_len)?;
+            let health = Health {
+                current: buf.read_u32_le()?,
+                max: buf.read_u32_le()?,
+            };
+            let outfit_id = buf.read_u16_le()?;
+            let color1 = buf.read_u8()?;
+            let color2 = buf.read_u8()?;
+            let color3 = buf.read_u8()?;
+            let color4 = buf.read_u8()?;
+            let speed = buf.read_u16_le()?;
+            Ok(ServerMessage::SpawnAgent {
+                agent_id,
+                outfit: (outfit_id, (color1, color2, color3, color4)),
+                position,
+                facing,
+                name,
+                health,
+                speed,
+            })
+        }
+        MSG_TELEPORT_AGENT => Ok(ServerMessage::TeleportAgent {
+            agent_id: buf.read_u16_le()?,
+            position: decode_position(buf)?,
+        }),
+        MSG_CHAT_MESSAGE => {
+            let author = buf.read_u16_le()?;
+            let message_type = decode_chat_message_type(buf.read_u8()?)?;
+            let channel = buf.read_u16_le()?;
+            let text_len = buf.read_u16_le()? as usize;
+            let text = buf.read_string(text_len)?;
+            Ok(ServerMessage::ChatMessage {
+                author,
+                message_type,
+                channel,
+                text,
+            })
+        }
+        MSG_CHANNEL_LIST => {
+            let count = buf.read_u16_le()? as usize;
+            let mut channels = Vec::new();
+            for _ in 0..count {
+                let id = buf.read_u16_le()?;
+                let name_len = buf.read_u16_le()? as usize;
+                let name = buf.read_string(name_len)?;
+                channels.push((id, name));
+            }
+            Ok(ServerMessage::ChannelList { channels })
+        }
+        MSG_INTRODUCE_PLAYER => {
+            let local_id = buf.read_u16_le()?;
+            let name_len = buf.read_u16_le()? as usize;
+            let name = buf.read_string(name_len)?;
+            Ok(ServerMessage::IntroducePlayer { local_id, name })
+        }
+        _ => Err(MessageDecodeError::WrongSequence),
+    }
+}
+
+fn decode_tile(buf: &mut Reader) -> Result<ItemStack, MessageDecodeError> {
     let mut tile = [None; STACK_MAX_VISIBLE_ITEMS];
     let mut i = 0;
     loop {
-        let id = buf.get_u16_le();
+        let id = buf.read_u16_le()?;
         if id == 0xFFFF {
             break;
         }
-        let amount = buf.get_u8();
+        let amount = buf.read_u8()?;
         if i < STACK_MAX_VISIBLE_ITEMS {
             tile[i] = Some((id, amount));
             i += 1;
         }
     }
-    tile
+    Ok(tile)
 }
 
-fn decode_items(buf: &mut BytesMut) -> Box<[Option<(ItemId, u8)>]> {
+fn decode_items(buf: &mut Reader) -> Result<Box<[Option<(ItemId, u8)>]>, MessageDecodeError> {
     let mut items = Vec::new();
     loop {
-        let id = buf.get_u16_le();
+        let id = buf.read_u16_le()?;
         if id == 0xFFFF {
             break;
         }
-        let amount = buf.get_u8();
+        let amount = buf.read_u8()?;
         items.push(Some((id, amount)));
     }
-    items.into()
+    Ok(items.into())
 }
 
-fn decode_position(buf: &mut BytesMut) -> Position {
-    Position {
-        x: buf.get_u16_le(),
-        y: buf.get_u16_le(),
-        z: buf.get_u8(),
-    }
+fn decode_position(buf: &mut Reader) -> Result<Position, MessageDecodeError> {
+    Ok(Position {
+        x: buf.read_u16_le()?,
+        y: buf.read_u16_le()?,
+        z: buf.read_u8()?,
+    })
 }
 
-fn decode_facing(buf: &mut BytesMut) -> Result<FacingDirection, MessageDecodeError> {
-    match buf.get_u8() {
+fn decode_facing(buf: &mut Reader) -> Result<FacingDirection, MessageDecodeError> {
+    match buf.read_u8()? {
         1 => Ok(FacingDirection::North),
         2 => Ok(FacingDirection::East),
         3 => Ok(FacingDirection::South),
@@ -577,18 +637,17 @@ fn decode_chat_message_type(b: u8) -> Result<ChatMessageType, MessageDecodeError
     }
 }
 
-fn decode_optional_item(buf: &mut BytesMut) -> Option<ItemId> {
-    let item_id = buf.get_u16_le();
+fn decode_optional_item(buf: &mut Reader) -> Result<Option<ItemId>, MessageDecodeError> {
+    let item_id = buf.read_u16_le()?;
     if item_id == 0xFFFF {
-        None
+        Ok(None)
     } else {
-        Some(item_id)
+        Ok(Some(item_id))
     }
 }
 
-fn decode_direction(buf: &mut BytesMut) -> Result<WalkingDirection, MessageDecodeError> {
-    let b = buf.get_u8();
-    match b {
+fn decode_direction(buf: &mut Reader) -> Result<WalkingDirection, MessageDecodeError> {
+    match buf.read_u8()? {
         0x00 => Ok(WalkingDirection::North),
         0x01 => Ok(WalkingDirection::East),
         0x02 => Ok(WalkingDirection::West),
@@ -920,6 +979,77 @@ mod tests {
             other => panic!("expected ChannelList, got {other:?}"),
         }
         assert!(buf.is_empty(), "the frame must be fully consumed");
+    }
+
+    /// A length field larger than the payload used to index straight past the
+    /// buffer and panic, killing the connection task.
+    #[test]
+    fn rejects_a_length_field_past_the_end_of_the_payload() {
+        let mut payload = vec![MSG_INTRODUCE_PLAYER];
+        payload.extend_from_slice(&9u16.to_le_bytes());
+        payload.extend_from_slice(&600u16.to_le_bytes()); // claims 600 bytes of name
+        payload.extend_from_slice(b"Rizael");
+
+        let mut codec = GameMessageCodec {};
+        let mut buf = frame(&payload);
+        assert!(matches!(
+            codec.decode(&mut buf),
+            Err(MessageDecodeError::Truncated)
+        ));
+        assert!(buf.is_empty(), "the bad frame is consumed, not left behind");
+    }
+
+    /// A tile whose 0xFFFF terminator never arrives used to read on into the
+    /// next frame's bytes; now it stops at the payload boundary.
+    #[test]
+    fn rejects_a_tile_with_no_terminator() {
+        let mut payload = vec![MSG_TILE_CHANGED];
+        payload.extend_from_slice(&1u16.to_le_bytes()); // x
+        payload.extend_from_slice(&2u16.to_le_bytes()); // y
+        payload.push(7); // z
+        payload.extend_from_slice(&100u16.to_le_bytes()); // item id
+        payload.push(1); // amount, and then nothing
+
+        let mut codec = GameMessageCodec {};
+        let mut buf = frame(&payload);
+        buf.extend_from_slice(&frame(&[MSG_PLAYER_WALK_DENIED])); // the next frame
+
+        assert!(matches!(
+            codec.decode(&mut buf),
+            Err(MessageDecodeError::Truncated)
+        ));
+        // Framing survives: the following message still decodes.
+        assert!(matches!(
+            codec.decode(&mut buf).unwrap().unwrap(),
+            ServerMessage::PlayerWalkDenied
+        ));
+    }
+
+    /// Silent drift is worse than a disconnect: a decoder that stops early
+    /// would otherwise misread every field of a version-skewed message.
+    #[test]
+    fn rejects_a_payload_with_unread_bytes() {
+        let mut payload = vec![MSG_CONTAINER_CLOSED];
+        payload.extend_from_slice(&4u16.to_le_bytes());
+        payload.push(0xAB); // one byte too many
+
+        let mut codec = GameMessageCodec {};
+        let mut buf = frame(&payload);
+        assert!(matches!(
+            codec.decode(&mut buf),
+            Err(MessageDecodeError::TrailingBytes(1))
+        ));
+    }
+
+    #[test]
+    fn a_truncated_frame_waits_for_more_bytes() {
+        let mut codec = GameMessageCodec {};
+        let mut buf = BytesMut::new();
+        buf.extend_from_slice(&10u16.to_le_bytes()); // declares 10 bytes
+        buf.extend_from_slice(&[MSG_PLAYER_POS, 1, 0]); // only 3 arrived
+
+        assert!(codec.decode(&mut buf).unwrap().is_none());
+        assert_eq!(buf.len(), 5, "the partial frame is left buffered");
     }
 
     #[test]

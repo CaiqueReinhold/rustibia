@@ -93,10 +93,6 @@ pub mod ui {
         pub const LOCAL_CHANNEL_COLOR: Srgba = Srgba::new(0.94, 0.94, 0.0, 1.0);
 
         /// Must equal the server's `chat.max_message_length` in
-        /// `crates/server/assets/game_conf.yaml`. The client has no access to server
-        /// config, so the value is duplicated and pinned by a test on each side —
-        /// a divergence would otherwise show up only as messages the server silently
-        /// refuses. Both sides count characters, not bytes.
         pub const MAX_MESSAGE_LENGTH: usize = 255;
     }
 
@@ -129,10 +125,6 @@ pub mod ui {
 
 pub mod server {
     pub const TICK_DURATION_MS: u32 = 50;
-    pub const SERVER_ADDRESS: &str = "127.0.0.1:5555";
-    pub const AUTH_ENDPOINT: &str = "http://127.0.0.1:8080/api/auth";
-    pub const CHAR_LIST_ENDPOINT: &str = "http://127.0.0.1:8080/api/characters";
-    pub const GAME_TOKEN_ENDPOINT: &str = "http://127.0.0.1:8080/api/characters/{id}/token";
 }
 
 pub mod minimap {

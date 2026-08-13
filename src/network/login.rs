@@ -7,10 +7,9 @@ use bevy::{
 
 use reqwest::blocking::Client;
 use serde::Deserialize;
-use strfmt::strfmt;
 
 use crate::{
-    conf::server,
+    config::CONFIG,
     core::GameState,
     game_ui::{LoginPhase, PendingLoginError},
     network::LoginCredentials,
@@ -61,7 +60,8 @@ fn get_session_token(email: String, password: String, client: &Client) -> Result
     let mut body = HashMap::new();
     body.insert("email", email);
     body.insert("password", password);
-    let response = client.post(server::AUTH_ENDPOINT).json(&body).send();
+    let endpoint = CONFIG.auth_endpoint();
+    let response = client.post(&endpoint).json(&body).send();
     match response {
         Ok(response) => {
             let status = response.status();
@@ -69,20 +69,19 @@ fn get_session_token(email: String, password: String, client: &Client) -> Result
                 Ok(session) => return Ok(session.session_token),
                 Err(e) => error!(
                     "auth request to {} returned {}, but the body could not be read: {}",
-                    server::AUTH_ENDPOINT,
-                    status,
-                    e
+                    endpoint, status, e
                 ),
             }
         }
-        Err(e) => error!("auth request to {} failed: {}", server::AUTH_ENDPOINT, e),
+        Err(e) => error!("auth request to {} failed: {}", endpoint, e),
     }
     Err("Failed to authenticate. Try again later or contact support.".to_owned())
 }
 
 fn get_character_list(session_token: String, client: &Client) -> Result<CharacterList, String> {
+    let endpoint = CONFIG.char_list_endpoint();
     let response = client
-        .get(server::CHAR_LIST_ENDPOINT)
+        .get(&endpoint)
         .header("Authorization", format!("Bearer {}", session_token))
         .send();
 
@@ -98,17 +97,11 @@ fn get_character_list(session_token: String, client: &Client) -> Result<Characte
                 }
                 Err(e) => error!(
                     "character list request to {} returned {}, but the body could not be read: {}",
-                    server::CHAR_LIST_ENDPOINT,
-                    status,
-                    e
+                    endpoint, status, e
                 ),
             }
         }
-        Err(e) => error!(
-            "character list request to {} failed: {}",
-            server::CHAR_LIST_ENDPOINT,
-            e
-        ),
+        Err(e) => error!("character list request to {} failed: {}", endpoint, e),
     }
     Err("Failed to authenticate. Try again later or contact support.".to_owned())
 }
@@ -164,10 +157,8 @@ pub(super) fn pool_login_task(
 
 fn fetch_game_token(session_token: String, character_id: u32) -> Result<String, String> {
     let client = Client::new();
-    let mut url_params = HashMap::new();
-    url_params.insert("id".to_string(), character_id);
     let response = client
-        .post(strfmt(server::GAME_TOKEN_ENDPOINT, &url_params).unwrap())
+        .post(CONFIG.game_token_endpoint(character_id))
         .header("Authorization", format!("Bearer {}", session_token))
         .send();
 

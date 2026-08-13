@@ -4,7 +4,7 @@ use crate::agent::components::{Agent, AgentHud, HealthState, Hud};
 use crate::agent::{DisplayName, Health, HudBar, Mana};
 use crate::camera::GameCamera;
 use crate::conf::viewport::{GAME_VIEW_HEIGHT, GAME_VIEW_WIDTH};
-use crate::game_ui::GameViewport;
+use crate::game_ui::{GameViewport, scaling::logical_size};
 use crate::map::Position;
 use crate::player::components::Player;
 
@@ -40,7 +40,7 @@ pub fn update_hud_positions(
     };
 
     let cam_pos = game_cam_gt.translation().truncate();
-    let size = computed.size();
+    let size = logical_size(computed);
 
     for (agent_gt, display_name, position) in agents_q.iter() {
         if position.z != player_pos.z {

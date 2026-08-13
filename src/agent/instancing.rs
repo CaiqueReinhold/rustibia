@@ -102,8 +102,10 @@ pub fn spawn_agent(
     health: Option<Health>,
     mana: Option<Mana>,
     agent_id: AgentId,
-) -> Entity {
-    let outfit = appearances.get_outfit(outfit_id);
+) -> Option<Entity> {
+    // `None` means the server sent an outfit this client's assets don't have.
+    // Callers raise `ClientOutdated`; there is no sensible stand-in sprite.
+    let outfit = appearances.get_outfit(outfit_id)?;
     let sheet = appearances.get_sheet(&outfit.still_sprite.group);
 
     if !loaded_materials
@@ -297,7 +299,7 @@ pub fn spawn_agent(
         world_y_offset,
     });
 
-    entity
+    Some(entity)
 }
 
 fn init_material(
@@ -333,14 +335,17 @@ pub fn upload_instance_buffer(
         return;
     }
 
-    if let Some(ssb) = buffers.get_mut(&loaded_materials.buffer) {
-        ssb.set_data(instances.get_buffer_data());
-        instances.reset_dirty();
-    }
+    let Some(ssb) = buffers.get_mut(&loaded_materials.buffer) else {
+        return;
+    };
+    ssb.set_data(instances.get_buffer_data());
+    instances.reset_dirty();
 
+    // Marking the materials changed re-prepares their bind groups against the
+    // buffer just written. It only belongs on frames that actually uploaded —
+    // outside this branch it re-prepared every material every frame.
     for (_, mat) in loaded_materials.materials.values() {
-        // set material as changed so buffer gets updated in the pipeline
-        let _ = materials.get_mut(mat).unwrap();
+        let _ = materials.get_mut(mat);
     }
 }
 
@@ -389,8 +394,6 @@ pub fn update_agent_instances(
     mut instances: ResMut<InstanceManager<AgentInstance>>,
 ) {
     for (agent, animator, tag, moving) in &agents_q {
-        let instance = instances.get_mut(tag.0);
-
         let (sprite_ids, layer_count) = resolve_agent_sprite_ids(
             &animator.config,
             animator.current_phase,
@@ -398,17 +401,19 @@ pub fn update_agent_instances(
             agent.addons as u32,
             agent.mounted as u32,
         );
-        instance.sprite_ids = sprite_ids;
-        instance.layer_count = layer_count;
-        instance.outfit_colors = agent.outfit_colors.0 as u32
-            | ((agent.outfit_colors.1 as u32) << 8)
-            | ((agent.outfit_colors.2 as u32) << 16)
-            | ((agent.outfit_colors.3 as u32) << 24);
-
         let is_moving = moving.is_some() as usize;
         let bbox = &agent.boxes[is_moving][agent.direction as usize];
-        instance.bbox_min = bbox.min;
-        instance.bbox_size = bbox.max;
+
+        instances.update(tag.0, |instance| {
+            instance.sprite_ids = sprite_ids;
+            instance.layer_count = layer_count;
+            instance.outfit_colors = agent.outfit_colors.0 as u32
+                | ((agent.outfit_colors.1 as u32) << 8)
+                | ((agent.outfit_colors.2 as u32) << 16)
+                | ((agent.outfit_colors.3 as u32) << 24);
+            instance.bbox_min = bbox.min;
+            instance.bbox_size = bbox.max;
+        });
     }
 }
 

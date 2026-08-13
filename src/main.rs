@@ -10,6 +10,7 @@ use bevy_text_outline::TextOutlinePlugin;
 mod agent;
 mod camera;
 mod conf;
+mod config;
 mod core;
 mod game_ui;
 mod items;

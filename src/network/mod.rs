@@ -17,6 +17,7 @@ impl Plugin for NetworkPlugin {
             .add_observer(systems::on_send_message)
             .add_observer(systems::on_login_error_cleanup)
             .add_observer(systems::on_connection_lost_cleanup)
+            .add_observer(systems::on_client_outdated)
             .add_observer(login::on_fetch_characters)
             .add_observer(login::on_generate_game_token)
             .add_systems(

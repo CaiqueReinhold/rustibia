@@ -9,7 +9,7 @@ use crate::{
     items::{Item, ItemId, OpenParentContainer, ui_item::spawn_ui_item},
     network::{
         ClientMessage, SendMessage,
-        events::{ContainerClosed, OpenContainer, UpdateContainer},
+        events::{ClientOutdated, ContainerClosed, OpenContainer, UpdateContainer},
     },
     player::{ContainerNavTarget, MouseHoverState},
 };
@@ -71,20 +71,18 @@ fn on_leave_slot(
     hover_state.container_slot = None;
 }
 
-fn as_item_vec(items: &[Option<(ItemId, u8)>], configs: &ItemConfigs) -> Vec<Arc<Item>> {
+/// `None` when the server named an item this client doesn't have — the caller
+/// raises [`ClientOutdated`] rather than showing a container with holes in it.
+fn as_item_vec(items: &[Option<(ItemId, u8)>], configs: &ItemConfigs) -> Option<Vec<Arc<Item>>> {
     let mut items_vec = Vec::new();
     for it in items.iter() {
-        if let Some((id, amount)) = it {
-            let item = Arc::new(Item::new(
-                configs.items.get(id).unwrap().clone(),
-                *amount as u32,
-            ));
-            items_vec.push(item);
-        } else {
+        let Some((id, amount)) = it else {
             break;
-        }
+        };
+        let config = configs.items.get(id)?;
+        items_vec.push(Arc::new(Item::new(config.clone(), *amount as u32)));
     }
-    items_vec
+    Some(items_vec)
 }
 
 pub fn on_open_container(
@@ -125,10 +123,14 @@ pub fn on_open_container(
         },
     };
 
+    let Some(items) = as_item_vec(&event.items, &configs) else {
+        commands.trigger(ClientOutdated);
+        return;
+    };
     let container = LootContainerUI {
         container_id: event.container_id,
         capacity: event.capacity as usize,
-        items: as_item_vec(&event.items, &configs),
+        items,
     };
     let grid = commands
         .spawn((
@@ -276,12 +278,17 @@ pub fn on_open_parent_container(
 
 pub fn on_update_container(
     event: On<UpdateContainer>,
+    mut commands: Commands,
     configs: Res<ItemConfigs>,
     mut loot_container_q: Query<&mut LootContainerUI>,
 ) {
+    let Some(items) = as_item_vec(&event.items, &configs) else {
+        commands.trigger(ClientOutdated);
+        return;
+    };
     for mut container in loot_container_q.iter_mut() {
         if container.container_id == event.container_id {
-            container.items = as_item_vec(&event.items, &configs);
+            container.items = items;
             break;
         }
     }
@@ -372,5 +379,53 @@ pub fn container_content_changed(
                 });
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    fn configs(ids: &[ItemId]) -> ItemConfigs {
+        let mut items = HashMap::new();
+        for id in ids {
+            items.insert(
+                *id,
+                Arc::new(crate::items::ItemConfig {
+                    id: *id,
+                    flags: Vec::new(),
+                    friction: None,
+                    slot: None,
+                    minimap_color: None,
+                    elevation: None,
+                }),
+            );
+        }
+        ItemConfigs { items }
+    }
+
+    #[test]
+    fn resolves_the_items_up_to_the_first_empty_slot() {
+        let configs = configs(&[100, 200]);
+        let items = as_item_vec(
+            &[Some((100, 1)), Some((200, 5)), None, Some((100, 1))],
+            &configs,
+        )
+        .expect("all ids are known");
+
+        assert_eq!(items.len(), 2, "the empty slot ends the container");
+        assert_eq!(items[0].config.id, 100);
+        assert_eq!(items[1].config.id, 200);
+        assert_eq!(items[1].amount, 5);
+    }
+
+    /// An id this client's assets don't have is a version mismatch, not a
+    /// container with one item missing — the caller turns this into
+    /// `ClientOutdated`.
+    #[test]
+    fn rejects_the_whole_container_on_an_unknown_id() {
+        let configs = configs(&[100]);
+        assert!(as_item_vec(&[Some((100, 1)), Some((999, 1))], &configs).is_none());
     }
 }

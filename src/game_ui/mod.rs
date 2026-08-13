@@ -9,7 +9,9 @@ mod game_overlay;
 mod leftpanel;
 mod login;
 mod modal;
+mod outdated;
 mod rightpanel;
+pub mod scaling;
 mod toppanel;
 mod window;
 
@@ -51,7 +53,9 @@ impl Plugin for GameUiPlugin {
             )
             .add_systems(Update, update_ping.run_if(on_timer(Duration::from_secs(1))))
             .init_resource::<modal::ModalOrder>()
-            .add_systems(Update, (modal::modal_keyboard, modal::modal_button_hover));
+            .add_systems(Update, (modal::modal_keyboard, modal::modal_button_hover))
+            .add_observer(outdated::on_client_outdated)
+            .add_observer(outdated::on_dismiss);
     }
 }
 

@@ -5,6 +5,7 @@ use crate::conf::ui::ui_colors;
 use crate::conf::ui::z_index::Z_MAIN_UI;
 use crate::conf::viewport::{GAME_VIEW_HEIGHT, GAME_VIEW_WIDTH};
 use crate::game_ui::GameUiAssets;
+use crate::game_ui::scaling::logical_size;
 
 #[derive(Component)]
 pub struct GameViewport;
@@ -30,8 +31,9 @@ pub(super) fn update_viewport_size(
         return;
     };
 
-    let avail_w = computed.size().x - BORDER_OVERHEAD;
-    let avail_h = computed.size().y - BORDER_OVERHEAD;
+    // Logical: the results below are written back as `Val::Px`.
+    let avail = logical_size(computed) - Vec2::splat(BORDER_OVERHEAD);
+    let (avail_w, avail_h) = (avail.x, avail.y);
 
     let (w, h) = if avail_w / avail_h > ASPECT_RATIO {
         // height-limited: fit to height

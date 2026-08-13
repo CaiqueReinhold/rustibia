@@ -1,6 +1,6 @@
 use crate::{
     conf::ui::ui_colors,
-    game_ui::{GameUiAssets, GameViewport},
+    game_ui::{GameUiAssets, GameViewport, scaling::logical_rect},
     network::events::ShowTextMessage,
 };
 use bevy::prelude::*;
@@ -36,11 +36,11 @@ pub fn on_text_message(
     message_q: Query<(Entity, &TextMessage)>,
 ) {
     let (viewport_node, viewport_transform) = *viewport_q;
+    // These land in `Val::Px`, which is logical; the node's own layout is physical.
+    let viewport = logical_rect(viewport_node, viewport_transform);
     let top = match event.message_type {
-        TextMessageType::ActionDenied => {
-            Val::Px(viewport_transform.translation.y + viewport_node.size().y * 0.5 - 20.0)
-        }
-        TextMessageType::Look => Val::Px(viewport_transform.translation.y),
+        TextMessageType::ActionDenied => Val::Px(viewport.max.y - 20.0),
+        TextMessageType::Look => Val::Px(viewport.center().y),
     };
     let timer = match event.message_type {
         TextMessageType::ActionDenied => Timer::from_seconds(2.0, TimerMode::Once),
@@ -66,8 +66,8 @@ pub fn on_text_message(
         ZIndex(100),
         Node {
             position_type: PositionType::Absolute,
-            width: Val::Px(viewport_node.size().x),
-            left: Val::Px(viewport_transform.translation.x - viewport_node.size().x * 0.5),
+            width: Val::Px(viewport.width()),
+            left: Val::Px(viewport.min.x),
             top,
             ..default()
         },

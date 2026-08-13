@@ -18,6 +18,13 @@ pub struct LoginError;
 #[derive(Event, Debug)]
 pub struct ConnectionLost;
 
+/// The server named an item or outfit id this client's assets don't contain.
+///
+/// The two sides disagree about the game data, so nothing that follows can be
+/// trusted.
+#[derive(Event, Debug)]
+pub struct ClientOutdated;
+
 #[derive(Event, Debug)]
 pub struct SpawnPlayer {
     pub agent_id: AgentId,

@@ -11,7 +11,9 @@ use crate::core::{Appearances, GameState, InstanceManager, ItemConfigs};
 use crate::game_ui::GameUiAssets;
 use crate::items::{InventorySlot, Item};
 use crate::map::Map;
-use crate::network::events::{IventorySlotUpdated, PlayerCapacityUpdated, SpawnPlayer};
+use crate::network::events::{
+    ClientOutdated, IventorySlotUpdated, PlayerCapacityUpdated, SpawnPlayer,
+};
 use crate::player::components::{Player, PlayerInventory};
 
 pub fn check_game_ready(mut commands: Commands, player_q: Query<&Player>) {
@@ -33,7 +35,38 @@ pub fn spawn_player(
     appearances: Res<Appearances>,
     item_configs: Res<ItemConfigs>,
 ) {
-    let entity = spawn_agent(
+    // Resolve everything the server named before touching the world, so a
+    // client that turns out to be outdated leaves nothing half-spawned.
+    let mut inventory = HashMap::new();
+    for (slot, item_id) in [
+        (InventorySlot::Head, event.inventory_head),
+        (InventorySlot::Amulet, event.inventory_amulet),
+        (InventorySlot::Backpack, event.inventory_backpack),
+        (InventorySlot::Chest, event.inventory_chest),
+        (InventorySlot::RightHand, event.inventory_right_hand),
+        (InventorySlot::LeftHand, event.inventory_left_hand),
+        (InventorySlot::Legs, event.inventory_legs),
+        (InventorySlot::Feet, event.inventory_feet),
+        (InventorySlot::Ring, event.inventory_ring),
+        (InventorySlot::Trinket, event.inventory_trinket),
+    ] {
+        let Some(item_id) = item_id else {
+            continue;
+        };
+        let Some(config) = item_configs.items.get(&item_id) else {
+            commands.trigger(ClientOutdated);
+            return;
+        };
+        inventory.insert(
+            slot,
+            Arc::new(Item {
+                config: config.clone(),
+                amount: 1,
+            }),
+        );
+    }
+
+    let Some(entity) = spawn_agent(
         &mut commands,
         &mut loaded_materials,
         &mut materials,
@@ -53,7 +86,10 @@ pub fn spawn_player(
         Some(event.health.clone()),
         Some(event.mana.clone()),
         event.agent_id,
-    );
+    ) else {
+        commands.trigger(ClientOutdated);
+        return;
+    };
 
     map.add_agent(event.agent_id, entity);
     commands
@@ -63,98 +99,6 @@ pub fn spawn_player(
         })
         .remove::<MoveQueue>();
 
-    let mut inventory = HashMap::new();
-    if let Some(item_id) = event.inventory_head {
-        inventory.insert(
-            InventorySlot::Head,
-            Arc::new(Item {
-                config: item_configs.items.get(&item_id).unwrap().clone(),
-                amount: 1,
-            }),
-        );
-    }
-    if let Some(item_id) = event.inventory_amulet {
-        inventory.insert(
-            InventorySlot::Amulet,
-            Arc::new(Item {
-                config: item_configs.items.get(&item_id).unwrap().clone(),
-                amount: 1,
-            }),
-        );
-    }
-    if let Some(item_id) = event.inventory_backpack {
-        inventory.insert(
-            InventorySlot::Backpack,
-            Arc::new(Item {
-                config: item_configs.items.get(&item_id).unwrap().clone(),
-                amount: 1,
-            }),
-        );
-    }
-    if let Some(item_id) = event.inventory_chest {
-        inventory.insert(
-            InventorySlot::Chest,
-            Arc::new(Item {
-                config: item_configs.items.get(&item_id).unwrap().clone(),
-                amount: 1,
-            }),
-        );
-    }
-    if let Some(item_id) = event.inventory_right_hand {
-        inventory.insert(
-            InventorySlot::RightHand,
-            Arc::new(Item {
-                config: item_configs.items.get(&item_id).unwrap().clone(),
-                amount: 1,
-            }),
-        );
-    }
-    if let Some(item_id) = event.inventory_left_hand {
-        inventory.insert(
-            InventorySlot::LeftHand,
-            Arc::new(Item {
-                config: item_configs.items.get(&item_id).unwrap().clone(),
-                amount: 1,
-            }),
-        );
-    }
-    if let Some(item_id) = event.inventory_legs {
-        inventory.insert(
-            InventorySlot::Legs,
-            Arc::new(Item {
-                config: item_configs.items.get(&item_id).unwrap().clone(),
-                amount: 1,
-            }),
-        );
-    }
-    if let Some(item_id) = event.inventory_feet {
-        inventory.insert(
-            InventorySlot::Feet,
-            Arc::new(Item {
-                config: item_configs.items.get(&item_id).unwrap().clone(),
-                amount: 1,
-            }),
-        );
-    }
-    if let Some(item_id) = event.inventory_ring {
-        inventory.insert(
-            InventorySlot::Ring,
-            Arc::new(Item {
-                config: item_configs.items.get(&item_id).unwrap().clone(),
-                amount: 1,
-            }),
-        );
-    }
-    if let Some(item_id) = event.inventory_trinket {
-        inventory.insert(
-            InventorySlot::Trinket,
-            Arc::new(Item {
-                config: item_configs.items.get(&item_id).unwrap().clone(),
-                amount: 1,
-            }),
-        );
-    }
-
     commands.insert_resource(PlayerInventory {
         items: inventory,
         capacity: event.capacity,
@@ -163,12 +107,17 @@ pub fn spawn_player(
 
 pub fn on_slot_update(
     event: On<IventorySlotUpdated>,
+    mut commands: Commands,
     mut inventory: ResMut<PlayerInventory>,
     item_configs: Res<ItemConfigs>,
 ) {
     if let Some(item_id) = event.item_id {
+        let Some(config) = item_configs.items.get(&item_id) else {
+            commands.trigger(ClientOutdated);
+            return;
+        };
         let item = Arc::new(Item {
-            config: item_configs.items.get(&item_id).unwrap().clone(),
+            config: config.clone(),
             amount: 1,
         });
         inventory.items.insert(event.slot, item);

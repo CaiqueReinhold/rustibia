@@ -7,7 +7,7 @@ use bevy::sprite_render::{AlphaMode2d, Material2d};
 use crate::core::MAX_LAYERS;
 
 #[repr(C)]
-#[derive(ShaderType, Clone, Copy, Debug, Default)]
+#[derive(ShaderType, Clone, Copy, Debug, Default, PartialEq)]
 pub struct AgentInstance {
     pub sprite_ids: [u32; MAX_LAYERS],
     pub layer_count: u32,

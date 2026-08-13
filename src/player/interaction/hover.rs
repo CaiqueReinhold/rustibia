@@ -5,7 +5,7 @@ use bevy::prelude::*;
 use crate::{
     camera::GameCamera,
     conf::viewport::{GAME_VIEW_HEIGHT, GAME_VIEW_WIDTH},
-    game_ui::{GameViewport, UiWindowRef, WindowId},
+    game_ui::{GameViewport, UiWindowRef, WindowId, scaling::logical_rect},
     items::{InventorySlot, Item, ItemFlag, ItemPlacement, LootContainerUI},
     map::{Map, Position},
     player::components::{Player, PlayerInventory},
@@ -36,12 +36,10 @@ pub fn update_hover_state(
         return;
     };
 
-    let size = computed.size();
-    let top_left = ui_transform.translation - size * 0.5;
-    let image_rect = Rect::from_corners(top_left, top_left + size);
+    let image_rect = logical_rect(computed, ui_transform);
 
     if image_rect.contains(mouse_position) {
-        let uv = (mouse_position - top_left) / size;
+        let uv = (mouse_position - image_rect.min) / image_rect.size();
         let cam_pos = camera_transform.translation().truncate();
         let world_pos = cam_pos
             + Vec2::new(
