@@ -157,6 +157,12 @@ impl PersistentConnection {
         receiver: Receiver<ClientMessage>,
     ) -> Result<Self, io::Error> {
         let stream = TcpStream::connect(server_addr).await?;
+        // Movement frames are a few bytes each. Nagle would hold them until the
+        // previous segment is acknowledged, adding up to a round trip of variable
+        // delay to every walk — which the server's walk cooldown has no margin for.
+        if let Err(e) = stream.set_nodelay(true) {
+            warn!("could not disable Nagle: {e}");
+        }
         let stream = Framed::new(stream, GameMessageCodec {});
         Ok(Self {
             stream,
