@@ -35,8 +35,13 @@ fn read_item_config(config: &Value) -> Option<Arc<ItemConfig>> {
     // `tile_friction` appears on exactly its ground items and nothing else. Without
     // the condition every item would hold `Some(0)` and `get_tile_friction`'s
     // "first item with a value" rule would resolve to the bottom of the stack.
+    //
+    // A ground item with no readable `ground_speed` fails the whole parse rather
+    // than defaulting: friction 0 is a legitimate value, so a silent default would
+    // be indistinguishable from a frictionless tile and would surface as mispaced
+    // movement rather than as a startup error.
     let friction = if config["is_ground"].as_bool().unwrap_or(false) {
-        Some(config["ground_speed"].as_u64().unwrap_or(0) as u16)
+        Some(config["ground_speed"].as_u64()? as u16)
     } else {
         None
     };
@@ -121,4 +126,104 @@ fn read_item_config(config: &Value) -> Option<Arc<ItemConfig>> {
         minimap_color,
         elevation,
     }))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    /// Every field `read_item_config` reads with `?` before it ever reaches the
+    /// friction line, filled with a value that satisfies its type. Individual
+    /// tests only vary `is_ground` and `ground_speed` -- the two fields the
+    /// friction gate depends on -- so a test failing there means friction, not an
+    /// incomplete fixture.
+    fn item_json(is_ground: bool, ground_speed: Value) -> Value {
+        json!({
+            "id": 1,
+            "minimap_color": 0,
+            "is_ground": is_ground,
+            "ground_speed": ground_speed,
+            "slot": null,
+            "elevation": null,
+            "is_border": false,
+            "can_walk": true,
+            "fullbank": false,
+            "top": false,
+            "is_container": false,
+            "can_move": true,
+            "cumulative": false,
+            "can_take": false,
+            "bottom": false,
+            "usable": false,
+            "avoid": false,
+            "block_sight": false,
+            "multiuse": false,
+            "forceuse": false,
+        })
+    }
+
+    /// A plain ground item carries its ground_speed through as friction.
+    #[test]
+    fn ground_item_with_a_ground_speed_carries_that_friction() {
+        let config = item_json(true, json!(100));
+
+        let item = read_item_config(&config)
+            .expect("fixture supplies every field read_item_config requires");
+
+        assert_eq!(item.friction, Some(100));
+    }
+
+    /// Friction widened to u16 in cdedde9 specifically so values above u8::MAX
+    /// (255) survive the parse. `ornamented stone floor` (id 21718) is the real
+    /// asset that motivated it, with a ground_speed of 260.
+    #[test]
+    fn ground_item_with_friction_above_255_keeps_the_full_value() {
+        let config = item_json(true, json!(260));
+
+        let item = read_item_config(&config)
+            .expect("fixture supplies every field read_item_config requires");
+
+        assert_eq!(item.friction, Some(260));
+    }
+
+    /// `Map::get_tile_friction` resolves a tile's friction by taking the first
+    /// item in the stack that carries a value, relying on non-ground items never
+    /// carrying one -- even when their raw ground_speed happens to be present and
+    /// zero, as it may be for items that were never meant to report friction.
+    #[test]
+    fn non_ground_item_has_no_friction_even_with_a_zero_ground_speed() {
+        let config = item_json(false, json!(0));
+
+        let item = read_item_config(&config)
+            .expect("fixture supplies every field read_item_config requires");
+
+        assert_eq!(item.friction, None);
+    }
+
+    /// A ground item's ground_speed missing from the source data must fail the
+    /// whole parse (propagating via `?`) rather than silently default to friction
+    /// 0, which is itself a legitimate value and would be indistinguishable from a
+    /// real frictionless tile at runtime.
+    #[test]
+    fn ground_item_missing_ground_speed_fails_the_parse() {
+        let mut config = item_json(true, json!(0));
+        config
+            .as_object_mut()
+            .expect("item_json builds an object")
+            .remove("ground_speed");
+
+        assert!(read_item_config(&config).is_none());
+    }
+
+    /// Same failure mode as the missing-field case, but for corrupted source data
+    /// where `ground_speed` is present with the wrong type. `as_u64()` returns
+    /// `None` here exactly as it does for a missing key, so the same fail-loud
+    /// path covers both.
+    #[test]
+    fn ground_item_with_non_numeric_ground_speed_fails_the_parse() {
+        let config = item_json(true, json!("fast"));
+
+        assert!(read_item_config(&config).is_none());
+    }
 }
