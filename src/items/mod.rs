@@ -1,7 +1,7 @@
 use bevy::{prelude::*, sprite_render::Material2dPlugin};
 
 use crate::{
-    core::{AnimationSet, GameState, InstanceManager},
+    core::{AnimationSet, GameState, InstanceManager, SessionCleanup},
     items::{instancing::ItemState, material::ItemInstance},
 };
 
@@ -11,6 +11,7 @@ mod instancing;
 pub mod inventory;
 mod item;
 mod material;
+mod session;
 mod ui_item;
 
 pub use container::{ContainerId, LootContainerUI};
@@ -57,6 +58,10 @@ impl Plugin for ItemsPlugin {
             .add_systems(
                 PostUpdate,
                 instancing::upload_instance_buffer.run_if(in_state(GameState::InGame)),
+            )
+            .add_systems(
+                OnExit(GameState::InGame),
+                session::cleanup_session.in_set(SessionCleanup),
             )
             .add_observer(instancing::on_remove_item)
             .add_observer(ui_item::item_drag_started)
