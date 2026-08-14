@@ -4,6 +4,7 @@ use bevy::prelude::*;
 use bevy::{camera::visibility::RenderLayers, time::common_conditions::on_timer};
 
 mod assets;
+pub mod button;
 mod chat;
 mod disconnect;
 mod game_overlay;
@@ -55,7 +56,7 @@ impl Plugin for GameUiPlugin {
             )
             .add_systems(Update, update_ping.run_if(on_timer(Duration::from_secs(1))))
             .init_resource::<modal::ModalOrder>()
-            .add_systems(Update, (modal::modal_keyboard, modal::modal_button_hover))
+            .add_systems(Update, (modal::modal_keyboard, button::panel_button_hover))
             .add_systems(
                 OnExit(GameState::InGame),
                 session::cleanup_session.in_set(SessionCleanup),

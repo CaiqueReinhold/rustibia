@@ -64,9 +64,6 @@ pub struct ModalDialogRoot {
 #[derive(Component)]
 pub struct ModalContent;
 
-#[derive(Component)]
-pub(crate) struct ModalButton;
-
 /// Monotonic counter so the most recently spawned modal is topmost
 /// (both visually via GlobalZIndex and for keyboard handling).
 #[derive(Resource, Default)]
@@ -269,42 +266,16 @@ impl ModalDialog {
 
         for button in &self.buttons {
             let id = button.id;
-            let button_entity = commands
-                .spawn((
-                    ModalButton,
-                    Button,
-                    Node {
-                        min_width: Val::Px(conf::BUTTON_MIN_WIDTH),
-                        height: Val::Px(conf::BUTTON_HEIGHT),
-                        align_items: AlignItems::Center,
-                        justify_content: JustifyContent::Center,
-                        border: UiRect::all(Val::Px(1.0)),
-                        ..default()
-                    },
-                    BorderColor {
-                        top: ui_colors::LIGHT_BORDER_COLOR.into(),
-                        right: ui_colors::DARK_BORDER_COLOR.into(),
-                        bottom: ui_colors::DARK_BORDER_COLOR.into(),
-                        left: ui_colors::LIGHT_BORDER_COLOR.into(),
-                    },
-                    BackgroundColor(conf::BUTTON_COLOR.into()),
-                ))
-                .with_child((
-                    Text::new(button.label),
-                    TextFont {
-                        font: ui_assets.font.clone(),
-                        font_size: 11.0,
-                        ..default()
-                    },
-                    TextColor(Color::WHITE),
-                ))
-                .observe(move |_: On<Pointer<Click>>, mut commands: Commands| {
+            let button_entity =
+                crate::game_ui::button::spawn_panel_button(commands, button.label, ui_assets);
+            commands.entity(button_entity).observe(
+                move |_: On<Pointer<Click>>, mut commands: Commands| {
                     commands.trigger(DialogButtonPressed {
                         dialog: root,
                         button: id,
                     });
-                })
-                .id();
+                },
+            );
             commands.entity(button_row).add_child(button_entity);
         }
 
@@ -376,19 +347,5 @@ pub fn modal_keyboard(
             dialog: entity,
             button,
         });
-    }
-}
-
-pub fn modal_button_hover(
-    mut buttons: Query<
-        (&Interaction, &mut BackgroundColor),
-        (Changed<Interaction>, With<ModalButton>),
-    >,
-) {
-    for (interaction, mut color) in &mut buttons {
-        *color = match interaction {
-            Interaction::None => BackgroundColor(conf::BUTTON_COLOR.into()),
-            _ => BackgroundColor(conf::BUTTON_HOVER_COLOR.into()),
-        };
     }
 }
