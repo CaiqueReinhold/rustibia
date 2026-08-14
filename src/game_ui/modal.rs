@@ -122,6 +122,7 @@ impl ModalDialog {
                     default_button: self.buttons.first().map(|b| b.id),
                     has_cancel: self.buttons.iter().any(|b| b.id == DialogButtonId::Cancel),
                 },
+                DespawnOnExit(crate::core::GameState::InGame),
                 Node {
                     position_type: PositionType::Absolute,
                     width: Val::Percent(100.0),

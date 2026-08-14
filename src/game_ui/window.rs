@@ -225,7 +225,7 @@ struct MinimizeAnimation {
 }
 
 #[derive(Resource, Default)]
-struct CurrentDockHover {
+pub(super) struct CurrentDockHover {
     dock: Option<DockId>,
 }
 

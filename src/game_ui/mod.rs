@@ -12,6 +12,7 @@ mod modal;
 mod outdated;
 mod rightpanel;
 pub mod scaling;
+mod session;
 mod toppanel;
 mod window;
 
@@ -27,7 +28,7 @@ pub use window::{
 };
 
 use crate::camera::GameRenderTexture;
-use crate::core::{GameState, PingState};
+use crate::core::{GameState, PingState, SessionCleanup};
 
 #[derive(Component)]
 pub struct MainUI;
@@ -54,6 +55,10 @@ impl Plugin for GameUiPlugin {
             .add_systems(Update, update_ping.run_if(on_timer(Duration::from_secs(1))))
             .init_resource::<modal::ModalOrder>()
             .add_systems(Update, (modal::modal_keyboard, modal::modal_button_hover))
+            .add_systems(
+                OnExit(GameState::InGame),
+                session::cleanup_session.in_set(SessionCleanup),
+            )
             .add_observer(outdated::on_client_outdated)
             .add_observer(outdated::on_dismiss);
     }
@@ -68,6 +73,7 @@ pub(crate) fn spawn_main_ui(
     let main_ui = commands
         .spawn((
             MainUI,
+            DespawnOnExit(GameState::InGame),
             Node {
                 position_type: PositionType::Absolute,
                 width: Val::Percent(100.0),
