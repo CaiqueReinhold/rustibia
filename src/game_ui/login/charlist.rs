@@ -36,6 +36,8 @@ pub(super) fn spawn_character_list(
     mut order: ResMut<ModalOrder>,
     characters: Res<CharacterList>,
 ) {
+    commands.remove_resource::<super::PendingLoginPhase>();
+
     let handle = ModalDialog::new("Select Character")
         .with_buttons([DialogButton::ok(), DialogButton::cancel()])
         .spawn(&mut commands, &ui_assets, &mut order);

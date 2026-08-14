@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use bevy_text_outline::TextOutline;
 
 use crate::conf::ui::login as conf;
-use crate::core::GameState;
+use crate::core::{EndGameSession, GameState};
 use crate::game_ui::GameUiAssets;
 
 mod charlist;
@@ -26,6 +26,16 @@ pub enum LoginPhase {
 #[derive(Resource, Default)]
 pub struct PendingLoginError(pub Option<(String, String)>);
 
+/// Where the login screen should land when it is next entered.
+///
+/// `LoginPhase` is a sub-state of `LoginScreen`, so it is recomputed to its
+/// `EnterGame` default every time the parent state is entered — a `NextState`
+/// written before the transition does not survive it. Cancel on the character list
+/// also returns to the form while keeping `CharacterList`, so the presence of a
+/// session cannot stand in for this either.
+#[derive(Resource, Debug)]
+pub struct PendingLoginPhase(pub LoginPhase);
+
 #[derive(Component)]
 struct LoginBackdrop;
 
@@ -35,11 +45,19 @@ impl Plugin for LoginPlugin {
     fn build(&self, app: &mut App) {
         app.add_sub_state::<LoginPhase>()
             .init_resource::<PendingLoginError>()
-            .add_systems(OnEnter(GameState::LoginScreen), spawn_backdrop)
-            .add_systems(OnExit(GameState::LoginScreen), despawn_backdrop)
+            .add_systems(
+                OnEnter(GameState::LoginScreen),
+                (spawn_backdrop, apply_pending_login_phase),
+            )
+            .add_systems(
+                OnExit(GameState::LoginScreen),
+                (despawn_backdrop, clear_pending_login_phase),
+            )
             .add_systems(
                 OnEnter(LoginPhase::EnterGame),
-                (form::spawn_login_form, form::show_pending_error).chain(),
+                (form::spawn_login_form, form::show_pending_error)
+                    .chain()
+                    .run_if(not(resource_exists::<PendingLoginPhase>)),
             )
             .add_systems(OnExit(LoginPhase::EnterGame), form::despawn_login_form)
             .add_systems(
@@ -73,7 +91,8 @@ impl Plugin for LoginPlugin {
             .add_observer(charlist::on_charlist_dialog_button)
             .add_observer(charlist::on_confirm_character)
             .add_observer(on_login_error)
-            .add_observer(on_connection_lost);
+            .add_observer(on_connection_lost)
+            .add_observer(on_end_game_session);
     }
 }
 
@@ -107,6 +126,23 @@ fn on_connection_lost(
         "Cannot connect to the game server.".to_string(),
     ));
     commands.set_state(GameState::LoginScreen);
+}
+
+/// The one path from a live session back to the login screen.
+fn on_end_game_session(_: On<EndGameSession>, mut commands: Commands) {
+    commands.insert_resource(PendingLoginPhase(LoginPhase::CharacterList));
+    commands.set_state(GameState::LoginScreen);
+}
+
+fn apply_pending_login_phase(pending: Option<Res<PendingLoginPhase>>, mut commands: Commands) {
+    let Some(pending) = pending else {
+        return;
+    };
+    commands.set_state(pending.0);
+}
+
+fn clear_pending_login_phase(mut commands: Commands) {
+    commands.remove_resource::<PendingLoginPhase>();
 }
 
 fn spawn_backdrop(mut commands: Commands, ui_assets: Res<GameUiAssets>) {
@@ -152,5 +188,67 @@ fn spawn_backdrop(mut commands: Commands, ui_assets: Res<GameUiAssets>) {
 fn despawn_backdrop(mut commands: Commands, backdrops: Query<Entity, With<LoginBackdrop>>) {
     for entity in &backdrops {
         commands.entity(entity).despawn();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::SessionEndReason;
+    use bevy::ecs::system::RunSystemOnce;
+
+    /// The account is still logged in, so the player goes back to picking a
+    /// character rather than retyping their password.
+    #[test]
+    fn ending_a_session_returns_to_the_character_list() {
+        let mut world = World::new();
+        world.insert_resource(State::new(GameState::InGame));
+        world.init_resource::<NextState<GameState>>();
+        world.add_observer(on_end_game_session);
+
+        world.trigger(EndGameSession {
+            reason: SessionEndReason::Disconnected,
+        });
+        world.flush();
+
+        assert!(matches!(
+            world.resource::<NextState<GameState>>(),
+            NextState::Pending(GameState::LoginScreen)
+        ));
+        assert_eq!(
+            world.resource::<PendingLoginPhase>().0,
+            LoginPhase::CharacterList
+        );
+    }
+
+    /// `LoginPhase` is a sub-state: re-entering `LoginScreen` recomputes it to its
+    /// `EnterGame` default, overwriting anything written before the transition. The
+    /// intent therefore has to be carried in a resource and applied on entry.
+    #[test]
+    fn a_pending_phase_redirects_to_the_character_list() {
+        let mut world = World::new();
+        world.init_resource::<NextState<LoginPhase>>();
+        world.insert_resource(PendingLoginPhase(LoginPhase::CharacterList));
+
+        world.run_system_once(apply_pending_login_phase).unwrap();
+
+        assert!(matches!(
+            world.resource::<NextState<LoginPhase>>(),
+            NextState::Pending(LoginPhase::CharacterList)
+        ));
+    }
+
+    /// A normal startup has no pending phase and must be left on the login form.
+    #[test]
+    fn no_pending_phase_leaves_the_default_alone() {
+        let mut world = World::new();
+        world.init_resource::<NextState<LoginPhase>>();
+
+        world.run_system_once(apply_pending_login_phase).unwrap();
+
+        assert!(matches!(
+            world.resource::<NextState<LoginPhase>>(),
+            NextState::Unchanged
+        ));
     }
 }
