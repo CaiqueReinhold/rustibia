@@ -30,6 +30,7 @@ pub struct CorePlugin;
 impl Plugin for CorePlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<systems::PingState>()
+            .init_resource::<systems::PingTimer>()
             .add_systems(Startup, assets::start_load_tasks)
             .add_systems(
                 FixedUpdate,
@@ -49,7 +50,6 @@ impl Plugin for CorePlugin {
                     .in_set(AnimationSet)
                     .run_if(in_state(GameState::InGame)),
             )
-            .add_observer(systems::receive_pong)
             .add_observer(text::on_text_message);
     }
 }

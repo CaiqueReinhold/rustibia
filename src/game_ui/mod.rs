@@ -123,6 +123,6 @@ pub(crate) fn spawn_main_ui(
 }
 
 pub fn update_ping(mut ping_text: Single<&mut Text, With<PingView>>, ping_state: Res<PingState>) {
-    let text = format!("Ping: {}ms", ping_state.current_ping.as_millis());
+    let text = format!("Ping: {}ms", ping_state.current().as_millis());
     ping_text.0 = text;
 }

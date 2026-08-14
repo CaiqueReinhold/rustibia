@@ -10,9 +10,6 @@ use crate::{
 };
 
 #[derive(Event, Debug)]
-pub struct ServerPong;
-
-#[derive(Event, Debug)]
 pub struct LoginError;
 
 #[derive(Event, Debug)]
@@ -170,9 +167,9 @@ pub struct PlayerIntroduced {
 
 pub fn route_event(msg: ServerMessage, commands: &mut Commands) {
     match msg {
-        ServerMessage::Pong => {
-            commands.trigger(ServerPong);
-        }
+        // Consumed by the IO task, which times the round trip and does not forward
+        // it. The arm stays so the match is exhaustive if that ever changes.
+        ServerMessage::Pong => {}
         ServerMessage::LoginError => commands.trigger(LoginError),
         ServerMessage::DescribePlayer {
             agent_id,

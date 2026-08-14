@@ -5,10 +5,11 @@ use bevy::log::info;
 use bevy::{prelude::*, tasks::IoTaskPool};
 use futures::{FutureExt, SinkExt, StreamExt};
 use std::io;
+use std::time::Instant;
 
 use crate::{
     config,
-    core::GameState,
+    core::{GameState, PingState},
     network::{
         events,
         messages::{ClientMessage, GameMessageCodec, ServerMessage},
@@ -46,14 +47,18 @@ pub fn connect(mut commands: Commands, credentials: Res<LoginCredentials>) {
     });
 }
 
-pub(super) fn on_connect(event: On<Connect>, mut commands: Commands) {
+pub(super) fn on_connect(event: On<Connect>, mut commands: Commands, ping: Res<PingState>) {
     let (cli_send, cli_recv) = bounded(5);
     let (srv_send, srv_recv) = bounded(5);
+    // Cloning the handle, not the value: the task writes each round trip into the
+    // shared atomic behind it, which the UI reads without either side blocking.
+    let ping = ping.clone();
 
     IoTaskPool::get()
         .spawn(async move {
             let conn =
-                PersistentConnection::new(&config::CONFIG.server_address, srv_send, cli_recv).await;
+                PersistentConnection::new(&config::CONFIG.server_address, srv_send, cli_recv, ping)
+                    .await;
             if let Ok(conn) = conn {
                 return conn.run().await;
             }
@@ -148,6 +153,7 @@ pub struct PersistentConnection {
     stream: Framed<TcpStream, GameMessageCodec>,
     sender: Sender<ServerMessage>,
     receiver: Receiver<ClientMessage>,
+    ping: PingState,
 }
 
 impl PersistentConnection {
@@ -155,6 +161,7 @@ impl PersistentConnection {
         server_addr: &str,
         sender: Sender<ServerMessage>,
         receiver: Receiver<ClientMessage>,
+        ping: PingState,
     ) -> Result<Self, io::Error> {
         let stream = TcpStream::connect(server_addr).await?;
         // Movement frames are a few bytes each. Nagle would hold them until the
@@ -168,37 +175,53 @@ impl PersistentConnection {
             stream,
             sender,
             receiver,
+            ping,
         })
     }
 
     pub async fn run(mut self) -> Result<(), io::Error> {
+        // Both ends of the round trip are timed here rather than in Bevy, so the
+        // sample spans the socket write to the frame decode and nothing else. A
+        // reading taken in the schedule would carry a command flush outbound and a
+        // frame boundary inbound — see `PingState`.
+        let mut ping_sent_at: Option<Instant> = None;
+
         loop {
             futures::select! {
                 msg = self.receiver.recv().fuse() => {
-                    if let Ok(msg) = msg {
-                        if !matches!(msg, ClientMessage::Ping) {
-                            info!("sending msg: {:?}", msg);
+                    match msg {
+                        Ok(ClientMessage::Ping) => {
+                            // Stamped as late as possible: everything after this is
+                            // encode plus the write syscall, which is microseconds.
+                            ping_sent_at = Some(Instant::now());
+                            self.stream.send(ClientMessage::Ping).await?;
                         }
-                        self.stream.send(msg).await?;
-                    } else {
-                        break;
+                        Ok(msg) => {
+                            info!("sending msg: {:?}", msg);
+                            self.stream.send(msg).await?;
+                        }
+                        Err(_) => break,
                     }
                 },
                 msg = self.stream.next().fuse() => {
-                    if let Some(msg) = msg {
-                        if let Ok(msg) = msg {
-                            if !matches!(msg, ServerMessage::Pong) {
-                                info!("receiveing msg: {}", msg);
+                    match msg {
+                        // Answered entirely in here; nothing downstream consumes it.
+                        Some(Ok(ServerMessage::Pong)) => {
+                            if let Some(sent_at) = ping_sent_at.take() {
+                                self.ping.record(sent_at.elapsed());
                             }
+                        }
+                        Some(Ok(msg)) => {
+                            info!("receiveing msg: {}", msg);
                             if self.sender.send(msg).await.is_err() {
                                 break;
                             }
-                        } else {
-                            error!("Error reading from server: {}", msg.err().unwrap());
+                        }
+                        Some(Err(e)) => {
+                            error!("Error reading from server: {e}");
                             break;
                         }
-                    } else {
-                        break;
+                        None => break,
                     }
                 }
             };
