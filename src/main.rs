@@ -31,7 +31,7 @@ fn main() {
                 .set(ImagePlugin::default_nearest())
                 .set(WindowPlugin {
                     primary_window: Some(Window {
-                        title: "Tibra".into(),
+                        title: "Rustibia".into(),
                         name: Some("bevy.app".into()),
                         present_mode: PresentMode::Immediate,
                         ..default()

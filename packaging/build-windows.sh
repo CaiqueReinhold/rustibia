@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Cross-compile the Tibra client for Windows x64 from Linux and wrap it in an
+# Cross-compile the client for Windows x64 from Linux and wrap it in an
 # Inno Setup installer.
 #
 #   ./packaging/build-windows.sh                # build + package (MSVC target)
@@ -12,7 +12,7 @@
 #   ./packaging/build-windows.sh --server play.example.com:5555 \
 #                                --site http://play.example.com:8080
 #
-# Output: dist/windows/TibraSetup-<version>.exe
+# Output: dist/windows/SetupRustibia-<version>.exe
 
 set -euo pipefail
 
@@ -243,7 +243,7 @@ package() {
         "/DOutputDir=." \
         installer.iss )
 
-    local setup="$OUT_DIR/TibraSetup-$VERSION.exe"
+    local setup="$OUT_DIR/SetupRustibia-$VERSION.exe"
     [[ -f "$setup" ]] || die "ISCC reported success but $setup is missing"
     log "installer ready: $setup ($(du -h "$setup" | cut -f1))"
 }

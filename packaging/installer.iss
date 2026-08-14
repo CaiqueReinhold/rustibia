@@ -1,10 +1,10 @@
-; Inno Setup script for the Tibra client.
+; Inno Setup script for the Rustibia client.
 ;
 ; Not meant to be run by hand -- packaging/build-windows.sh stages the files and
 ; invokes ISCC with the /D defines below. If you do run it manually, make sure
 ; `stage/` sits next to this file and holds the exe plus the assets/ tree.
 
-#define AppName "Tibra"
+#define AppName "Rustibia"
 #define AppExeName "rustibia-client.exe"
 #define AppPublisher "Caique Reinhold"
 

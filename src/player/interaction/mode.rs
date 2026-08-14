@@ -25,10 +25,6 @@ pub enum InteractionMode {
 }
 
 impl InteractionMode {
-    pub fn is_dragging(&self) -> bool {
-        matches!(self, InteractionMode::Dragging { .. })
-    }
-
     pub fn drag_crossed_threshold(&self) -> bool {
         matches!(
             self,
