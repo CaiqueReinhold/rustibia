@@ -5,11 +5,11 @@ use bevy::log::info;
 use bevy::{prelude::*, tasks::IoTaskPool};
 use futures::{FutureExt, SinkExt, StreamExt};
 use std::io;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use crate::{
     config,
-    core::{GameState, PingState},
+    core::{EndGameSession, GameState, PingState, SessionEndReason},
     network::{
         events,
         messages::{ClientMessage, GameMessageCodec, ServerMessage},
@@ -27,6 +27,24 @@ pub struct SendMessage(pub ClientMessage);
 #[derive(Resource, Debug)]
 pub struct LoginCredentials {
     pub auth_token: String,
+}
+
+/// How long to wait for the server to close the socket after a logout before
+/// tearing down anyway. The protocol has no reply to `Logout`, so this is the only
+/// backstop.
+const LOGOUT_TIMEOUT: Duration = Duration::from_secs(2);
+
+/// Asked for by the UI; acted on here so the protocol stays behind the network
+/// boundary.
+#[derive(Event, Debug)]
+pub struct RequestLogout;
+
+/// Present from the moment the player asks to log out until teardown. Its presence
+/// is what tells the connection-lost handler that the drop was intentional and needs
+/// no modal.
+#[derive(Resource, Debug)]
+pub struct LogoutRequested {
+    timer: Timer,
 }
 
 #[derive(Resource, Debug)]
@@ -149,6 +167,38 @@ pub(super) fn on_send_message(event: On<SendMessage>, connection: Option<Res<Con
     };
 }
 
+pub(super) fn on_request_logout(
+    _: On<RequestLogout>,
+    mut commands: Commands,
+    pending: Option<Res<LogoutRequested>>,
+    connection: Option<Res<ConnectionState>>,
+) {
+    // Repeat clicks, and clicks after the connection has already gone, are noise.
+    if pending.is_some() || connection.is_none() {
+        return;
+    }
+    commands.trigger(SendMessage(ClientMessage::Logout));
+    commands.insert_resource(LogoutRequested {
+        timer: Timer::new(LOGOUT_TIMEOUT, TimerMode::Once),
+    });
+}
+
+pub(super) fn tick_logout_timeout(
+    mut commands: Commands,
+    pending: Option<ResMut<LogoutRequested>>,
+    time: Res<Time>,
+) {
+    let Some(mut pending) = pending else {
+        return;
+    };
+    if pending.timer.tick(time.delta()).just_finished() {
+        warn!("logout: the server never closed the connection, tearing down anyway");
+        commands.trigger(EndGameSession {
+            reason: SessionEndReason::Logout,
+        });
+    }
+}
+
 pub struct PersistentConnection {
     stream: Framed<TcpStream, GameMessageCodec>,
     sender: Sender<ServerMessage>,
@@ -237,8 +287,10 @@ impl PersistentConnection {
 mod tests {
     use super::*;
     use crate::agent::{FacingDirection, Health, Mana};
+    use crate::core::{EndGameSession, SessionEndReason};
     use crate::map::Position;
     use bevy::ecs::system::RunSystemOnce;
+    use std::time::Duration;
 
     #[derive(Resource, Default)]
     struct Routed(Vec<&'static str>);
@@ -308,5 +360,60 @@ mod tests {
             vec!["player", "position", "container"],
             "DescribePlayer routes first, then the buffer in arrival order"
         );
+    }
+
+    #[derive(Resource, Default)]
+    struct EndedWith(Option<SessionEndReason>);
+
+    fn world_watching_for_session_end() -> World {
+        let mut world = World::new();
+        world.init_resource::<EndedWith>();
+        world.add_observer(|e: On<EndGameSession>, mut r: ResMut<EndedWith>| {
+            r.0 = Some(e.reason);
+        });
+        world
+    }
+
+    /// The server closing the socket is what normally ends a logout. If it accepts
+    /// the request and never closes, nothing else would ever fire — `receive_messages`
+    /// stops running the moment `ConnectionState` is gone — so the timeout has to end
+    /// the session itself.
+    #[test]
+    fn the_logout_timeout_ends_the_session_on_its_own() {
+        let mut world = world_watching_for_session_end();
+        world.insert_resource(Time::<()>::default());
+        world.insert_resource(LogoutRequested {
+            timer: Timer::new(LOGOUT_TIMEOUT, TimerMode::Once),
+        });
+
+        world
+            .resource_mut::<Time<()>>()
+            .advance_by(LOGOUT_TIMEOUT + Duration::from_millis(1));
+        world.run_system_once(tick_logout_timeout).unwrap();
+        world.flush();
+
+        assert_eq!(
+            world.resource::<EndedWith>().0,
+            Some(SessionEndReason::Logout)
+        );
+    }
+
+    /// Before the timeout there is nothing to do — the socket may still close
+    /// normally at any moment.
+    #[test]
+    fn the_logout_timeout_waits_for_the_server_first() {
+        let mut world = world_watching_for_session_end();
+        world.insert_resource(Time::<()>::default());
+        world.insert_resource(LogoutRequested {
+            timer: Timer::new(LOGOUT_TIMEOUT, TimerMode::Once),
+        });
+
+        world
+            .resource_mut::<Time<()>>()
+            .advance_by(Duration::from_millis(100));
+        world.run_system_once(tick_logout_timeout).unwrap();
+        world.flush();
+
+        assert_eq!(world.resource::<EndedWith>().0, None);
     }
 }

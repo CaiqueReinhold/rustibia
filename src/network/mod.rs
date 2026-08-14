@@ -12,7 +12,7 @@ mod session;
 mod systems;
 
 pub use messages::{ClientMessage, ItemStack, ServerMessage};
-pub use systems::{LoginCredentials, SendMessage};
+pub use systems::{LoginCredentials, LogoutRequested, RequestLogout, SendMessage};
 pub struct NetworkPlugin;
 
 impl Plugin for NetworkPlugin {
@@ -22,11 +22,16 @@ impl Plugin for NetworkPlugin {
             .add_observer(systems::on_login_error_cleanup)
             .add_observer(systems::on_connection_lost_cleanup)
             .add_observer(systems::on_client_outdated)
+            .add_observer(systems::on_request_logout)
             .add_observer(login::on_fetch_characters)
             .add_observer(login::on_generate_game_token)
             .add_systems(
                 Update,
                 systems::receive_messages.run_if(resource_exists::<ConnectionState>),
+            )
+            .add_systems(
+                Update,
+                systems::tick_logout_timeout.run_if(in_state(GameState::InGame)),
             )
             .add_systems(
                 Update,

@@ -4,7 +4,7 @@ use bevy::prelude::*;
 // unconditionally would warn as unused in a non-test build.
 #[cfg(test)]
 use crate::network::login::CharacterList;
-use crate::network::systems::{ConnectionState, LoginCredentials};
+use crate::network::systems::{ConnectionState, LoginCredentials, LogoutRequested};
 
 /// Drops everything tied to the TCP session that just ended.
 ///
@@ -15,6 +15,7 @@ use crate::network::systems::{ConnectionState, LoginCredentials};
 pub(super) fn cleanup_session(mut commands: Commands) {
     commands.remove_resource::<ConnectionState>();
     commands.remove_resource::<LoginCredentials>();
+    commands.remove_resource::<LogoutRequested>();
 }
 
 #[cfg(test)]
