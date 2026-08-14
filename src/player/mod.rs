@@ -9,7 +9,7 @@ pub mod pathfinding;
 mod session;
 pub use interaction::{ContainerNavTarget, InteractionMode, MouseHoverState};
 
-use crate::core::{GameState, SessionCleanup};
+use crate::core::{GameState, SessionCleanup, SessionEnding};
 
 pub struct PlayerPlugin;
 
@@ -29,15 +29,20 @@ impl Plugin for PlayerPlugin {
                 PreUpdate,
                 (
                     interaction::update_hover_state,
-                    keyboard::read_player_input.run_if(in_state(GameState::InGame)),
-                    keyboard::cancel_targeting_on_escape.run_if(in_state(GameState::InGame)),
+                    keyboard::read_player_input
+                        .run_if(in_state(GameState::InGame))
+                        .run_if(not(resource_exists::<SessionEnding>)),
+                    keyboard::cancel_targeting_on_escape
+                        .run_if(in_state(GameState::InGame))
+                        .run_if(not(resource_exists::<SessionEnding>)),
                 ),
             )
             .add_systems(
                 Update,
                 (movement::process_move_queue, movement::fire_pending_action)
                     .chain()
-                    .run_if(in_state(GameState::InGame)),
+                    .run_if(in_state(GameState::InGame))
+                    .run_if(not(resource_exists::<SessionEnding>)),
             )
             .add_systems(
                 Update,

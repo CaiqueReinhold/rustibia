@@ -5,6 +5,7 @@ use bevy::{camera::visibility::RenderLayers, time::common_conditions::on_timer};
 
 mod assets;
 mod chat;
+mod disconnect;
 mod game_overlay;
 mod leftpanel;
 mod login;
@@ -60,7 +61,9 @@ impl Plugin for GameUiPlugin {
                 session::cleanup_session.in_set(SessionCleanup),
             )
             .add_observer(outdated::on_client_outdated)
-            .add_observer(outdated::on_dismiss);
+            .add_observer(outdated::on_dismiss)
+            .add_observer(disconnect::on_connection_lost)
+            .add_observer(disconnect::on_dismiss);
     }
 }
 
