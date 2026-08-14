@@ -159,10 +159,6 @@ impl Map {
     }
 }
 
-pub(super) fn init_map(mut commands: Commands) {
-    commands.init_resource::<Map>();
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;

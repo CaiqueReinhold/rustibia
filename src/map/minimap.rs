@@ -223,7 +223,12 @@ pub(super) fn save_dirty_chunks(
     if !timer.0.just_finished() {
         return;
     }
+    flush_dirty_chunks(&mut minimap);
+}
 
+/// Writes every dirty chunk out now, off the timer. Called on the timer tick and
+/// again during session cleanup, where the timer will never fire again.
+pub(super) fn flush_dirty_chunks(minimap: &mut MinimapData) {
     let dirty = minimap.drain_dirty();
     if dirty.is_empty() {
         return;

@@ -1,12 +1,13 @@
 use bevy::prelude::*;
 
-use crate::core::GameState;
+use crate::core::{GameState, SessionCleanup};
 
 pub mod events;
 mod floors;
 pub mod minimap;
 pub mod minimap_ui;
 mod position;
+mod session;
 mod storage;
 
 pub use crate::map::position::Position;
@@ -29,11 +30,14 @@ impl Plugin for MapPlugin {
             .add_observer(events::on_describe_map)
             .add_observer(events::on_tile_changed)
             .add_systems(Startup, (minimap::load_from_disk, floors::setup_floors))
-            .add_systems(OnEnter(GameState::InGame), storage::init_map)
             .add_systems(PostUpdate, floors::update_floors_visibility)
             .add_systems(
                 FixedUpdate,
                 minimap::save_dirty_chunks.run_if(in_state(GameState::InGame)),
+            )
+            .add_systems(
+                OnExit(GameState::InGame),
+                session::cleanup_session.in_set(SessionCleanup),
             );
         #[cfg(feature = "debug")]
         app.add_systems(Update, draw_tile_grid);
