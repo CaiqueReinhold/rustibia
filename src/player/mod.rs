@@ -6,9 +6,10 @@ mod interaction;
 mod keyboard;
 mod movement;
 pub mod pathfinding;
+mod session;
 pub use interaction::{ContainerNavTarget, InteractionMode, MouseHoverState};
 
-use crate::core::GameState;
+use crate::core::{GameState, SessionCleanup};
 
 pub struct PlayerPlugin;
 
@@ -20,6 +21,10 @@ impl Plugin for PlayerPlugin {
             .init_resource::<movement::MovementQueue>()
             .init_resource::<movement::PlayerElevation>()
             .add_systems(Startup, keyboard::init_repeat_state)
+            .add_systems(
+                OnExit(GameState::InGame),
+                (session::cleanup_session, keyboard::init_repeat_state).in_set(SessionCleanup),
+            )
             .add_systems(
                 PreUpdate,
                 (
