@@ -1,10 +1,14 @@
 use bevy::prelude::*;
 
-use crate::{core::GameState, network::systems::ConnectionState};
+use crate::{
+    core::{GameState, SessionCleanup},
+    network::systems::ConnectionState,
+};
 
 pub mod events;
 pub mod login;
 mod messages;
+mod session;
 mod systems;
 
 pub use messages::{ClientMessage, ItemStack, ServerMessage};
@@ -29,6 +33,10 @@ impl Plugin for NetworkPlugin {
                 (login::pool_login_task, login::pool_generate_game_token)
                     .run_if(in_state(GameState::LoginScreen)),
             )
-            .add_systems(OnEnter(GameState::Connecting), systems::connect);
+            .add_systems(OnEnter(GameState::Connecting), systems::connect)
+            .add_systems(
+                OnExit(GameState::InGame),
+                session::cleanup_session.in_set(SessionCleanup),
+            );
     }
 }
