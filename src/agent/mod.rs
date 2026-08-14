@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy::sprite_render::Material2dPlugin;
 
-use crate::core::{AnimationSet, GameState, InstanceManager};
+use crate::core::{AnimationSet, GameState, InstanceManager, SessionCleanup};
 
 // mod colors;
 mod components;
@@ -10,6 +10,7 @@ mod hud;
 mod instancing;
 mod material;
 pub mod movement;
+mod session;
 
 pub use crate::agent::components::*;
 pub use crate::agent::instancing::{LoadedMaterials, spawn_agent};
@@ -72,6 +73,10 @@ impl Plugin for AgentPlugin {
                 (hud::attach_huds_to_viewport, hud::update_hud_positions)
                     .chain()
                     .run_if(in_state(GameState::InGame)),
+            )
+            .add_systems(
+                OnExit(GameState::InGame),
+                session::cleanup_session.in_set(SessionCleanup),
             )
             .add_observer(movement::on_start_agent_move)
             .add_observer(movement::on_agent_change_direction)
