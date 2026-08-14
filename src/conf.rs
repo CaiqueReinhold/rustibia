@@ -96,6 +96,12 @@ pub mod ui {
         pub const MAX_MESSAGE_LENGTH: usize = 255;
     }
 
+    pub mod button_row {
+        /// One row of buttons plus the window's 2px borders.
+        pub const HEIGHT: f32 = 30.0;
+        pub const PADDING: f32 = 4.0;
+    }
+
     pub mod dialog {
         use bevy::color::Srgba;
 

@@ -5,6 +5,7 @@ use bevy::{camera::visibility::RenderLayers, time::common_conditions::on_timer};
 
 mod assets;
 pub mod button;
+mod button_row;
 mod chat;
 mod disconnect;
 mod game_overlay;
@@ -45,6 +46,10 @@ impl Plugin for GameUiPlugin {
         app.add_plugins(bevy_ui_text_input::TextInputPlugin)
             .add_plugins((window::UIWindowPlugin, chat::ChatPlugin, login::LoginPlugin))
             .add_systems(OnEnter(GameState::InGame), spawn_main_ui)
+            .add_systems(
+                OnEnter(GameState::InGame),
+                button_row::spawn_button_row.after(crate::items::inventory::spawn_inventory_ui),
+            )
             .add_systems(Startup, assets::setup_game_ui_assets)
             .add_systems(
                 Update,
