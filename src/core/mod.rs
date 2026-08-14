@@ -4,6 +4,7 @@ mod animation;
 mod assets;
 mod instances;
 mod items;
+mod session;
 mod sprite;
 mod systems;
 mod text;
@@ -12,6 +13,7 @@ pub use animation::*;
 pub use assets::*;
 pub use instances::*;
 pub use items::ItemConfigs;
+pub use session::{EndGameSession, SessionCleanup, SessionEndReason, SessionEnding};
 pub use sprite::*;
 pub use systems::PingState;
 pub use text::{ChatMessageType, TextMessageType};
@@ -50,6 +52,11 @@ impl Plugin for CorePlugin {
                     .in_set(AnimationSet)
                     .run_if(in_state(GameState::InGame)),
             )
-            .add_observer(text::on_text_message);
+            .add_observer(text::on_text_message)
+            .configure_sets(OnExit(GameState::InGame), SessionCleanup)
+            .add_systems(
+                OnExit(GameState::InGame),
+                session::cleanup_session.in_set(SessionCleanup),
+            );
     }
 }

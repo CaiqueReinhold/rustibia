@@ -36,6 +36,12 @@ impl PingState {
     pub fn current(&self) -> Duration {
         Duration::from_micros(self.0.load(Ordering::Relaxed))
     }
+
+    /// Drops the last reading so a dead connection's latency can't be shown
+    /// against the next one.
+    pub fn reset(&self) {
+        self.0.store(0, Ordering::Relaxed);
+    }
 }
 
 #[derive(Resource)]
