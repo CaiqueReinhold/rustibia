@@ -129,7 +129,10 @@ fn on_connection_lost(
 }
 
 /// The one path from a live session back to the login screen.
-fn on_end_game_session(_: On<EndGameSession>, mut commands: Commands) {
+fn on_end_game_session(event: On<EndGameSession>, mut commands: Commands) {
+    // The reason never changes what happens here — it is logged because a client
+    // that drops out of the world should say whether the player asked for it.
+    info!("session ended: {:?}", event.reason);
     commands.insert_resource(PendingLoginPhase(LoginPhase::CharacterList));
     commands.set_state(GameState::LoginScreen);
 }
