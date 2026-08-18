@@ -24,11 +24,6 @@
 //! `Node.left`/`Node.top` before layout runs. A text therefore cannot be placed on
 //! the frame it spawned: it carries `Unplaced` and stays hidden until measured.
 
-// Nothing outside this file's tests uses these yet; the systems that consume them
-// land over the following tasks. The suppression comes off once the last one is
-// wired up, which is what proves everything here is actually reachable.
-#![allow(dead_code)]
-
 use std::collections::VecDeque;
 use std::time::Duration;
 

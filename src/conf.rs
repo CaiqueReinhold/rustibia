@@ -40,10 +40,6 @@ pub mod viewport {
     // pub const GAME_VIEW_MIN_SIZE: f32 = 400.0;
 }
 
-/// Nothing consumes these yet; the systems that use them land over the following
-/// tasks. The suppression comes off once the last one is wired up, which is what
-/// proves every constant here is actually reachable.
-#[allow(dead_code)]
 pub mod floating_text {
     /// Matches the agent name labels, so world text is one visual family.
     pub const FONT_SIZE: f32 = 11.0;
