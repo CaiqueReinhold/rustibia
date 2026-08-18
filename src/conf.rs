@@ -40,6 +40,46 @@ pub mod viewport {
     // pub const GAME_VIEW_MIN_SIZE: f32 = 400.0;
 }
 
+/// Nothing consumes these yet; the systems that use them land over the following
+/// tasks. The suppression comes off once the last one is wired up, which is what
+/// proves every constant here is actually reachable.
+#[allow(dead_code)]
+pub mod floating_text {
+    /// Matches the agent name labels, so world text is one visual family.
+    pub const FONT_SIZE: f32 = 11.0;
+    pub const OUTLINE_WIDTH: f32 = 1.0;
+    /// Above the agent HUD siblings that share the game viewport.
+    pub const Z_INDEX: i32 = 1;
+
+    // --- HitPoints ---
+    pub const HP_DURATION_MS: u64 = 1000;
+    /// Logical px the number rises over its life. OTClient's value, built for the
+    /// same 32 px tile.
+    pub const HP_RISE_PX: f32 = 48.0;
+    /// Fraction of the life after which alpha ramps to zero.
+    pub const HP_FADE_START: f32 = 0.83;
+    /// A text past this fraction of its life is too far along to absorb a new hit.
+    pub const HP_MERGE_WINDOW: f32 = 0.4;
+    /// Vertical gap held between two numbers that could not merge.
+    pub const HP_CLEARANCE_PX: f32 = 12.0;
+    /// Past this the stagger column recycles to the bottom instead of marching off
+    /// the top of the view.
+    pub const HP_MAX_STAGGER_PX: f32 = 36.0;
+
+    // --- PlayerMessage ---
+    /// World px above the tile, so speech sits over the sprite's head. World-space
+    /// because it must scale with the viewport to stay glued to the sprite.
+    pub const SPEECH_HEAD_OFFSET_WORLD: f32 = 24.0;
+    pub const SPEECH_MS_PER_CHAR: u64 = 60;
+    pub const SPEECH_MIN_MS: u64 = 3000;
+    /// The server's `max_message_length` is 255, which at 60 ms/char would pin one
+    /// line on screen for 15 s.
+    pub const SPEECH_MAX_MS: u64 = 8000;
+    pub const SPEECH_MAX_LINES: usize = 5;
+    pub const SPEECH_MAX_WIDTH_PX: f32 = 180.0;
+    pub const SPEECH_GAP_PX: f32 = 2.0;
+}
+
 pub mod ui {
     pub const TOP_BAR_HEIGHT: f32 = 50.0;
     pub const SIDE_PANEL_WIDTH: f32 = 180.0;
