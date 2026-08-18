@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use crate::{
     agent::{AgentId, FacingDirection, Health, Mana, WalkingDirection},
     conf::map::{TILES_X, TILES_Y},
-    core::{ChatMessageType, OutfitColors, OutfitId, TextMessageType},
+    core::{ChatMessageType, FloatingTextType, OutfitColors, OutfitId, TextMessageType},
     items::{ContainerId, InventorySlot, ItemId},
     map::Position,
     network::{ServerMessage, messages::ItemStack},
@@ -74,6 +74,19 @@ pub struct TileChanged {
 pub struct ShowTextMessage {
     pub text: String,
     pub message_type: TextMessageType,
+}
+
+/// Unread for now: no observer subscribes to this event yet, and no test
+/// constructs it — the observer arrives in a later task. Mirrors the
+/// convention used for `ServerMessage::FloatingText` in `network/messages.rs`
+/// while it was in the same state.
+#[allow(dead_code)]
+#[derive(Event, Debug)]
+pub struct ShowFloatingText {
+    pub text: String,
+    pub position: Position,
+    pub text_type: FloatingTextType,
+    pub color: Option<(u8, u8, u8)>,
 }
 
 #[derive(Event, Debug)]
@@ -333,9 +346,18 @@ pub fn route_event(msg: ServerMessage, commands: &mut Commands) {
         ServerMessage::IntroducePlayer { local_id, name } => {
             commands.trigger(PlayerIntroduced { local_id, name });
         }
-        // Stub arm only: `route_event`'s match is exhaustive, so decoding this
-        // variant (Task 2) does not compile without a case for it here. No event
-        // is triggered yet — Task 3 replaces this with the real dispatch.
-        ServerMessage::FloatingText { .. } => {}
+        ServerMessage::FloatingText {
+            text,
+            position,
+            text_type,
+            color,
+        } => {
+            commands.trigger(ShowFloatingText {
+                text,
+                position,
+                text_type,
+                color,
+            });
+        }
     }
 }

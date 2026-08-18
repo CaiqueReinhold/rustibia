@@ -224,12 +224,6 @@ pub enum ServerMessage {
         local_id: u16,
         name: String,
     },
-    /// Unread outside tests for now: `route_event` (network/events.rs) only
-    /// matches this variant with `..` until Task 3 wires the real dispatch, so
-    /// none of these fields are read in production code yet. `#[allow(dead_code)]`
-    /// mirrors the convention already used for `SqlLoginRepository` in the server
-    /// repository (`crates/server/src/persistence/login.rs`).
-    #[allow(dead_code)]
     FloatingText {
         text: String,
         position: Position,
