@@ -7,7 +7,7 @@ use thiserror::Error;
 use crate::{
     agent::{AgentId, FacingDirection, Health, Mana, WalkingDirection},
     conf::map::{STACK_MAX_VISIBLE_ITEMS, TILES_X, TILES_Y},
-    core::{ChatMessageType, OutfitColors, OutfitId, TextMessageType},
+    core::{ChatMessageType, FloatingTextType, OutfitColors, OutfitId, TextMessageType},
     items::{ContainerId, InventorySlot, ItemId},
     map::Position,
 };
@@ -116,6 +116,7 @@ const MSG_TELEPORT_AGENT: u8 = 18;
 const MSG_CHAT_MESSAGE: u8 = 19;
 const MSG_CHANNEL_LIST: u8 = 20;
 const MSG_INTRODUCE_PLAYER: u8 = 21;
+const MSG_FLOATING_TEXT: u8 = 22;
 
 #[derive(Clone, Debug)]
 pub enum ServerMessage {
@@ -222,6 +223,18 @@ pub enum ServerMessage {
     IntroducePlayer {
         local_id: u16,
         name: String,
+    },
+    /// Unread outside tests for now: `route_event` (network/events.rs) only
+    /// matches this variant with `..` until Task 3 wires the real dispatch, so
+    /// none of these fields are read in production code yet. `#[allow(dead_code)]`
+    /// mirrors the convention already used for `SqlLoginRepository` in the server
+    /// repository (`crates/server/src/persistence/login.rs`).
+    #[allow(dead_code)]
+    FloatingText {
+        text: String,
+        position: Position,
+        text_type: FloatingTextType,
+        color: Option<(u8, u8, u8)>,
     },
 }
 
@@ -567,6 +580,19 @@ fn decode_message(buf: &mut Reader) -> Result<ServerMessage, MessageDecodeError>
             let name = buf.read_string(name_len)?;
             Ok(ServerMessage::IntroducePlayer { local_id, name })
         }
+        MSG_FLOATING_TEXT => {
+            let text_len = buf.read_u16_le()? as usize;
+            let text = buf.read_string(text_len)?;
+            let position = decode_position(buf)?;
+            let text_type = decode_floating_text_type(buf.read_u8()?)?;
+            let color = decode_optional_color(buf)?;
+            Ok(ServerMessage::FloatingText {
+                text,
+                position,
+                text_type,
+                color,
+            })
+        }
         _ => Err(MessageDecodeError::WrongSequence),
     }
 }
@@ -634,6 +660,27 @@ fn decode_chat_message_type(b: u8) -> Result<ChatMessageType, MessageDecodeError
         0x03 => Ok(ChatMessageType::Channel),
         _ => Err(MessageDecodeError::WrongSequence),
     }
+}
+
+fn decode_floating_text_type(b: u8) -> Result<FloatingTextType, MessageDecodeError> {
+    match b {
+        0x01 => Ok(FloatingTextType::HitPoints),
+        0x02 => Ok(FloatingTextType::PlayerMessage),
+        _ => Err(MessageDecodeError::WrongSequence),
+    }
+}
+
+/// A flag byte, then three colour bytes only if the flag is set. Reading the
+/// colour unconditionally would consume bytes the sender never wrote and leave the
+/// rest of the frame misaligned.
+fn decode_optional_color(buf: &mut Reader) -> Result<Option<(u8, u8, u8)>, MessageDecodeError> {
+    if buf.read_u8()? == 0 {
+        return Ok(None);
+    }
+    let r = buf.read_u8()?;
+    let g = buf.read_u8()?;
+    let b = buf.read_u8()?;
+    Ok(Some((r, g, b)))
 }
 
 fn decode_optional_item(buf: &mut Reader) -> Result<Option<ItemId>, MessageDecodeError> {
@@ -978,6 +1025,88 @@ mod tests {
             other => panic!("expected ChannelList, got {other:?}"),
         }
         assert!(buf.is_empty(), "the frame must be fully consumed");
+    }
+
+    /// The exact byte layout `encode_floating_text_with_a_colour` produces in the
+    /// server repository. The pair is the pin: a divergence in field order, length
+    /// prefix width or discriminant fails one of the two tests.
+    #[test]
+    fn decodes_a_floating_text_with_a_colour() {
+        let mut payload = vec![MSG_FLOATING_TEXT];
+        payload.extend_from_slice(&3u16.to_le_bytes()); // text length
+        payload.extend_from_slice(b"-25");
+        payload.extend_from_slice(&100u16.to_le_bytes()); // x
+        payload.extend_from_slice(&200u16.to_le_bytes()); // y
+        payload.push(7); // z
+        payload.push(0x01); // HitPoints
+        payload.push(0x01); // colour present
+        payload.extend_from_slice(&[255, 0, 64]);
+
+        let mut codec = GameMessageCodec {};
+        let mut buf = frame(&payload);
+        match codec.decode(&mut buf).unwrap().unwrap() {
+            ServerMessage::FloatingText {
+                text,
+                position,
+                text_type,
+                color,
+            } => {
+                assert_eq!(text, "-25");
+                assert_eq!(position, Position::new(100, 200, 7));
+                assert!(matches!(text_type, FloatingTextType::HitPoints));
+                assert_eq!(color, Some((255, 0, 64)));
+            }
+            other => panic!("expected FloatingText, got {other:?}"),
+        }
+        assert!(buf.is_empty(), "the frame must be fully consumed");
+    }
+
+    #[test]
+    fn decodes_a_floating_text_without_a_colour() {
+        let mut payload = vec![MSG_FLOATING_TEXT];
+        payload.extend_from_slice(&2u16.to_le_bytes());
+        payload.extend_from_slice(b"hi");
+        payload.extend_from_slice(&1u16.to_le_bytes());
+        payload.extend_from_slice(&2u16.to_le_bytes());
+        payload.push(7);
+        payload.push(0x02); // PlayerMessage
+        payload.push(0x00); // colour absent
+
+        let mut codec = GameMessageCodec {};
+        let mut buf = frame(&payload);
+        match codec.decode(&mut buf).unwrap().unwrap() {
+            ServerMessage::FloatingText {
+                text_type, color, ..
+            } => {
+                assert!(matches!(text_type, FloatingTextType::PlayerMessage));
+                assert_eq!(color, None, "no colour bytes may be consumed");
+            }
+            other => panic!("expected FloatingText, got {other:?}"),
+        }
+        assert!(
+            buf.is_empty(),
+            "reading three colour bytes that were not sent would leave the frame short"
+        );
+    }
+
+    /// An unknown discriminant must be a decode error, not a silent default — this
+    /// is the loud failure that makes a pinning test unnecessary for the enum.
+    #[test]
+    fn an_unknown_floating_text_type_is_rejected() {
+        let mut payload = vec![MSG_FLOATING_TEXT];
+        payload.extend_from_slice(&0u16.to_le_bytes());
+        payload.extend_from_slice(&1u16.to_le_bytes());
+        payload.extend_from_slice(&2u16.to_le_bytes());
+        payload.push(7);
+        payload.push(0x09); // not a type
+        payload.push(0x00);
+
+        let mut codec = GameMessageCodec {};
+        let mut buf = frame(&payload);
+        assert!(matches!(
+            codec.decode(&mut buf),
+            Err(MessageDecodeError::WrongSequence)
+        ));
     }
 
     /// A length field larger than the payload used to index straight past the

@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 mod animation;
 mod assets;
+mod floating_text;
 mod instances;
 mod items;
 mod session;
@@ -11,6 +12,7 @@ mod text;
 
 pub use animation::*;
 pub use assets::*;
+pub use floating_text::FloatingTextType;
 pub use instances::*;
 pub use items::ItemConfigs;
 pub use session::{EndGameSession, SessionCleanup, SessionEndReason, SessionEnding};

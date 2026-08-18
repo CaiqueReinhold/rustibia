@@ -333,5 +333,9 @@ pub fn route_event(msg: ServerMessage, commands: &mut Commands) {
         ServerMessage::IntroducePlayer { local_id, name } => {
             commands.trigger(PlayerIntroduced { local_id, name });
         }
+        // Stub arm only: `route_event`'s match is exhaustive, so decoding this
+        // variant (Task 2) does not compile without a case for it here. No event
+        // is triggered yet — Task 3 replaces this with the real dispatch.
+        ServerMessage::FloatingText { .. } => {}
     }
 }
