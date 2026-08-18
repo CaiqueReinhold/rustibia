@@ -79,5 +79,11 @@ impl Plugin for CorePlugin {
                 OnExit(GameState::InGame),
                 session::cleanup_session.in_set(SessionCleanup),
             );
+
+        #[cfg(feature = "debug")]
+        app.add_systems(
+            Update,
+            floating_text::debug_spawn_floating_text.run_if(in_state(GameState::InGame)),
+        );
     }
 }

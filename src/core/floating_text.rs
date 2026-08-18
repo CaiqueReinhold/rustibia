@@ -606,6 +606,77 @@ pub fn position_floating_texts(
     }
 }
 
+/// Dev-only floating text, since no server producer exists yet.
+///
+/// - `F9` — a number on the player's own tile in a fixed colour: repeated presses
+///   exercise **merging**.
+/// - `F10` — a number on the player's own tile in a rotating colour: repeated
+///   presses exercise **staggering**.
+/// - `F11` — speech cycling over the player's tile and the two beside it: repeated
+///   presses exercise **queueing** (same tile) and **cross-tile push**.
+#[cfg(feature = "debug")]
+pub fn debug_spawn_floating_text(
+    mut commands: Commands,
+    keys: Res<ButtonInput<KeyCode>>,
+    player_q: Query<&Position, With<Player>>,
+    mut nonce: Local<u32>,
+) {
+    let Ok(player) = player_q.single() else {
+        return;
+    };
+
+    let merge = keys.just_pressed(KeyCode::F9);
+    let stagger = keys.just_pressed(KeyCode::F10);
+    let speech = keys.just_pressed(KeyCode::F11);
+    if !merge && !stagger && !speech {
+        return;
+    }
+
+    // A one-line LCG, so the trigger needs no `rand` dependency.
+    *nonce = nonce.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
+    let r = (*nonce >> 16) as usize;
+
+    if merge {
+        commands.trigger(ShowFloatingText {
+            text: format!("-{}", 1 + r % 99),
+            position: player.clone(),
+            text_type: FloatingTextType::HitPoints,
+            color: Some((255, 64, 64)),
+        });
+    }
+
+    if stagger {
+        const COLORS: [(u8, u8, u8); 4] = [
+            (255, 64, 64),
+            (64, 200, 255),
+            (255, 255, 64),
+            (200, 96, 255),
+        ];
+        commands.trigger(ShowFloatingText {
+            text: format!("-{}", 1 + r % 99),
+            position: player.clone(),
+            text_type: FloatingTextType::HitPoints,
+            color: Some(COLORS[r % COLORS.len()]),
+        });
+    }
+
+    if speech {
+        const LINES: [&str; 4] = [
+            "hi",
+            "hello there",
+            "exura vita",
+            "a deliberately long sentence to exercise the wrap width",
+        ];
+        let dx = (r % 3) as i32 - 1;
+        commands.trigger(ShowFloatingText {
+            text: LINES[r % LINES.len()].to_owned(),
+            position: player.delta(dx, 0),
+            text_type: FloatingTextType::PlayerMessage,
+            color: None,
+        });
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
