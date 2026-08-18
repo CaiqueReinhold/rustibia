@@ -153,7 +153,6 @@ pub struct SpawnAgent {
     pub speed: u16,
 }
 
-// Not yet observed anywhere: chat UI wiring lands in a later task.
 #[derive(Event, Debug)]
 pub struct ChatMessageReceived {
     pub author: u16,
