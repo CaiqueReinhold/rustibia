@@ -13,8 +13,6 @@ pub enum TextMessageType {
     Look,
 }
 
-/// Chat message classes. Distinct from `TextMessageType`, which is for system
-/// notices (look descriptions, action denials) rendered in the game view.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ChatMessageType {
     Local,

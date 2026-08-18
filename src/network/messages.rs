@@ -76,7 +76,6 @@ pub enum ClientMessage {
     Look {
         position: Position,
     },
-    // Not yet constructed anywhere: chat UI wiring lands in a later task.
     Say {
         message: String,
         message_type: ChatMessageType,
