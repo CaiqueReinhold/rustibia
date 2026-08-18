@@ -1379,4 +1379,360 @@ mod tests {
             "a world-space offset scales with the view"
         );
     }
+
+    // --- `position_floating_texts` / `resolve_speech_collisions` world tests ---
+    //
+    // Mutation testing found that both systems can be deleted wholesale with the
+    // rest of the suite green: nothing above exercises `Node.left`/`Node.top`,
+    // the rise animation, the collision offset, the floor filter, the
+    // measured-size guard, or the `Unplaced` reveal handshake. These tests close
+    // that hole at the `World` level, since `ComputedNode` is engine-written and
+    // cannot be produced by triggering the observer alone.
+
+    /// A world with a viewport, a game camera sitting exactly on `anchor`, and a
+    /// player standing on `anchor`'s tile but at `player_z`. Mirrors
+    /// `observer_world`, but for the two placement systems instead of the spawn
+    /// observer.
+    fn placement_world(anchor: &Position, player_z: u8) -> World {
+        let mut world = World::new();
+        world.init_resource::<Time>();
+
+        world.spawn((
+            GameViewport,
+            ComputedNode {
+                size: Vec2::new(480.0, 352.0),
+                inverse_scale_factor: 1.0,
+                ..Default::default()
+            },
+        ));
+        world.spawn((
+            GameCamera,
+            GlobalTransform::from_translation(anchor.to_world()),
+        ));
+        world.spawn((
+            Player { agent_id: 1 },
+            Position::new(anchor.x, anchor.y, player_z),
+        ));
+
+        world
+    }
+
+    fn fresh_hp_timer() -> Timer {
+        Timer::new(Duration::from_millis(ft::HP_DURATION_MS), TimerMode::Once)
+    }
+
+    /// The viewport centre for a camera sitting exactly on the anchor's tile —
+    /// the same identity case `an_anchor_under_the_camera_lands_at_the_viewport_centre`
+    /// pins for `anchor_px` itself.
+    const VIEWPORT_CENTRE: Vec2 = Vec2::new(240.0, 176.0);
+
+    #[test]
+    fn a_measured_number_is_centred_on_its_anchor() {
+        let anchor = Position::new(100, 100, 7);
+        let mut world = placement_world(&anchor, 7);
+
+        let node_size = Vec2::new(20.0, 10.0);
+        let entity = world
+            .spawn((
+                FloatingText {
+                    kind: FloatingTextType::HitPoints,
+                    anchor: anchor.clone(),
+                    spawned_at: Duration::ZERO,
+                    offset_y: 0.0,
+                },
+                HitPointsText {
+                    value: Some(5),
+                    color: Color::WHITE,
+                    timer: fresh_hp_timer(),
+                },
+                ComputedNode {
+                    size: node_size,
+                    inverse_scale_factor: 1.0,
+                    ..Default::default()
+                },
+                Node::default(),
+                Visibility::Hidden,
+                Unplaced,
+            ))
+            .id();
+
+        // First run: the entity is measured, so its position is written this
+        // frame, and the queued `remove::<Unplaced>()` command is applied by
+        // `run_system_once` before it returns. But `want` was computed from the
+        // query's snapshot at the *start* of this run, when `Unplaced` was still
+        // present — so visibility does not flip to `Visible` until the *next*
+        // run sees it gone. This is the same one-frame handshake the module
+        // docs describe for `ComputedNode`, just for `Unplaced` instead.
+        world.run_system_once(position_floating_texts).unwrap();
+
+        // VIEWPORT_CENTRE - node_size / 2, and the bottom edge sitting on the
+        // anchor: 240 - 10 = 230, 176 - 10 = 166. No rise, no offset.
+        let node = world.get::<Node>(entity).unwrap();
+        assert_eq!(node.left, Val::Px(230.0));
+        assert_eq!(node.top, Val::Px(166.0));
+        assert!(
+            world.get::<Unplaced>(entity).is_none(),
+            "a measured HitPointsText must have Unplaced removed"
+        );
+        assert_eq!(
+            *world.get::<Visibility>(entity).unwrap(),
+            Visibility::Hidden,
+            "Unplaced's removal is deferred, so visibility cannot flip within the same run"
+        );
+
+        // Second run: Unplaced is gone, so the text is now visible.
+        world.run_system_once(position_floating_texts).unwrap();
+        assert_eq!(
+            *world.get::<Visibility>(entity).unwrap(),
+            Visibility::Visible
+        );
+        let node = world.get::<Node>(entity).unwrap();
+        assert_eq!(node.left, Val::Px(230.0));
+        assert_eq!(node.top, Val::Px(166.0));
+    }
+
+    /// Would catch the `- rise` term being dropped from the top calculation: at
+    /// fraction 0 and fraction 0.5 the tops differ by exactly `risen(0.5)`.
+    #[test]
+    fn a_number_rises_as_its_timer_advances() {
+        let anchor = Position::new(100, 100, 7);
+        let node_size = Vec2::new(20.0, 10.0);
+
+        let spawn = |world: &mut World, fraction_ms: u64| {
+            let mut timer = fresh_hp_timer();
+            timer.tick(Duration::from_millis(fraction_ms));
+            world
+                .spawn((
+                    FloatingText {
+                        kind: FloatingTextType::HitPoints,
+                        anchor: anchor.clone(),
+                        spawned_at: Duration::ZERO,
+                        offset_y: 0.0,
+                    },
+                    HitPointsText {
+                        value: Some(5),
+                        color: Color::WHITE,
+                        timer,
+                    },
+                    ComputedNode {
+                        size: node_size,
+                        inverse_scale_factor: 1.0,
+                        ..Default::default()
+                    },
+                    Node::default(),
+                    Visibility::Hidden,
+                    Unplaced,
+                ))
+                .id()
+        };
+
+        let mut world_at_rest = placement_world(&anchor, 7);
+        let at_rest = spawn(&mut world_at_rest, 0);
+        world_at_rest
+            .run_system_once(position_floating_texts)
+            .unwrap();
+        let top_at_rest = world_at_rest.get::<Node>(at_rest).unwrap().top;
+
+        let mut world_risen = placement_world(&anchor, 7);
+        // Half the duration: fraction 0.5.
+        let risen_entity = spawn(&mut world_risen, ft::HP_DURATION_MS / 2);
+        world_risen
+            .run_system_once(position_floating_texts)
+            .unwrap();
+        let top_risen = world_risen.get::<Node>(risen_entity).unwrap().top;
+
+        let (Val::Px(rest), Val::Px(risen_px)) = (top_at_rest, top_risen) else {
+            panic!("expected Val::Px on both");
+        };
+        assert_eq!(
+            rest - risen_px,
+            risen(0.5),
+            "top must move up by exactly the rise at fraction 0.5"
+        );
+        assert_eq!(risen(0.5), ft::HP_RISE_PX / 2.0);
+    }
+
+    #[test]
+    fn a_text_on_another_floor_stays_hidden() {
+        let anchor = Position::new(100, 100, 7);
+        // Player stands one floor below the anchor's tile.
+        let mut world = placement_world(&anchor, 8);
+
+        let entity = world
+            .spawn((
+                FloatingText {
+                    kind: FloatingTextType::HitPoints,
+                    anchor: anchor.clone(),
+                    spawned_at: Duration::ZERO,
+                    offset_y: 0.0,
+                },
+                HitPointsText {
+                    value: Some(5),
+                    color: Color::WHITE,
+                    timer: fresh_hp_timer(),
+                },
+                ComputedNode {
+                    size: Vec2::new(20.0, 10.0),
+                    inverse_scale_factor: 1.0,
+                    ..Default::default()
+                },
+                Node::default(),
+                Visibility::Hidden,
+            ))
+            .id();
+
+        world.run_system_once(position_floating_texts).unwrap();
+
+        assert_eq!(
+            *world.get::<Visibility>(entity).unwrap(),
+            Visibility::Hidden,
+            "a text on another floor must stay hidden even though it is measured"
+        );
+    }
+
+    #[test]
+    fn an_unmeasured_text_stays_hidden_and_unplaced() {
+        let anchor = Position::new(100, 100, 7);
+        let mut world = placement_world(&anchor, 7);
+
+        let zero_size = || ComputedNode {
+            size: Vec2::ZERO,
+            inverse_scale_factor: 1.0,
+            ..Default::default()
+        };
+
+        // The natural case: freshly spawned, never measured, still carrying
+        // `Unplaced`.
+        let fresh = world
+            .spawn((
+                FloatingText {
+                    kind: FloatingTextType::HitPoints,
+                    anchor: anchor.clone(),
+                    spawned_at: Duration::ZERO,
+                    offset_y: 0.0,
+                },
+                HitPointsText {
+                    value: Some(5),
+                    color: Color::WHITE,
+                    timer: fresh_hp_timer(),
+                },
+                zero_size(),
+                Node::default(),
+                Visibility::Hidden,
+                Unplaced,
+            ))
+            .id();
+
+        // A second, already-placed text (no `Unplaced`) whose node happens to
+        // report zero size this frame. With `Unplaced` present, `fresh` above
+        // would stay hidden from the `unplaced.is_none()` clause alone even if
+        // the `measured` clause were dropped — so it cannot by itself pin
+        // `measured` in the `want` calculation. This entity has no `Unplaced` to
+        // fall back on, so only the `measured` clause can keep it hidden.
+        let already_placed = world
+            .spawn((
+                FloatingText {
+                    kind: FloatingTextType::HitPoints,
+                    anchor: anchor.clone(),
+                    spawned_at: Duration::ZERO,
+                    offset_y: 0.0,
+                },
+                HitPointsText {
+                    value: Some(5),
+                    color: Color::WHITE,
+                    timer: fresh_hp_timer(),
+                },
+                zero_size(),
+                Node::default(),
+                Visibility::Hidden,
+            ))
+            .id();
+
+        world.run_system_once(position_floating_texts).unwrap();
+
+        assert_eq!(
+            *world.get::<Visibility>(fresh).unwrap(),
+            Visibility::Hidden,
+            "an unmeasured text must stay hidden"
+        );
+        assert!(
+            world.get::<Unplaced>(fresh).is_some(),
+            "an unmeasured text must keep Unplaced, since it was never placed"
+        );
+        assert_eq!(
+            *world.get::<Visibility>(already_placed).unwrap(),
+            Visibility::Hidden,
+            "measured=false must hide the text regardless of Unplaced state"
+        );
+    }
+
+    /// Would catch the `- text.offset_y` term being dropped from the top
+    /// calculation: two otherwise-identical numbers differing only in
+    /// `offset_y` must land exactly `offset_y` apart.
+    #[test]
+    fn a_collision_offset_reaches_the_node_position() {
+        let anchor = Position::new(100, 100, 7);
+        let node_size = Vec2::new(20.0, 10.0);
+
+        let spawn = |world: &mut World, offset_y: f32| {
+            world
+                .spawn((
+                    FloatingText {
+                        kind: FloatingTextType::HitPoints,
+                        anchor: anchor.clone(),
+                        spawned_at: Duration::ZERO,
+                        offset_y,
+                    },
+                    HitPointsText {
+                        value: Some(5),
+                        color: Color::WHITE,
+                        timer: fresh_hp_timer(),
+                    },
+                    ComputedNode {
+                        size: node_size,
+                        inverse_scale_factor: 1.0,
+                        ..Default::default()
+                    },
+                    Node::default(),
+                    Visibility::Hidden,
+                    Unplaced,
+                ))
+                .id()
+        };
+
+        let mut world_flat = placement_world(&anchor, 7);
+        let flat = spawn(&mut world_flat, 0.0);
+        world_flat.run_system_once(position_floating_texts).unwrap();
+        let top_flat = world_flat.get::<Node>(flat).unwrap().top;
+
+        let mut world_pushed = placement_world(&anchor, 7);
+        let pushed = spawn(&mut world_pushed, 14.0);
+        world_pushed
+            .run_system_once(position_floating_texts)
+            .unwrap();
+        let top_pushed = world_pushed.get::<Node>(pushed).unwrap().top;
+
+        let (Val::Px(flat_px), Val::Px(pushed_px)) = (top_flat, top_pushed) else {
+            panic!("expected Val::Px on both");
+        };
+        assert_eq!(
+            flat_px - pushed_px,
+            14.0,
+            "a 14 px collision offset must move the node exactly 14 px higher"
+        );
+    }
+
+    /// `VIEWPORT_CENTRE` is the identity case documented above: sanity-check it
+    /// against `anchor_px` itself so the constant cannot silently drift from the
+    /// function it stands in for.
+    #[test]
+    fn viewport_centre_matches_anchor_px_at_the_identity_case() {
+        let anchor = Position::new(100, 100, 7);
+        let cam = anchor.to_world().truncate();
+        let size = Vec2::new(480.0, 352.0);
+        assert_eq!(
+            anchor_px(&anchor, FloatingTextType::HitPoints, cam, size),
+            VIEWPORT_CENTRE
+        );
+    }
 }
