@@ -37,11 +37,15 @@ use bevy::prelude::*;
 use bevy::text::FontSmoothing;
 use bevy_text_outline::TextOutline;
 
+use crate::camera::GameCamera;
 use crate::conf::floating_text as ft;
 use crate::conf::ui::chat::LOCAL_CHANNEL_COLOR;
+use crate::conf::viewport::{GAME_VIEW_HEIGHT, GAME_VIEW_WIDTH};
+use crate::game_ui::scaling::logical_size;
 use crate::game_ui::{GameUiAssets, GameViewport};
 use crate::map::Position;
 use crate::network::events::ShowFloatingText;
+use crate::player::components::Player;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FloatingTextType {
@@ -384,6 +388,24 @@ pub fn on_floating_text(
     }
 }
 
+/// World tile → viewport-local logical px, y-down, top-left origin.
+///
+/// The world-space head offset for speech is folded into the UV *before* the
+/// multiply by viewport size, so it scales with the view and stays over the
+/// sprite's head at any window size.
+fn anchor_px(anchor: &Position, kind: FloatingTextType, cam_pos: Vec2, size: Vec2) -> Vec2 {
+    let world = anchor.to_world();
+    let world_y_offset = match kind {
+        FloatingTextType::HitPoints => 0.0,
+        FloatingTextType::PlayerMessage => ft::SPEECH_HEAD_OFFSET_WORLD,
+    };
+    let uv = Vec2::new(
+        (world.x - cam_pos.x) / GAME_VIEW_WIDTH + 0.5,
+        (0.5 - (world.y - cam_pos.y) / GAME_VIEW_HEIGHT) - world_y_offset / GAME_VIEW_HEIGHT,
+    );
+    uv * size
+}
+
 fn text_node() -> Node {
     Node {
         position_type: PositionType::Absolute,
@@ -449,6 +471,138 @@ pub fn tick_speech_blocks(
         if block.lines.len() != before {
             text.0 = block.compose();
         }
+    }
+}
+
+/// Pushes overlapping speech blocks clear of each other and releases newly
+/// measured blocks for display.
+///
+/// Sizes come from the **previous** frame's layout (see the module docs), so a
+/// block spawned this frame is placed on the next one.
+pub fn resolve_speech_collisions(
+    mut commands: Commands,
+    game_cam_q: Query<&GlobalTransform, With<GameCamera>>,
+    player_pos_q: Query<&Position, With<Player>>,
+    viewport_q: Query<&ComputedNode, With<GameViewport>>,
+    mut blocks_q: Query<(Entity, &mut FloatingText, &ComputedNode), With<SpeechBlock>>,
+    // `Changed<Text>` and not `Changed<SpeechBlock>`: ticking the line timers
+    // touches `SpeechBlock` every frame, so it is always "changed" and would gate
+    // nothing. `Text` is written only when a line is added or expires.
+    changed_q: Query<(), (Changed<Text>, With<SpeechBlock>)>,
+    unplaced_q: Query<(), (With<SpeechBlock>, With<Unplaced>)>,
+    viewport_resized_q: Query<(), (Changed<ComputedNode>, With<GameViewport>)>,
+    mut removed: RemovedComponents<SpeechBlock>,
+) {
+    // Drained unconditionally and first: `||` short-circuits, and an undrained
+    // `RemovedComponents` reader accumulates events forever.
+    let removed_any = removed.read().count() > 0;
+    let dirty = removed_any
+        || !changed_q.is_empty()
+        || !unplaced_q.is_empty()
+        || !viewport_resized_q.is_empty();
+    if !dirty {
+        return;
+    }
+
+    let Ok(cam) = game_cam_q.single() else {
+        return;
+    };
+    let Ok(player_pos) = player_pos_q.single() else {
+        return;
+    };
+    let Ok(viewport) = viewport_q.single() else {
+        return;
+    };
+    let cam_pos = cam.translation().truncate();
+    let size = logical_size(viewport);
+
+    // Only blocks on the player's floor compete for space, and a block with no
+    // measured size yet cannot be placed at all.
+    let mut entities = Vec::new();
+    let mut layouts = Vec::new();
+    for (entity, text, node) in blocks_q.iter() {
+        let node_size = logical_size(node);
+        if text.anchor.z != player_pos.z || node_size.x <= 0.0 || node_size.y <= 0.0 {
+            continue;
+        }
+        entities.push(entity);
+        layouts.push(BlockLayout {
+            anchor_px: anchor_px(&text.anchor, text.kind, cam_pos, size),
+            size: node_size,
+            spawned_at: text.spawned_at,
+        });
+    }
+
+    let offsets = resolve_offsets(&layouts);
+    for (entity, offset_y) in entities.into_iter().zip(offsets) {
+        if let Ok((_, mut text, _)) = blocks_q.get_mut(entity) {
+            text.offset_y = offset_y;
+        }
+        commands.entity(entity).remove::<Unplaced>();
+    }
+}
+
+/// Writes every floating text's `Node` position, hides off-floor and unmeasured
+/// text, and applies the rise animation.
+///
+/// Placement goes through `Node.left`/`Node.top` rather than `UiTransform` because
+/// the text must be *centred* on its anchor, which needs its measured width — and
+/// `UiTransform` is consumed by the same system that produces that measurement.
+pub fn position_floating_texts(
+    mut commands: Commands,
+    game_cam_q: Query<&GlobalTransform, With<GameCamera>>,
+    player_pos_q: Query<&Position, With<Player>>,
+    viewport_q: Query<&ComputedNode, With<GameViewport>>,
+    mut texts_q: Query<(
+        Entity,
+        &FloatingText,
+        &ComputedNode,
+        &mut Node,
+        &mut Visibility,
+        Option<&HitPointsText>,
+        Option<&Unplaced>,
+    )>,
+) {
+    let Ok(cam) = game_cam_q.single() else {
+        return;
+    };
+    let Ok(player_pos) = player_pos_q.single() else {
+        return;
+    };
+    let Ok(viewport) = viewport_q.single() else {
+        return;
+    };
+    let cam_pos = cam.translation().truncate();
+    let size = logical_size(viewport);
+
+    for (entity, text, node, mut style, mut visibility, hp, unplaced) in texts_q.iter_mut() {
+        let node_size = logical_size(node);
+        let measured = node_size.x > 0.0 && node_size.y > 0.0;
+
+        // Off the player's floor, or not yet measured, means nothing to show.
+        let want = if text.anchor.z == player_pos.z && measured && unplaced.is_none() {
+            Visibility::Visible
+        } else {
+            Visibility::Hidden
+        };
+        if *visibility != want {
+            *visibility = want;
+        }
+        if !measured {
+            continue;
+        }
+
+        // A damage number is placed the frame it is measured; a speech block waits
+        // for the collision pass to clear its `Unplaced`.
+        if unplaced.is_some() && hp.is_some() {
+            commands.entity(entity).remove::<Unplaced>();
+        }
+
+        let anchor = anchor_px(&text.anchor, text.kind, cam_pos, size);
+        let rise = hp.map(|hp| risen(hp.timer.fraction())).unwrap_or(0.0);
+
+        style.left = Val::Px((anchor.x - node_size.x / 2.0).round());
+        style.top = Val::Px((anchor.y - node_size.y - text.offset_y - rise).round());
     }
 }
 
@@ -1101,6 +1255,45 @@ mod tests {
             q.iter(&world).count(),
             0,
             "no line expired, so Text must not have been rewritten"
+        );
+    }
+
+    /// With the camera sitting exactly on the anchor's tile, a `HitPoints` anchor
+    /// lands dead centre of the viewport — the identity case for the whole
+    /// world→viewport conversion.
+    #[test]
+    fn an_anchor_under_the_camera_lands_at_the_viewport_centre() {
+        let anchor = Position::new(100, 100, 7);
+        let cam = anchor.to_world().truncate();
+        let size = Vec2::new(480.0, 352.0);
+
+        let px = anchor_px(&anchor, FloatingTextType::HitPoints, cam, size);
+
+        assert_eq!(px, size * 0.5);
+    }
+
+    /// The property that is invisible at a 1:1 viewport and wrong at every other
+    /// size. The speech head offset is world-space, so it must scale with the view:
+    /// double the viewport, double the on-screen gap. An offset applied in text
+    /// space would produce the same gap at both sizes and drift off the sprite's
+    /// head as the window grows.
+    #[test]
+    fn the_speech_head_offset_scales_with_the_viewport() {
+        let anchor = Position::new(100, 100, 7);
+        let cam = anchor.to_world().truncate();
+        let small = Vec2::new(480.0, 352.0);
+        let large = small * 2.0;
+
+        let gap = |size: Vec2| {
+            anchor_px(&anchor, FloatingTextType::HitPoints, cam, size).y
+                - anchor_px(&anchor, FloatingTextType::PlayerMessage, cam, size).y
+        };
+
+        assert!(gap(small) > 0.0, "speech must sit above the tile centre");
+        assert_eq!(
+            gap(large),
+            gap(small) * 2.0,
+            "a world-space offset scales with the view"
         );
     }
 }

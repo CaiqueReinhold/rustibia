@@ -57,6 +57,16 @@ impl Plugin for CorePlugin {
                     .run_if(in_state(GameState::InGame)),
             )
             .add_systems(
+                PostUpdate,
+                (
+                    floating_text::resolve_speech_collisions,
+                    floating_text::position_floating_texts,
+                )
+                    .chain()
+                    .before(bevy::ui::UiSystems::Layout)
+                    .run_if(in_state(GameState::InGame)),
+            )
+            .add_systems(
                 Update,
                 tick_sprite_animators
                     .in_set(AnimationSet)
