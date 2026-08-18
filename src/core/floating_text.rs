@@ -193,6 +193,59 @@ pub fn plan_hit_points(live: &[LiveHitPoints], value: Option<i64>, color: Color)
     }
 }
 
+/// A speech block reduced to what collision resolution needs. Viewport-local
+/// logical px, y-down, with `anchor_px` the block's bottom-centre.
+pub struct BlockLayout {
+    pub anchor_px: Vec2,
+    pub size: Vec2,
+    pub spawned_at: Duration,
+}
+
+fn block_rect(b: &BlockLayout, offset_y: f32) -> Rect {
+    // y-down: pushing a block up subtracts from its bottom edge.
+    let bottom = b.anchor_px.y - offset_y;
+    Rect {
+        min: Vec2::new(b.anchor_px.x - b.size.x / 2.0, bottom - b.size.y),
+        max: Vec2::new(b.anchor_px.x + b.size.x / 2.0, bottom),
+    }
+}
+
+/// Strict overlap: blocks whose edges merely touch are left alone.
+fn overlaps(a: &Rect, b: &Rect) -> bool {
+    a.min.x < b.max.x && b.min.x < a.max.x && a.min.y < b.max.y && b.min.y < a.max.y
+}
+
+/// One `offset_y` per input block, in input order.
+///
+/// Oldest first, and the oldest holds its position; each newer block is pushed up
+/// until it clears every block already placed. Vertical only, matching Tibia.
+pub fn resolve_offsets(blocks: &[BlockLayout]) -> Vec<f32> {
+    let mut order: Vec<usize> = (0..blocks.len()).collect();
+    order.sort_by_key(|&i| blocks[i].spawned_at);
+
+    let mut offsets = vec![0.0f32; blocks.len()];
+    let mut placed: Vec<Rect> = Vec::with_capacity(blocks.len());
+
+    for &i in &order {
+        let b = &blocks[i];
+        let mut offset_y = 0.0f32;
+        // Every push clears one already-placed rect outright, so this cannot need
+        // more iterations than there are rects placed. The bound also makes a
+        // degenerate zero-height block terminate instead of spinning.
+        for _ in 0..=placed.len() {
+            let rect = block_rect(b, offset_y);
+            let Some(blocker) = placed.iter().find(|p| overlaps(&rect, p)) else {
+                break;
+            };
+            offset_y += (rect.max.y - blocker.min.y) + ft::SPEECH_GAP_PX;
+        }
+        offsets[i] = offset_y;
+        placed.push(block_rect(b, offset_y));
+    }
+
+    offsets
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -442,5 +495,132 @@ mod tests {
             }
             HpArrival::Spawn { .. } => panic!("expected a merge"),
         }
+    }
+
+    fn block(x: f32, y: f32, w: f32, h: f32, ms: u64) -> BlockLayout {
+        BlockLayout {
+            anchor_px: Vec2::new(x, y),
+            size: Vec2::new(w, h),
+            spawned_at: Duration::from_millis(ms),
+        }
+    }
+
+    #[test]
+    fn a_lone_block_is_not_pushed() {
+        assert_eq!(
+            resolve_offsets(&[block(100.0, 100.0, 40.0, 12.0, 0)]),
+            [0.0]
+        );
+    }
+
+    #[test]
+    fn blocks_far_apart_are_not_pushed() {
+        let blocks = [
+            block(0.0, 100.0, 40.0, 12.0, 0),
+            block(300.0, 100.0, 40.0, 12.0, 1),
+        ];
+        assert_eq!(resolve_offsets(&blocks), [0.0, 0.0]);
+    }
+
+    #[test]
+    fn overlapping_blocks_are_pushed_apart() {
+        // Same anchor, so the newer block overlaps the older exactly.
+        let blocks = [
+            block(100.0, 100.0, 40.0, 12.0, 0),
+            block(100.0, 100.0, 40.0, 12.0, 1),
+        ];
+        let offsets = resolve_offsets(&blocks);
+        assert_eq!(offsets[0], 0.0, "the oldest block holds its position");
+        assert_eq!(
+            offsets[1],
+            12.0 + ft::SPEECH_GAP_PX,
+            "the newer block clears the older by its height plus the gap"
+        );
+    }
+
+    /// Input order is not spawn order. The oldest wins regardless of where it sits
+    /// in the slice, and offsets come back in input order.
+    #[test]
+    fn the_oldest_block_holds_its_position_whatever_the_input_order() {
+        let blocks = [
+            block(100.0, 100.0, 40.0, 12.0, 50), // newer, listed first
+            block(100.0, 100.0, 40.0, 12.0, 10), // older
+        ];
+        let offsets = resolve_offsets(&blocks);
+        assert_eq!(offsets[1], 0.0, "the older block is the anchor");
+        assert_eq!(offsets[0], 12.0 + ft::SPEECH_GAP_PX);
+    }
+
+    #[test]
+    fn a_third_block_clears_both_predecessors() {
+        let blocks = [
+            block(100.0, 100.0, 40.0, 12.0, 0),
+            block(100.0, 100.0, 40.0, 12.0, 1),
+            block(100.0, 100.0, 40.0, 12.0, 2),
+        ];
+        let offsets = resolve_offsets(&blocks);
+        assert_eq!(offsets[2], 2.0 * (12.0 + ft::SPEECH_GAP_PX));
+    }
+
+    /// Horizontally adjacent but not overlapping: touching edges must not count as
+    /// an overlap, or every block in a row would be pushed.
+    #[test]
+    fn blocks_that_only_touch_are_not_pushed() {
+        let blocks = [
+            block(0.0, 100.0, 40.0, 12.0, 0),
+            block(40.0, 100.0, 40.0, 12.0, 1),
+        ];
+        assert_eq!(resolve_offsets(&blocks), [0.0, 0.0]);
+    }
+
+    /// The vertical mirror of `blocks_that_only_touch_are_not_pushed`. Without it
+    /// nothing pins the y-axis clauses of `overlaps` at a boundary: the horizontal
+    /// test short-circuits on its first clause, so a `<` widened to `<=` on either
+    /// y comparison would go unnoticed. Block B's bottom edge sits exactly on block
+    /// A's top edge.
+    #[test]
+    fn blocks_that_only_touch_vertically_are_not_pushed() {
+        let blocks = [
+            block(100.0, 100.0, 40.0, 12.0, 0), // occupies y 88..100
+            block(100.0, 88.0, 40.0, 12.0, 1),  // occupies y 76..88
+        ];
+        assert_eq!(resolve_offsets(&blocks), [0.0, 0.0]);
+    }
+
+    /// The mirror of `blocks_that_only_touch_are_not_pushed`, for the other x
+    /// clause. Short-circuit `&&` means the original test never evaluates
+    /// `b.min.x < a.max.x` at all; placing the newer block to the *left* is what
+    /// puts that comparison on the boundary.
+    #[test]
+    fn blocks_that_only_touch_horizontally_from_the_left_are_not_pushed() {
+        let blocks = [
+            block(40.0, 100.0, 40.0, 12.0, 0), // occupies x 20..60
+            block(0.0, 100.0, 40.0, 12.0, 1),  // occupies x -20..20
+        ];
+        assert_eq!(resolve_offsets(&blocks), [0.0, 0.0]);
+    }
+
+    /// The mirror of the above, for the *other* y clause. `overlaps` compares the
+    /// two rects in both directions, and one touching case only pins one clause:
+    /// with B above A it is `b.min.y < a.max.y`, with B below A it is
+    /// `a.min.y < b.max.y`. Both are needed or half the boundary goes unwatched.
+    #[test]
+    fn blocks_that_only_touch_vertically_from_below_are_not_pushed() {
+        let blocks = [
+            block(100.0, 100.0, 40.0, 12.0, 0), // occupies y 88..100
+            block(100.0, 112.0, 40.0, 12.0, 1), // occupies y 100..112
+        ];
+        assert_eq!(resolve_offsets(&blocks), [0.0, 0.0]);
+    }
+
+    /// A taller block (more queued lines) must be cleared by its real height.
+    #[test]
+    fn the_push_uses_the_blockers_measured_height() {
+        let blocks = [
+            block(100.0, 100.0, 40.0, 36.0, 0),
+            block(100.0, 100.0, 40.0, 12.0, 1),
+        ];
+        let offsets = resolve_offsets(&blocks);
+        assert_eq!(offsets[1], 36.0 + ft::SPEECH_GAP_PX);
     }
 }
