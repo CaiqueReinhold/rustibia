@@ -143,6 +143,56 @@ pub fn stagger_offset(heights: &[f32]) -> f32 {
     candidate
 }
 
+/// A live damage number reduced to what arrival planning needs. Collected from the
+/// world before any mutation, so the planner is a pure function.
+pub struct LiveHitPoints {
+    pub entity: Entity,
+    pub offset_y: f32,
+    pub value: Option<i64>,
+    pub color: Color,
+    pub fraction: f32,
+    pub spawned_at: Duration,
+}
+
+pub enum HpArrival {
+    /// Fold the arriving number into an existing one.
+    Merge { target: Entity, sum: i64 },
+    /// Spawn a new number at this vertical offset.
+    Spawn { offset_y: f32 },
+}
+
+/// Decide what an arriving damage number does. `live` must already be filtered to
+/// the numbers sharing the arriving text's tile.
+///
+/// Merge candidates are considered newest first, so a burst collapses into the
+/// freshest number, but an older text is still used when the newest cannot absorb
+/// the hit.
+pub fn plan_hit_points(live: &[LiveHitPoints], value: Option<i64>, color: Color) -> HpArrival {
+    if let Some(v) = value {
+        let mut newest_first: Vec<&LiveHitPoints> = live.iter().collect();
+        newest_first.sort_by_key(|o| std::cmp::Reverse(o.spawned_at));
+        for other in newest_first {
+            if other.color == color
+                && other.fraction < ft::HP_MERGE_WINDOW
+                && let Some(existing) = other.value
+            {
+                return HpArrival::Merge {
+                    target: other.entity,
+                    sum: existing + v,
+                };
+            }
+        }
+    }
+
+    let heights: Vec<f32> = live
+        .iter()
+        .map(|o| o.offset_y + risen(o.fraction))
+        .collect();
+    HpArrival::Spawn {
+        offset_y: stagger_offset(&heights),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -253,5 +303,144 @@ mod tests {
     #[test]
     fn the_bottom_slot_is_reused_once_it_is_free() {
         assert_eq!(stagger_offset(&[12.0, 24.0]), 0.0);
+    }
+
+    fn live(
+        entity: Entity,
+        value: Option<i64>,
+        color: Color,
+        fraction: f32,
+        ms: u64,
+    ) -> LiveHitPoints {
+        LiveHitPoints {
+            entity,
+            offset_y: 0.0,
+            value,
+            color,
+            fraction,
+            spawned_at: Duration::from_millis(ms),
+        }
+    }
+
+    #[test]
+    fn the_first_number_at_a_tile_just_spawns() {
+        match plan_hit_points(&[], Some(5), Color::WHITE) {
+            HpArrival::Spawn { offset_y } => assert_eq!(offset_y, 0.0),
+            HpArrival::Merge { .. } => panic!("nothing to merge with"),
+        }
+    }
+
+    #[test]
+    fn merge_sums_two_numbers_of_the_same_colour() {
+        let existing = Entity::from_raw_u32(1).unwrap();
+        let live = [live(existing, Some(-12), Color::WHITE, 0.1, 0)];
+        match plan_hit_points(&live, Some(-8), Color::WHITE) {
+            HpArrival::Merge { target, sum } => {
+                assert_eq!(target, existing);
+                assert_eq!(sum, -20);
+            }
+            HpArrival::Spawn { .. } => panic!("expected a merge"),
+        }
+    }
+
+    #[test]
+    fn a_different_colour_does_not_merge() {
+        let live = [live(
+            Entity::from_raw_u32(1).unwrap(),
+            Some(12),
+            Color::WHITE,
+            0.0,
+            0,
+        )];
+        match plan_hit_points(&live, Some(8), Color::BLACK) {
+            HpArrival::Spawn { offset_y } => {
+                assert_eq!(offset_y, ft::HP_CLEARANCE_PX, "must be staggered clear")
+            }
+            HpArrival::Merge { .. } => panic!("different colours must not merge"),
+        }
+    }
+
+    #[test]
+    fn a_non_numeric_arrival_never_merges() {
+        let live = [live(
+            Entity::from_raw_u32(1).unwrap(),
+            Some(12),
+            Color::WHITE,
+            0.0,
+            0,
+        )];
+        assert!(matches!(
+            plan_hit_points(&live, None, Color::WHITE),
+            HpArrival::Spawn { .. }
+        ));
+    }
+
+    #[test]
+    fn a_non_numeric_existing_text_is_not_a_merge_target() {
+        let live = [live(
+            Entity::from_raw_u32(1).unwrap(),
+            None,
+            Color::WHITE,
+            0.0,
+            0,
+        )];
+        assert!(matches!(
+            plan_hit_points(&live, Some(8), Color::WHITE),
+            HpArrival::Spawn { .. }
+        ));
+    }
+
+    #[test]
+    fn merging_is_refused_past_the_window() {
+        let live = [live(
+            Entity::from_raw_u32(1).unwrap(),
+            Some(12),
+            Color::WHITE,
+            ft::HP_MERGE_WINDOW + 0.01,
+            0,
+        )];
+        assert!(matches!(
+            plan_hit_points(&live, Some(8), Color::WHITE),
+            HpArrival::Spawn { .. }
+        ));
+    }
+
+    /// Two candidates, only the older one mergeable. Merging must still happen —
+    /// picking only the newest would spawn a redundant number next to a text that
+    /// was happy to absorb it.
+    #[test]
+    fn an_older_mergeable_text_is_used_when_the_newest_cannot_merge() {
+        let old = Entity::from_raw_u32(1).unwrap();
+        let new = Entity::from_raw_u32(2).unwrap();
+        let live = [
+            live(old, Some(3), Color::WHITE, 0.1, 0),
+            live(new, Some(4), Color::BLACK, 0.1, 10),
+        ];
+        match plan_hit_points(&live, Some(5), Color::WHITE) {
+            HpArrival::Merge { target, sum } => {
+                assert_eq!(target, old);
+                assert_eq!(sum, 8);
+            }
+            HpArrival::Spawn { .. } => panic!("the older text was mergeable"),
+        }
+    }
+
+    /// With two mergeable candidates the freshest wins, so a burst collapses into
+    /// the number the player is currently looking at.
+    #[test]
+    fn the_newest_mergeable_text_wins() {
+        let old = Entity::from_raw_u32(1).unwrap();
+        let new = Entity::from_raw_u32(2).unwrap();
+        let live = [
+            live(old, Some(3), Color::WHITE, 0.1, 0),
+            live(new, Some(4), Color::WHITE, 0.1, 10),
+        ];
+        match plan_hit_points(&live, Some(5), Color::WHITE) {
+            HpArrival::Merge { target, sum } => {
+                assert_eq!(target, new);
+                assert_eq!(sum, 9);
+            }
+            HpArrival::Spawn { .. } => panic!("expected a merge"),
+        }
     }
 }
