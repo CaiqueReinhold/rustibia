@@ -34,6 +34,7 @@ use bevy_text_outline::TextOutline;
 
 use crate::camera::GameCamera;
 use crate::conf::floating_text as ft;
+use crate::conf::map::TILE_SIZE;
 use crate::conf::ui::chat::LOCAL_CHANNEL_COLOR;
 use crate::conf::viewport::{GAME_VIEW_HEIGHT, GAME_VIEW_WIDTH};
 use crate::game_ui::scaling::logical_size;
@@ -372,6 +373,7 @@ pub fn on_floating_text(
                 ZIndex(ft::Z_INDEX),
                 speech_node(),
                 Text::new(composed),
+                TextLayout::new_with_justify(Justify::Center),
                 text_font(&ui_assets),
                 TextColor(color),
                 TextOutline {
@@ -388,8 +390,20 @@ pub fn on_floating_text(
 /// The world-space head offset for speech is folded into the UV *before* the
 /// multiply by viewport size, so it scales with the view and stays over the
 /// sprite's head at any window size.
-fn anchor_px(anchor: &Position, kind: FloatingTextType, cam_pos: Vec2, size: Vec2) -> Vec2 {
+/// The centre of a tile in world space.
+///
+/// `Position::to_world` returns the tile's **top-left corner**, not its centre.
+/// Its own inverse proves it: `Position::from_world` floors, so a tile spans
+/// `[to_world().x, +TILE_SIZE)` horizontally and `(to_world().y - TILE_SIZE,
+/// to_world().y]` vertically. Anchoring text to `to_world()` directly puts every
+/// floating text half a tile up and to the left of the tile it belongs to.
+fn tile_centre(anchor: &Position) -> Vec2 {
     let world = anchor.to_world();
+    Vec2::new(world.x + TILE_SIZE / 2.0, world.y - TILE_SIZE / 2.0)
+}
+
+fn anchor_px(anchor: &Position, kind: FloatingTextType, cam_pos: Vec2, size: Vec2) -> Vec2 {
+    let world = tile_centre(anchor);
     let world_y_offset = match kind {
         FloatingTextType::HitPoints => 0.0,
         FloatingTextType::PlayerMessage => ft::SPEECH_HEAD_OFFSET_WORLD,
@@ -607,8 +621,10 @@ pub fn position_floating_texts(
 ///   exercise **merging**.
 /// - `F10` — a number on the player's own tile in a rotating colour: repeated
 ///   presses exercise **staggering**.
-/// - `F11` — speech cycling over the player's tile and the two beside it: repeated
-///   presses exercise **queueing** (same tile) and **cross-tile push**.
+/// - `F11` — speech on the player's own tile: repeated presses exercise
+///   **queueing** into one block.
+/// - `F12` — speech on a neighbouring tile, alternating left and right: exercises
+///   **cross-tile push** against a block on the player's own tile.
 #[cfg(feature = "debug")]
 pub fn debug_spawn_floating_text(
     mut commands: Commands,
@@ -623,7 +639,8 @@ pub fn debug_spawn_floating_text(
     let merge = keys.just_pressed(KeyCode::F9);
     let stagger = keys.just_pressed(KeyCode::F10);
     let speech = keys.just_pressed(KeyCode::F11);
-    if !merge && !stagger && !speech {
+    let neighbour = keys.just_pressed(KeyCode::F12);
+    if !merge && !stagger && !speech && !neighbour {
         return;
     }
 
@@ -655,17 +672,23 @@ pub fn debug_spawn_floating_text(
         });
     }
 
-    if speech {
+    if speech || neighbour {
         const LINES: [&str; 4] = [
             "hi",
             "hello there",
             "exura vita",
             "a deliberately long sentence to exercise the wrap width",
         ];
-        let dx = (r % 3) as i32 - 1;
+        // One tile per key, so queueing and cross-tile push can be exercised
+        // separately rather than at random.
+        let position = if speech {
+            player.clone()
+        } else {
+            player.delta(if r.is_multiple_of(2) { -1 } else { 1 }, 0)
+        };
         commands.trigger(ShowFloatingText {
             text: LINES[r % LINES.len()].to_owned(),
-            position: player.delta(dx, 0),
+            position,
             text_type: FloatingTextType::PlayerMessage,
             color: None,
         });
@@ -1382,12 +1405,29 @@ mod tests {
     #[test]
     fn an_anchor_under_the_camera_lands_at_the_viewport_centre() {
         let anchor = Position::new(100, 100, 7);
-        let cam = anchor.to_world().truncate();
+        let cam = tile_centre(&anchor);
         let size = Vec2::new(480.0, 352.0);
 
         let px = anchor_px(&anchor, FloatingTextType::HitPoints, cam, size);
 
         assert_eq!(px, size * 0.5);
+    }
+
+    /// The bug this pins: `Position::to_world` is the tile's top-left *corner*,
+    /// so anchoring to it put every floating text half a tile up and to the left.
+    /// With the camera on the corner, the anchor must land half a tile down and to
+    /// the right of the viewport centre.
+    #[test]
+    fn the_anchor_is_the_tile_centre_not_its_corner() {
+        use crate::conf::map::TILE_SIZE;
+        let anchor = Position::new(100, 100, 7);
+        let corner = anchor.to_world().truncate();
+        let size = Vec2::new(480.0, 352.0);
+
+        let px = anchor_px(&anchor, FloatingTextType::HitPoints, corner, size);
+
+        assert_eq!(px.x, size.x * (TILE_SIZE / 2.0 / GAME_VIEW_WIDTH + 0.5));
+        assert_eq!(px.y, size.y * (0.5 + TILE_SIZE / 2.0 / GAME_VIEW_HEIGHT));
     }
 
     /// Both other `anchor_px` tests put the camera exactly on the anchor, which
@@ -1399,7 +1439,7 @@ mod tests {
     fn a_horizontal_camera_offset_divides_by_the_view_width() {
         use crate::conf::map::TILE_SIZE;
         let anchor = Position::new(100, 100, 7);
-        let cam = anchor.to_world().truncate() - Vec2::new(TILE_SIZE, 0.0);
+        let cam = tile_centre(&anchor) - Vec2::new(TILE_SIZE, 0.0);
         let size = Vec2::new(480.0, 352.0);
 
         let px = anchor_px(&anchor, FloatingTextType::HitPoints, cam, size);
@@ -1412,7 +1452,7 @@ mod tests {
     fn a_vertical_camera_offset_divides_by_the_view_height() {
         use crate::conf::map::TILE_SIZE;
         let anchor = Position::new(100, 100, 7);
-        let cam = anchor.to_world().truncate() - Vec2::new(0.0, TILE_SIZE);
+        let cam = tile_centre(&anchor) - Vec2::new(0.0, TILE_SIZE);
         let size = Vec2::new(480.0, 352.0);
 
         let px = anchor_px(&anchor, FloatingTextType::HitPoints, cam, size);
@@ -1429,7 +1469,7 @@ mod tests {
     #[test]
     fn the_speech_head_offset_scales_with_the_viewport() {
         let anchor = Position::new(100, 100, 7);
-        let cam = anchor.to_world().truncate();
+        let cam = tile_centre(&anchor);
         let small = Vec2::new(480.0, 352.0);
         let large = small * 2.0;
 
@@ -1473,7 +1513,7 @@ mod tests {
         ));
         world.spawn((
             GameCamera,
-            GlobalTransform::from_translation(anchor.to_world()),
+            GlobalTransform::from_translation(tile_centre(anchor).extend(0.0)),
         ));
         world.spawn((
             Player { agent_id: 1 },
@@ -1794,7 +1834,7 @@ mod tests {
     #[test]
     fn viewport_centre_matches_anchor_px_at_the_identity_case() {
         let anchor = Position::new(100, 100, 7);
-        let cam = anchor.to_world().truncate();
+        let cam = tile_centre(&anchor);
         let size = Vec2::new(480.0, 352.0);
         assert_eq!(
             anchor_px(&anchor, FloatingTextType::HitPoints, cam, size),
