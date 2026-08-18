@@ -11,7 +11,7 @@
 //! size. Anchor offsets (tile centre → head height) are **world px**, folded into
 //! the UV before the multiply by viewport size, so they scale with the view and
 //! stay glued to the sprite — the same thing `AgentHud::world_y_offset` does. Text
-//! offsets (rise, collision push, line gap) are **logical px** applied after that
+//! offsets (rise, collision push, block gap) are **logical px** applied after that
 //! conversion, because the font is a fixed size and motion measured against glyph
 //! metrics must stay in glyph units.
 //!
@@ -705,6 +705,14 @@ mod tests {
         assert_eq!(stagger_offset(&[0.0, ft::HP_CLEARANCE_PX]), 24.0);
     }
 
+    /// The last slot the column is allowed to use: a candidate of *exactly*
+    /// `HP_MAX_STAGGER_PX` must still be taken. Without this the cap comparison
+    /// could be widened to `>=` and nothing would notice.
+    #[test]
+    fn the_last_slot_below_the_cap_is_still_used() {
+        assert_eq!(stagger_offset(&[0.0, 12.0, 24.0]), ft::HP_MAX_STAGGER_PX);
+    }
+
     #[test]
     fn the_column_recycles_to_the_bottom_past_the_cap() {
         // 0, 12, 24, 36 are occupied; 48 would exceed HP_MAX_STAGGER_PX.
@@ -973,6 +981,20 @@ mod tests {
         assert_eq!(resolve_offsets(&blocks), [0.0, 0.0]);
     }
 
+    /// Blocks at *different* anchor heights with a partial overlap. Every other
+    /// case here shares an anchor y, where pushing up and pushing down happen to
+    /// be numerically identical — so only this one pins the direction.
+    #[test]
+    fn a_partially_overlapping_block_is_pushed_by_exactly_the_overlap() {
+        let blocks = [
+            block(100.0, 100.0, 40.0, 12.0, 0), // occupies y 88..100
+            block(100.0, 95.0, 40.0, 12.0, 1),  // occupies y 83..95, overlapping by 7
+        ];
+        let offsets = resolve_offsets(&blocks);
+        assert_eq!(offsets[0], 0.0);
+        assert_eq!(offsets[1], 7.0 + ft::SPEECH_GAP_PX);
+    }
+
     /// A taller block (more queued lines) must be cleared by its real height.
     #[test]
     fn the_push_uses_the_blockers_measured_height() {
@@ -1215,6 +1237,36 @@ mod tests {
         assert!(block.compose().starts_with('x'));
     }
 
+    /// A merge must not restart the absorbing number's timer, or a sustained
+    /// stream of hits produces an immortal number. The comment on the merge arm
+    /// says so; this is what stops a later refactor "fixing" it.
+    #[test]
+    fn merging_does_not_extend_the_numbers_life() {
+        let mut world = observer_world();
+        let hit = |world: &mut World| {
+            world.trigger(ShowFloatingText {
+                text: "-1".to_owned(),
+                position: Position::new(10, 10, 7),
+                text_type: FloatingTextType::HitPoints,
+                color: Some((255, 255, 255)),
+            });
+            world.flush();
+        };
+
+        hit(&mut world);
+        advance(&mut world, 300);
+        world.run_system_once(tick_hit_points).unwrap();
+        hit(&mut world); // inside the merge window, so this merges
+        advance(&mut world, 701); // 1001 ms since the *first* hit
+        world.run_system_once(tick_hit_points).unwrap();
+
+        assert_eq!(
+            world.query::<&HitPointsText>().iter(&world).count(),
+            0,
+            "the merged number must still die on the original timer"
+        );
+    }
+
     #[test]
     fn a_block_despawns_when_its_last_line_expires() {
         let mut world = observer_world();
@@ -1270,6 +1322,37 @@ mod tests {
         let px = anchor_px(&anchor, FloatingTextType::HitPoints, cam, size);
 
         assert_eq!(px, size * 0.5);
+    }
+
+    /// Both other `anchor_px` tests put the camera exactly on the anchor, which
+    /// zeroes `world - cam_pos` on both axes and multiplies the view divisors away.
+    /// These two offset the camera by one tile so `GAME_VIEW_WIDTH` and
+    /// `GAME_VIEW_HEIGHT` are actually load-bearing — they differ (480 vs 352), so
+    /// swapping them moves text everywhere except dead centre.
+    #[test]
+    fn a_horizontal_camera_offset_divides_by_the_view_width() {
+        use crate::conf::map::TILE_SIZE;
+        let anchor = Position::new(100, 100, 7);
+        let cam = anchor.to_world().truncate() - Vec2::new(TILE_SIZE, 0.0);
+        let size = Vec2::new(480.0, 352.0);
+
+        let px = anchor_px(&anchor, FloatingTextType::HitPoints, cam, size);
+
+        assert_eq!(px.x, size.x * (TILE_SIZE / GAME_VIEW_WIDTH + 0.5));
+        assert_eq!(px.y, size.y * 0.5);
+    }
+
+    #[test]
+    fn a_vertical_camera_offset_divides_by_the_view_height() {
+        use crate::conf::map::TILE_SIZE;
+        let anchor = Position::new(100, 100, 7);
+        let cam = anchor.to_world().truncate() - Vec2::new(0.0, TILE_SIZE);
+        let size = Vec2::new(480.0, 352.0);
+
+        let px = anchor_px(&anchor, FloatingTextType::HitPoints, cam, size);
+
+        assert_eq!(px.x, size.x * 0.5);
+        assert_eq!(px.y, size.y * (0.5 - TILE_SIZE / GAME_VIEW_HEIGHT));
     }
 
     /// The property that is invisible at a 1:1 viewport and wrong at every other
