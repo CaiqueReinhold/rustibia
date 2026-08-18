@@ -50,6 +50,14 @@ impl Plugin for CorePlugin {
             )
             .add_systems(
                 Update,
+                (
+                    floating_text::tick_hit_points,
+                    floating_text::tick_speech_blocks,
+                )
+                    .run_if(in_state(GameState::InGame)),
+            )
+            .add_systems(
+                Update,
                 tick_sprite_animators
                     .in_set(AnimationSet)
                     .run_if(in_state(GameState::InGame)),

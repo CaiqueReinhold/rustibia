@@ -408,6 +408,50 @@ fn text_font(ui_assets: &GameUiAssets) -> TextFont {
     .with_font_smoothing(FontSmoothing::None)
 }
 
+/// Advances each number's timer, fades its tail, and despawns it at the end.
+pub fn tick_hit_points(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut q: Query<(Entity, &mut HitPointsText, &mut TextColor)>,
+) {
+    for (entity, mut hp, mut color) in q.iter_mut() {
+        hp.timer.tick(time.delta());
+        if hp.timer.is_finished() {
+            commands.entity(entity).despawn();
+            continue;
+        }
+        color.0 = hp.color.with_alpha(alpha(hp.timer.fraction()));
+    }
+}
+
+/// Expires speech lines, rebuilds the composed text when the line set changed, and
+/// despawns a block once its last line is gone.
+///
+/// The text is rewritten **only** when a line actually left, because the collision
+/// pass keys its dirty check on `Changed<Text>` — an unconditional write would make
+/// it re-resolve every frame.
+pub fn tick_speech_blocks(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut q: Query<(Entity, &mut SpeechBlock, &mut Text)>,
+) {
+    for (entity, mut block, mut text) in q.iter_mut() {
+        let before = block.lines.len();
+        for (_, timer) in block.lines.iter_mut() {
+            timer.tick(time.delta());
+        }
+        block.lines.retain(|(_, timer)| !timer.is_finished());
+
+        if block.lines.is_empty() {
+            commands.entity(entity).despawn();
+            continue;
+        }
+        if block.lines.len() != before {
+            text.0 = block.compose();
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
