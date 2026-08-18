@@ -76,11 +76,6 @@ pub struct ShowTextMessage {
     pub message_type: TextMessageType,
 }
 
-/// Unread for now: no observer subscribes to this event yet, and no test
-/// constructs it — the observer arrives in a later task. Mirrors the
-/// convention used for `ServerMessage::FloatingText` in `network/messages.rs`
-/// while it was in the same state.
-#[allow(dead_code)]
 #[derive(Event, Debug)]
 pub struct ShowFloatingText {
     pub text: String,

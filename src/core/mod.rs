@@ -55,6 +55,7 @@ impl Plugin for CorePlugin {
                     .run_if(in_state(GameState::InGame)),
             )
             .add_observer(text::on_text_message)
+            .add_observer(floating_text::on_floating_text)
             .configure_sets(OnExit(GameState::InGame), SessionCleanup)
             .add_systems(
                 OnExit(GameState::InGame),

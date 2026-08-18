@@ -1,11 +1,13 @@
 use bevy::prelude::*;
 
+#[derive(Default)]
 pub struct UiWindow {
     pub close_button: Handle<Image>,
     pub parent_container: Handle<Image>,
     pub minimize_button: Handle<Image>,
 }
 
+#[derive(Default)]
 pub struct UiInventory {
     pub no_helmet: Handle<Image>,
     pub no_amulet: Handle<Image>,

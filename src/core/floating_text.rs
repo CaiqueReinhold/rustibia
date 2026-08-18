@@ -32,11 +32,16 @@
 use std::collections::VecDeque;
 use std::time::Duration;
 
+use bevy::camera::visibility::RenderLayers;
 use bevy::prelude::*;
+use bevy::text::FontSmoothing;
+use bevy_text_outline::TextOutline;
 
 use crate::conf::floating_text as ft;
 use crate::conf::ui::chat::LOCAL_CHANNEL_COLOR;
+use crate::game_ui::{GameUiAssets, GameViewport};
 use crate::map::Position;
+use crate::network::events::ShowFloatingText;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum FloatingTextType {
@@ -244,6 +249,163 @@ pub fn resolve_offsets(blocks: &[BlockLayout]) -> Vec<f32> {
     }
 
     offsets
+}
+
+/// Turns an arriving `ShowFloatingText` into a new entity, a merged number, or an
+/// extra line on an existing speech block.
+pub fn on_floating_text(
+    event: On<ShowFloatingText>,
+    mut commands: Commands,
+    time: Res<Time>,
+    ui_assets: Res<GameUiAssets>,
+    viewport_q: Query<Entity, With<GameViewport>>,
+    // `Without` on both sides is what makes these two `&mut Text` queries provably
+    // disjoint; without it Bevy panics at runtime on conflicting access.
+    mut hp_q: Query<(Entity, &FloatingText, &mut HitPointsText, &mut Text), Without<SpeechBlock>>,
+    mut speech_q: Query<
+        (Entity, &FloatingText, &mut SpeechBlock, &mut Text),
+        Without<HitPointsText>,
+    >,
+) {
+    let Ok(viewport) = viewport_q.single() else {
+        return;
+    };
+    let now = time.elapsed();
+    let color = resolve_color(event.text_type, event.color);
+
+    match event.text_type {
+        FloatingTextType::HitPoints => {
+            let value = event.text.trim().parse::<i64>().ok();
+
+            // Snapshot before any mutation, so planning stays a pure function.
+            let live: Vec<LiveHitPoints> = hp_q
+                .iter()
+                .filter(|(_, ft, _, _)| ft.anchor == event.position)
+                .map(|(entity, ft, hp, _)| LiveHitPoints {
+                    entity,
+                    offset_y: ft.offset_y,
+                    value: hp.value,
+                    color: hp.color,
+                    fraction: hp.timer.fraction(),
+                    spawned_at: ft.spawned_at,
+                })
+                .collect();
+
+            match plan_hit_points(&live, value, color) {
+                HpArrival::Merge { target, sum } => {
+                    if let Ok((_, _, mut hp, mut text)) = hp_q.get_mut(target) {
+                        hp.value = Some(sum);
+                        text.0 = sum.to_string();
+                        // The timer is deliberately not restarted: a sustained
+                        // stream of hits must not produce an immortal number.
+                    }
+                }
+                HpArrival::Spawn { offset_y } => {
+                    commands.spawn((
+                        FloatingText {
+                            kind: FloatingTextType::HitPoints,
+                            anchor: event.position.clone(),
+                            spawned_at: now,
+                            offset_y,
+                        },
+                        HitPointsText {
+                            value,
+                            color,
+                            timer: Timer::new(
+                                Duration::from_millis(ft::HP_DURATION_MS),
+                                TimerMode::Once,
+                            ),
+                        },
+                        Unplaced,
+                        Visibility::Hidden,
+                        ChildOf(viewport),
+                        RenderLayers::layer(1),
+                        ZIndex(ft::Z_INDEX),
+                        text_node(),
+                        Text::new(event.text.clone()),
+                        text_font(&ui_assets),
+                        TextColor(color),
+                        TextOutline {
+                            width: ft::OUTLINE_WIDTH,
+                            ..default()
+                        },
+                    ));
+                }
+            }
+        }
+        FloatingTextType::PlayerMessage => {
+            let existing = speech_q
+                .iter()
+                .find(|(_, ft, _, _)| ft.anchor == event.position)
+                .map(|(entity, _, _, _)| entity);
+
+            let line = (
+                event.text.clone(),
+                Timer::new(line_duration(event.text.chars().count()), TimerMode::Once),
+            );
+
+            if let Some(entity) = existing
+                && let Ok((_, _, mut block, mut text)) = speech_q.get_mut(entity)
+            {
+                block.lines.push_back(line);
+                while block.lines.len() > ft::SPEECH_MAX_LINES {
+                    block.lines.pop_front();
+                }
+                text.0 = block.compose();
+                return;
+            }
+
+            let mut lines = VecDeque::new();
+            lines.push_back(line);
+            let composed = event.text.clone();
+            commands.spawn((
+                FloatingText {
+                    kind: FloatingTextType::PlayerMessage,
+                    anchor: event.position.clone(),
+                    spawned_at: now,
+                    offset_y: 0.0,
+                },
+                SpeechBlock { lines },
+                Unplaced,
+                Visibility::Hidden,
+                ChildOf(viewport),
+                RenderLayers::layer(1),
+                ZIndex(ft::Z_INDEX),
+                speech_node(),
+                Text::new(composed),
+                text_font(&ui_assets),
+                TextColor(color),
+                TextOutline {
+                    width: ft::OUTLINE_WIDTH,
+                    ..default()
+                },
+            ));
+        }
+    }
+}
+
+fn text_node() -> Node {
+    Node {
+        position_type: PositionType::Absolute,
+        ..default()
+    }
+}
+
+fn speech_node() -> Node {
+    Node {
+        position_type: PositionType::Absolute,
+        max_width: Val::Px(ft::SPEECH_MAX_WIDTH_PX),
+        ..default()
+    }
+}
+
+fn text_font(ui_assets: &GameUiAssets) -> TextFont {
+    TextFont {
+        font: ui_assets.font.clone(),
+        font_size: ft::FONT_SIZE,
+        ..default()
+    }
+    .with_font_smoothing(FontSmoothing::None)
 }
 
 #[cfg(test)]
@@ -622,5 +784,279 @@ mod tests {
         ];
         let offsets = resolve_offsets(&blocks);
         assert_eq!(offsets[1], 36.0 + ft::SPEECH_GAP_PX);
+    }
+
+    use crate::game_ui::{GameUiAssets, GameViewport};
+    use crate::network::events::ShowFloatingText;
+
+    /// A world with the two things the observer needs from the app: a viewport to
+    /// parent to, and the UI font.
+    fn observer_world() -> World {
+        let mut world = World::new();
+        world.init_resource::<Time>();
+        world.insert_resource(GameUiAssets {
+            font: Handle::default(),
+            window: Default::default(),
+            inventory: Default::default(),
+            background_dark: Handle::default(),
+            background_light: Handle::default(),
+            bar_overlay: Handle::default(),
+            title_background: Handle::default(),
+        });
+        world.spawn(GameViewport);
+        world.add_observer(on_floating_text);
+        world
+    }
+
+    fn hp_texts(world: &mut World) -> Vec<(String, f32)> {
+        world
+            .query::<(&Text, &FloatingText)>()
+            .iter(world)
+            .map(|(text, ft)| (text.0.clone(), ft.offset_y))
+            .collect()
+    }
+
+    #[test]
+    fn an_arriving_number_spawns_a_parented_child_of_the_viewport() {
+        let mut world = observer_world();
+        world.trigger(ShowFloatingText {
+            text: "-25".to_owned(),
+            position: Position::new(10, 10, 7),
+            text_type: FloatingTextType::HitPoints,
+            color: None,
+        });
+        world.flush();
+
+        let spawned = hp_texts(&mut world);
+        assert_eq!(spawned, [("-25".to_owned(), 0.0)]);
+
+        let viewport = world
+            .query_filtered::<Entity, With<GameViewport>>()
+            .single(&world)
+            .unwrap();
+        let child = world
+            .query_filtered::<&ChildOf, With<FloatingText>>()
+            .single(&world)
+            .unwrap();
+        assert_eq!(child.parent(), viewport, "must clip with the game viewport");
+    }
+
+    /// The deferred-reveal contract that placement depends on: a text cannot be
+    /// centred on its anchor until it has been measured, and measurement is a frame
+    /// behind by construction. Both kinds must therefore spawn hidden and carrying
+    /// `Unplaced`; dropping either would place the first frame un-centred with
+    /// nothing to catch it.
+    #[test]
+    fn both_kinds_spawn_hidden_and_unplaced() {
+        for kind in [FloatingTextType::HitPoints, FloatingTextType::PlayerMessage] {
+            let mut world = observer_world();
+            world.trigger(ShowFloatingText {
+                text: "-25".to_owned(),
+                position: Position::new(10, 10, 7),
+                text_type: kind,
+                color: None,
+            });
+            world.flush();
+
+            let mut q = world.query_filtered::<&Visibility, (With<FloatingText>, With<Unplaced>)>();
+            let visibility = q
+                .single(&world)
+                .expect("the spawned text must carry Unplaced");
+            assert!(
+                matches!(visibility, Visibility::Hidden),
+                "{kind:?} must spawn hidden, got {visibility:?}"
+            );
+        }
+    }
+
+    #[test]
+    fn two_mergeable_numbers_leave_one_entity_showing_the_sum() {
+        let mut world = observer_world();
+        for text in ["-12", "-8"] {
+            world.trigger(ShowFloatingText {
+                text: text.to_owned(),
+                position: Position::new(10, 10, 7),
+                text_type: FloatingTextType::HitPoints,
+                color: Some((255, 255, 255)),
+            });
+            world.flush();
+        }
+
+        assert_eq!(hp_texts(&mut world), [("-20".to_owned(), 0.0)]);
+    }
+
+    #[test]
+    fn a_second_message_on_a_tile_queues_into_the_block() {
+        let mut world = observer_world();
+        for text in ["hi there", "how are you"] {
+            world.trigger(ShowFloatingText {
+                text: text.to_owned(),
+                position: Position::new(10, 10, 7),
+                text_type: FloatingTextType::PlayerMessage,
+                color: None,
+            });
+            world.flush();
+        }
+
+        let mut q = world.query::<&SpeechBlock>();
+        let block = q.single(&world).unwrap();
+        assert_eq!(block.lines.len(), 2, "one block, two lines");
+        assert_eq!(block.compose(), "hi there\nhow are you");
+    }
+
+    #[test]
+    fn a_message_on_another_tile_starts_its_own_block() {
+        let mut world = observer_world();
+        for (x, text) in [(10u16, "hi"), (11, "hello")] {
+            world.trigger(ShowFloatingText {
+                text: text.to_owned(),
+                position: Position::new(x, 10, 7),
+                text_type: FloatingTextType::PlayerMessage,
+                color: None,
+            });
+            world.flush();
+        }
+
+        assert_eq!(world.query::<&SpeechBlock>().iter(&world).count(), 2);
+    }
+
+    #[test]
+    fn the_oldest_line_drops_at_the_cap() {
+        let mut world = observer_world();
+        for i in 0..=ft::SPEECH_MAX_LINES {
+            world.trigger(ShowFloatingText {
+                text: format!("line {i}"),
+                position: Position::new(10, 10, 7),
+                text_type: FloatingTextType::PlayerMessage,
+                color: None,
+            });
+            world.flush();
+        }
+
+        let mut q = world.query::<&SpeechBlock>();
+        let block = q.single(&world).unwrap();
+        assert_eq!(block.lines.len(), ft::SPEECH_MAX_LINES);
+        assert!(
+            !block.compose().contains("line 0"),
+            "the first line must have been evicted, got {:?}",
+            block.compose()
+        );
+        assert!(block.compose().contains("line 5"));
+    }
+
+    use bevy::ecs::system::RunSystemOnce;
+
+    fn advance(world: &mut World, ms: u64) {
+        let mut time = world.resource_mut::<Time>();
+        time.advance_by(Duration::from_millis(ms));
+    }
+
+    #[test]
+    fn a_number_despawns_when_its_timer_finishes() {
+        let mut world = observer_world();
+        world.trigger(ShowFloatingText {
+            text: "-1".to_owned(),
+            position: Position::new(10, 10, 7),
+            text_type: FloatingTextType::HitPoints,
+            color: None,
+        });
+        world.flush();
+
+        advance(&mut world, ft::HP_DURATION_MS + 1);
+        world.run_system_once(tick_hit_points).unwrap();
+
+        assert_eq!(world.query::<&HitPointsText>().iter(&world).count(), 0);
+    }
+
+    #[test]
+    fn a_number_fades_over_its_tail() {
+        let mut world = observer_world();
+        world.trigger(ShowFloatingText {
+            text: "-1".to_owned(),
+            position: Position::new(10, 10, 7),
+            text_type: FloatingTextType::HitPoints,
+            color: None,
+        });
+        world.flush();
+
+        // 95% through: past HP_FADE_START, not yet expired.
+        advance(&mut world, (ft::HP_DURATION_MS as f32 * 0.95) as u64);
+        world.run_system_once(tick_hit_points).unwrap();
+
+        let mut q = world.query::<&TextColor>();
+        let color = q.single(&world).unwrap();
+        let a = color.0.alpha();
+        assert!(a > 0.0 && a < 1.0, "expected a partial fade, got {a}");
+    }
+
+    #[test]
+    fn an_expired_line_leaves_the_block_and_the_rest_stay() {
+        let mut world = observer_world();
+        // A short line, then a long one that outlives it.
+        world.trigger(ShowFloatingText {
+            text: "hi".to_owned(),
+            position: Position::new(10, 10, 7),
+            text_type: FloatingTextType::PlayerMessage,
+            color: None,
+        });
+        world.flush();
+        world.trigger(ShowFloatingText {
+            text: "x".repeat(200),
+            position: Position::new(10, 10, 7),
+            text_type: FloatingTextType::PlayerMessage,
+            color: None,
+        });
+        world.flush();
+
+        advance(&mut world, ft::SPEECH_MIN_MS + 1);
+        world.run_system_once(tick_speech_blocks).unwrap();
+
+        let mut q = world.query::<&SpeechBlock>();
+        let block = q.single(&world).unwrap();
+        assert_eq!(block.lines.len(), 1, "the short line expired");
+        assert!(block.compose().starts_with('x'));
+    }
+
+    #[test]
+    fn a_block_despawns_when_its_last_line_expires() {
+        let mut world = observer_world();
+        world.trigger(ShowFloatingText {
+            text: "hi".to_owned(),
+            position: Position::new(10, 10, 7),
+            text_type: FloatingTextType::PlayerMessage,
+            color: None,
+        });
+        world.flush();
+
+        advance(&mut world, ft::SPEECH_MAX_MS + 1);
+        world.run_system_once(tick_speech_blocks).unwrap();
+
+        assert_eq!(world.query::<&SpeechBlock>().iter(&world).count(), 0);
+    }
+
+    /// The composed text must be rewritten only when a line actually left. A later
+    /// system gates its work on `Changed<Text>`, so an unconditional write here
+    /// would make it re-resolve every frame for nothing.
+    #[test]
+    fn ticking_without_an_expiry_does_not_touch_the_text() {
+        let mut world = observer_world();
+        world.trigger(ShowFloatingText {
+            text: "hi".to_owned(),
+            position: Position::new(10, 10, 7),
+            text_type: FloatingTextType::PlayerMessage,
+            color: None,
+        });
+        world.flush();
+        world.clear_trackers();
+
+        advance(&mut world, 100);
+        world.run_system_once(tick_speech_blocks).unwrap();
+
+        let mut q = world.query_filtered::<Entity, Changed<Text>>();
+        assert_eq!(
+            q.iter(&world).count(),
+            0,
+            "no line expired, so Text must not have been rewritten"
+        );
     }
 }
