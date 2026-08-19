@@ -1,11 +1,13 @@
 use bevy::prelude::*;
 
 use crate::{
+    agent::AgentId,
     conf::ui::MIN_DRAG_THRESHOLD,
     game_ui::{MainUI, UiWindowRef},
     items::{ItemDragEnded, ItemDragStarted, ItemFlag, ItemPlacement, LootContainerUI},
-    map::Map,
-    player::components::PlayerInventory,
+    map::{Map, Position},
+    player::components::{Player, PlayerInventory},
+    player::target::{CombatTarget, TargetSquare, refresh_target_square},
 };
 
 use super::hover::{MapPick, MouseHoverState, cursor_target, valid_drop_target};
@@ -116,6 +118,21 @@ fn on_drag_end(
     });
 }
 
+/// The agent a right-click on `tile` should target: the topmost entry that is not
+/// the local player. Scanning from the back makes "topmost" mean the same thing
+/// here as in `Map::topmost_agent`, while skipping self.
+pub(super) fn targetable_agent_on(
+    map: &Map,
+    tile: &Position,
+    self_id: Option<AgentId>,
+) -> Option<AgentId> {
+    map.agents_on(tile)
+        .iter()
+        .rev()
+        .find(|id| Some(**id) != self_id)
+        .copied()
+}
+
 fn on_click(
     event: On<Pointer<Click>>,
     mut commands: Commands,
@@ -125,7 +142,12 @@ fn on_click(
     container_q: Query<(&LootContainerUI, &UiWindowRef)>,
     inventory: Res<PlayerInventory>,
     keyboard: Res<ButtonInput<KeyCode>>,
+    mut combat_target: ResMut<CombatTarget>,
+    square_q: Query<Entity, With<TargetSquare>>,
+    player_q: Query<&Player>,
 ) {
+    let player_agent_id = player_q.single().ok().map(|p| p.agent_id);
+
     // Targeting owns the click: resolve UseItemWith on primary, cancel on
     // secondary.
     if let InteractionMode::Targeting {
@@ -189,6 +211,18 @@ fn on_click(
     }
 
     if event.button == PointerButton::Secondary {
+        // An agent on the tile takes the click; otherwise it falls through to the
+        // normal use / multi-use path below, unchanged.
+        if let Some(tile) = &hover_state.tile_position
+            && let Some(agent_id) = targetable_agent_on(&map, tile, player_agent_id)
+        {
+            // Applies optimistically and yields what to send, in one step.
+            let next = combat_target.apply_click(agent_id);
+            refresh_target_square(&mut commands, &combat_target, &map, &square_q);
+            commands.trigger(InteractionIntent::SetTarget(next));
+            return;
+        }
+
         let Some(target) =
             cursor_target(&hover_state, &map, &container_q, &inventory, MapPick::Top)
         else {
@@ -219,5 +253,40 @@ fn on_click(
             item_id: target.item.config.id,
             window_id,
         });
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Targetable = any agent on the tile except the local player. Skipping self is
+    /// what keeps right-clicking your own tile reaching the item beneath you.
+    #[test]
+    fn resolves_the_topmost_non_self_agent() {
+        let mut map = Map::default();
+        let tile = Position { x: 10, y: 10, z: 7 };
+        map.index_agent(1, &tile);
+        map.index_agent(2, &tile);
+
+        assert_eq!(targetable_agent_on(&map, &tile, Some(2)), Some(1));
+        assert_eq!(targetable_agent_on(&map, &tile, Some(99)), Some(2));
+    }
+
+    #[test]
+    fn a_tile_holding_only_the_player_has_no_target() {
+        let mut map = Map::default();
+        let tile = Position { x: 10, y: 10, z: 7 };
+        map.index_agent(7, &tile);
+
+        assert_eq!(targetable_agent_on(&map, &tile, Some(7)), None);
+    }
+
+    #[test]
+    fn an_empty_tile_has_no_target() {
+        let map = Map::default();
+        let tile = Position { x: 10, y: 10, z: 7 };
+
+        assert_eq!(targetable_agent_on(&map, &tile, Some(7)), None);
     }
 }

@@ -1,6 +1,7 @@
 use bevy::prelude::*;
 
 use crate::{
+    agent::AgentId,
     core::TextMessageType,
     game_ui::WindowId,
     items::{ItemDragEnded, ItemId, ItemPlacement},
@@ -44,6 +45,11 @@ pub enum InteractionIntent {
         target: ItemPlacement,
         target_item_id: ItemId,
     },
+    /// The `CombatTarget` resource has already been applied optimistically by
+    /// the caller (gesture or Escape handler); this only carries what to tell
+    /// the server. No reach requirement — like `Look`, targeting works at any
+    /// distance.
+    SetTarget(Option<AgentId>),
 }
 
 impl InteractionIntent {
@@ -85,6 +91,9 @@ impl InteractionIntent {
                 target_item_id: *target_item_id,
                 target_index: target.wire_stack_index(),
             }),
+            InteractionIntent::SetTarget(agent_id) => Some(ClientMessage::SetTarget {
+                agent_id: *agent_id,
+            }),
         }
     }
 
@@ -98,7 +107,9 @@ impl InteractionIntent {
             }
         };
         match self {
-            InteractionIntent::WalkTo(_) | InteractionIntent::Look(_) => {}
+            InteractionIntent::WalkTo(_)
+            | InteractionIntent::Look(_)
+            | InteractionIntent::SetTarget(_) => {}
             InteractionIntent::MoveItem { origin, .. } => push_if_map(origin),
             InteractionIntent::UseItem { target, .. } => push_if_map(target),
             InteractionIntent::UseItemWith { source, target, .. } => {
@@ -130,7 +141,8 @@ pub fn send_intent(commands: &mut Commands, intent: &InteractionIntent) {
         // succeeds. Nothing to track client-side.
         InteractionIntent::WalkTo(_)
         | InteractionIntent::Look(_)
-        | InteractionIntent::UseItemWith { .. } => {}
+        | InteractionIntent::UseItemWith { .. }
+        | InteractionIntent::SetTarget(_) => {}
         InteractionIntent::MoveItem { .. } => {
             commands.trigger(ItemDragEnded);
         }
