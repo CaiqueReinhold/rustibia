@@ -22,6 +22,12 @@ pub struct MapTile {
 pub struct Map {
     tiles: HashMap<Position, MapTile>,
     agents: HashMap<AgentId, Entity>,
+    /// Where each indexed agent currently sits, per `index_agent`/`unindex_agent`.
+    /// This is the single source of truth for the tile index: callers that need
+    /// to unindex an agent no longer supply a position (which can already be
+    /// stale by the time they call), they just name the agent and this map says
+    /// where to remove it from.
+    agent_tiles: HashMap<AgentId, Position>,
 }
 
 impl Map {
@@ -57,15 +63,37 @@ impl Map {
         self.tiles.get(pos)?.agents.last().copied()
     }
 
+    /// Moves `id`'s tile-index entry to `pos`, first removing it from wherever
+    /// `agent_tiles` says it was indexed before. A no-op if `id` is already
+    /// indexed at `pos` — the caller (`sync_tile_agents`) fires on every
+    /// `Changed<Position>`, including a component reinserted at its current
+    /// value (`teleport_agents` re-inserts unconditionally), and skipping the
+    /// remove-then-push in that case is what keeps arrival order from churning.
     pub(crate) fn index_agent(&mut self, id: AgentId, pos: &Position) {
-        let tile = self.tiles.entry(pos.clone()).or_default();
-        if !tile.agents.contains(&id) {
-            tile.agents.push(id);
+        if self.agent_tiles.get(&id) == Some(pos) {
+            return;
         }
+        if let Some(old) = self.agent_tiles.remove(&id)
+            && let Some(tile) = self.tiles.get_mut(&old)
+        {
+            tile.agents.retain(|a| *a != id);
+        }
+        self.tiles.entry(pos.clone()).or_default().agents.push(id);
+        self.agent_tiles.insert(id, pos.clone());
     }
 
-    pub(crate) fn unindex_agent(&mut self, id: AgentId, pos: &Position) {
-        if let Some(tile) = self.tiles.get_mut(pos) {
+    /// Removes `id` from wherever `Map` last recorded it standing — never from
+    /// a position the caller supplies. A caller's live `Position` component can
+    /// already be stale by the time it calls this (a `Position`-writing system
+    /// can run in the same `Update` as the removal, ahead of `sync_tile_agents`'s
+    /// next `PreUpdate` pass), which would otherwise leave a stale id on the old
+    /// tile forever since the despawned entity never triggers `Changed<Position>`
+    /// again. `agent_tiles` is authoritative, so there is no stale position to
+    /// pass.
+    pub(crate) fn unindex_agent(&mut self, id: AgentId) {
+        if let Some(pos) = self.agent_tiles.remove(&id)
+            && let Some(tile) = self.tiles.get_mut(&pos)
+        {
             tile.agents.retain(|a| *a != id);
         }
     }
@@ -282,5 +310,21 @@ mod tests {
         map.replace_tile(vec![item(100, vec![ItemFlag::Ground], None)], &at(10, 10));
 
         assert_eq!(map.agents_on(&at(10, 10)), &[5]);
+    }
+
+    /// `sync_tile_agents` calls `index_agent` on every `Changed<Position>`,
+    /// including a no-op re-insert of the agent's current tile (e.g.
+    /// `teleport_agents` re-inserts unconditionally). Without the same-position
+    /// short-circuit this would unindex-then-repush on every such touch,
+    /// silently reordering co-located agents even though nobody moved.
+    #[test]
+    fn indexing_an_agent_at_its_current_tile_is_a_no_op() {
+        let mut map = Map::default();
+        map.index_agent(1, &at(10, 10));
+        map.index_agent(2, &at(10, 10));
+
+        map.index_agent(1, &at(10, 10));
+
+        assert_eq!(map.agents_on(&at(10, 10)), &[1, 2]);
     }
 }

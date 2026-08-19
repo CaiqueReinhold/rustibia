@@ -3,32 +3,23 @@ use bevy::prelude::*;
 use crate::agent::Agent;
 use crate::map::{Map, Position};
 
-/// Where an agent is currently recorded in `Map`'s tile index. Needed because a
-/// `Changed<Position>` only tells us the new tile, and we must remove the agent
-/// from the old one.
-#[derive(Component, Debug)]
-pub struct IndexedOn(pub Position);
-
 /// Keeps `MapTile::agents` in step with agents' `Position` components.
 ///
 /// Derived from `Changed<Position>` rather than hooked into the spawn / move /
 /// teleport events, because `Position` is written from more places than those
 /// three and a missed site would silently corrupt the index. Nothing holds
 /// `&mut Position` for bookkeeping, so this `Changed` filter really does gate.
+///
+/// `Map` is the single source of truth for where each agent is currently
+/// indexed (`Map::index_agent` tracks it internally), so this system only
+/// forwards the new position — no local "where was it last" component needed,
+/// and nothing here can go stale relative to what `Map` actually did.
 pub fn sync_tile_agents(
-    mut commands: Commands,
     mut map: ResMut<Map>,
-    moved: Query<(Entity, &Agent, &Position, Option<&IndexedOn>), Changed<Position>>,
+    moved: Query<(&Agent, &Position), Changed<Position>>,
 ) {
-    for (entity, agent, pos, indexed) in moved.iter() {
-        if let Some(IndexedOn(old)) = indexed {
-            if old == pos {
-                continue;
-            }
-            map.unindex_agent(agent.agent_id, old);
-        }
+    for (agent, pos) in moved.iter() {
         map.index_agent(agent.agent_id, pos);
-        commands.entity(entity).insert(IndexedOn(pos.clone()));
     }
 }
 

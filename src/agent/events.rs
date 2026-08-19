@@ -23,20 +23,18 @@ pub fn on_spawn_agent(
     mut map: ResMut<Map>,
     ui_assets: Res<GameUiAssets>,
     appearances: Res<Appearances>,
-    agent_q: Query<(&MeshTag, Option<&AgentHud>, Option<&Position>), With<Agent>>,
+    agent_q: Query<(&MeshTag, Option<&AgentHud>), With<Agent>>,
     floor_ents: Res<FloorEntities>,
 ) {
     if let Some(entity) = map.get_agent(event.agent_id) {
-        if let Ok((tag, maybe_hud, maybe_pos)) = agent_q.get(entity) {
+        if let Ok((tag, maybe_hud)) = agent_q.get(entity) {
             if let Some(hud) = maybe_hud {
                 commands.entity(hud.main_entity).despawn();
-            }
-            if let Some(pos) = maybe_pos {
-                map.unindex_agent(event.agent_id, pos);
             }
             instances.dealloc_index(tag.0);
         }
         commands.entity(entity).despawn();
+        map.unindex_agent(event.agent_id);
         map.remove_agent(event.agent_id);
     }
 
@@ -107,22 +105,25 @@ pub fn on_remove_agent(
     event: On<RemoveAgent>,
     mut commands: Commands,
     mut instances: ResMut<InstanceManager<AgentInstance>>,
-    agent_q: Query<(&MeshTag, Option<&AgentHud>, Option<&Position>), With<Agent>>,
+    agent_q: Query<(&MeshTag, Option<&AgentHud>), With<Agent>>,
     mut map: ResMut<Map>,
 ) {
     let Some(agent_entity) = map.get_agent(event.agent_id) else {
         return;
     };
-    let Ok((tag, maybe_hud, maybe_pos)) = agent_q.get(agent_entity) else {
+
+    // Unconditional on knowing the agent existed, not on the GPU/HUD cleanup
+    // query below matching — otherwise a query miss would leave `Map`'s
+    // bookkeeping stale while still failing to despawn the entity.
+    map.unindex_agent(event.agent_id);
+    map.remove_agent(event.agent_id);
+
+    let Ok((tag, maybe_hud)) = agent_q.get(agent_entity) else {
         return;
     };
     if let Some(hud) = maybe_hud {
         commands.entity(hud.main_entity).despawn();
     }
-    if let Some(pos) = maybe_pos {
-        map.unindex_agent(event.agent_id, pos);
-    }
     instances.dealloc_index(tag.0);
     commands.entity(agent_entity).despawn();
-    map.remove_agent(event.agent_id);
 }

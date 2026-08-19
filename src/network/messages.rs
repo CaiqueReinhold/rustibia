@@ -521,7 +521,7 @@ fn decode_message(buf: &mut Reader) -> Result<ServerMessage, MessageDecodeError>
             agent_id: buf.read_u16_le()?,
         }),
         MSG_TARGET_CHANGED => Ok(ServerMessage::TargetChanged {
-            agent_id: decode_optional_agent(buf.read_u16_le()?),
+            agent_id: decode_optional_agent(buf)?,
         }),
         MSG_MOVE_AGENT => Ok(ServerMessage::MoveAgent {
             agent_id: buf.read_u16_le()?,
@@ -700,8 +700,13 @@ fn decode_optional_item(buf: &mut Reader) -> Result<Option<ItemId>, MessageDecod
     }
 }
 
-fn decode_optional_agent(raw: u16) -> Option<AgentId> {
-    if raw == 0xFFFF { None } else { Some(raw) }
+fn decode_optional_agent(buf: &mut Reader) -> Result<Option<AgentId>, MessageDecodeError> {
+    let agent_id = buf.read_u16_le()?;
+    if agent_id == 0xFFFF {
+        Ok(None)
+    } else {
+        Ok(Some(agent_id))
+    }
 }
 
 fn encode_optional_agent(agent_id: Option<AgentId>, dst: &mut BytesMut) {
