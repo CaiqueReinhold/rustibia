@@ -119,8 +119,9 @@ fn on_drag_end(
 }
 
 /// The agent a right-click on `tile` should target: the topmost entry that is not
-/// the local player. Scanning from the back makes "topmost" mean the same thing
-/// here as in `Map::topmost_agent`, while skipping self.
+/// the local player. A tile's agent list is in arrival order, so the last entry
+/// is the topmost — the same convention `Map::peek_item` uses for items. Scanning
+/// from the back applies it while skipping self.
 pub(super) fn targetable_agent_on(
     map: &Map,
     tile: &Position,

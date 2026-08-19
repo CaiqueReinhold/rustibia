@@ -99,7 +99,6 @@ mod tests {
         world.run_system_once(sync_tile_agents).unwrap();
 
         assert_eq!(world.resource::<Map>().agents_on(&at(10, 10)), &[1, 2]);
-        assert_eq!(world.resource::<Map>().topmost_agent(&at(10, 10)), Some(2));
     }
 
     /// A tile nobody stands on answers empty rather than panicking — the gesture
@@ -108,6 +107,5 @@ mod tests {
     fn an_empty_tile_has_no_agents() {
         let world = world_with_map();
         assert!(world.resource::<Map>().agents_on(&at(1, 1)).is_empty());
-        assert_eq!(world.resource::<Map>().topmost_agent(&at(1, 1)), None);
     }
 }
