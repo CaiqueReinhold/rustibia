@@ -20,9 +20,18 @@ pub mod z_order {
     /// Ground and border items render in a separate pass below agents.
     /// -1.0 exceeds the max viewport position delta (~16 tiles × 0.02 = 0.32).
     pub const GROUND_PASS_OFFSET: f32 = -1.0;
-    /// Just under `AGENT_Z_OFFSET`: OTClient draws the square before the outfit,
-    /// so it renders beneath the creature it marks.
-    pub const TARGET_SQUARE_Z_OFFSET: f32 = 0.012;
+    /// Where the target square should land in ABSOLUTE tile Z: 0.002 below
+    /// `AGENT_Z_OFFSET`, matching the spacing already proven between
+    /// `AGENT_Z_OFFSET` and `TOP_Z_OFFSET`. OTClient draws the square before
+    /// the outfit, so it belongs beneath the creature it marks.
+    pub const TARGET_SQUARE_Z_OFFSET: f32 = 0.011;
+
+    /// The square is spawned as a CHILD of the agent, whose transform already
+    /// includes `AGENT_Z_OFFSET`. Transform hierarchies compose additively, so
+    /// the LOCAL z must be the difference, not the absolute offset. Using the
+    /// absolute value here puts the square in front of the creature instead of
+    /// under it.
+    pub const TARGET_SQUARE_LOCAL_Z: f32 = TARGET_SQUARE_Z_OFFSET - AGENT_Z_OFFSET;
 }
 
 pub mod target {

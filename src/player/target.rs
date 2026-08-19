@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use crate::agent::AgentId;
 use crate::conf::map::TILE_SIZE;
 use crate::conf::target::{SQUARE_COLOR, SQUARE_THICKNESS};
-use crate::conf::z_order::TARGET_SQUARE_Z_OFFSET;
+use crate::conf::z_order::TARGET_SQUARE_LOCAL_Z;
 use crate::map::Map;
 use crate::network::events::TargetChanged;
 
@@ -126,7 +126,7 @@ pub fn refresh_target_square(
     commands.entity(agent_entity).with_children(|parent| {
         let mut root = parent.spawn((
             TargetSquare,
-            Transform::from_xyz(centre.x, centre.y, TARGET_SQUARE_Z_OFFSET),
+            Transform::from_xyz(centre.x, centre.y, TARGET_SQUARE_LOCAL_Z),
             Visibility::default(),
         ));
         root.with_children(|frame| {
@@ -260,5 +260,58 @@ mod tests {
             square_centre_offset(),
             Vec2::new(TILE_SIZE / 2.0, -TILE_SIZE / 2.0)
         );
+    }
+
+    /// The square is a child of the agent, and transform hierarchies compose
+    /// additively. Using the absolute offset as the local z would put the square
+    /// at world_z + AGENT_Z_OFFSET + TARGET_SQUARE_Z_OFFSET — in FRONT of the
+    /// creature and above TOP_Z_OFFSET — which is the opposite of what OTClient
+    /// does and what the constant's name promises.
+    ///
+    /// This drives the real call site (`on_target_changed` ->
+    /// `refresh_target_square`) rather than just re-deriving the constants: it
+    /// spawns a stand-in agent entity with the transform real agents carry
+    /// (`AGENT_Z_OFFSET` baked into local z, per `agent/movement.rs`), triggers
+    /// `TargetChanged`, and reads back the *actual* local z the square was
+    /// spawned with. A version of this test that only checked
+    /// `AGENT_Z_OFFSET + TARGET_SQUARE_LOCAL_Z == TARGET_SQUARE_Z_OFFSET` would
+    /// be a tautology — true by construction of the constants, regardless of
+    /// which constant the call site actually uses — so it would not have caught
+    /// the original bug. Confirmed this version does: swapping
+    /// `TARGET_SQUARE_LOCAL_Z` for `TARGET_SQUARE_Z_OFFSET` at the call site
+    /// makes it fail (composed 0.024, not under `AGENT_Z_OFFSET`).
+    #[test]
+    fn the_square_composes_to_just_under_the_agent() {
+        use crate::conf::z_order::{AGENT_Z_OFFSET, TARGET_SQUARE_Z_OFFSET, TOP_Z_OFFSET};
+
+        let mut world = World::new();
+        world.init_resource::<CombatTarget>();
+        let mut map = Map::default();
+        let agent_entity = world
+            .spawn(Transform::from_xyz(0.0, 0.0, AGENT_Z_OFFSET))
+            .id();
+        map.add_agent(7, agent_entity);
+        world.insert_resource(map);
+        world.add_observer(on_target_changed);
+
+        world.trigger(TargetChanged { agent_id: Some(7) });
+        world.flush();
+
+        let square_entity = world
+            .query_filtered::<Entity, With<TargetSquare>>()
+            .single(&world)
+            .expect("a target square was spawned");
+        let square_local_z = world.get::<Transform>(square_entity).unwrap().translation.z;
+        let composed = AGENT_Z_OFFSET + square_local_z;
+
+        assert!(
+            (composed - TARGET_SQUARE_Z_OFFSET).abs() < f32::EPSILON,
+            "composed {composed} should equal {TARGET_SQUARE_Z_OFFSET}, got local z {square_local_z}"
+        );
+        assert!(
+            composed < AGENT_Z_OFFSET,
+            "the square draws under the creature"
+        );
+        assert!(composed < TOP_Z_OFFSET, "and under top-layer items");
     }
 }
