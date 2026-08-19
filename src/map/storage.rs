@@ -2,14 +2,20 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use bevy::prelude::*;
+use smallvec::SmallVec;
 
 use crate::agent::AgentId;
 use crate::items::{Item, ItemFlag};
 use crate::map::position::Position;
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct MapTile {
     pub items: Vec<Arc<Item>>,
+    /// Agents standing here, in arrival order. Topmost is `.last()`, mirroring
+    /// `peek_item`. This is the client's own ordering: the server knows its own
+    /// stack order but does not send it (see the spec's follow-up task), so this
+    /// list is authoritative for the client and nothing else.
+    pub agents: SmallVec<[AgentId; 1]>,
 }
 
 #[derive(Resource, Default)]
@@ -32,7 +38,34 @@ impl Map {
     }
 
     pub fn replace_tile(&mut self, items: Vec<Arc<Item>>, pos: &Position) {
-        self.tiles.insert(pos.clone(), MapTile { items });
+        let tile = self.tiles.entry(pos.clone()).or_default();
+        tile.items = items;
+    }
+
+    // Not called outside tests yet — the right-click targeting gesture that
+    // reads these arrives in a later task.
+    #[allow(dead_code)]
+    pub fn agents_on(&self, pos: &Position) -> &[AgentId] {
+        self.tiles.get(pos).map_or(&[], |t| t.agents.as_slice())
+    }
+
+    /// The agent drawn on top of this tile, or `None`. Mirrors `peek_item`.
+    #[allow(dead_code)]
+    pub fn topmost_agent(&self, pos: &Position) -> Option<AgentId> {
+        self.tiles.get(pos)?.agents.last().copied()
+    }
+
+    pub(crate) fn index_agent(&mut self, id: AgentId, pos: &Position) {
+        let tile = self.tiles.entry(pos.clone()).or_default();
+        if !tile.agents.contains(&id) {
+            tile.agents.push(id);
+        }
+    }
+
+    pub(crate) fn unindex_agent(&mut self, id: AgentId, pos: &Position) {
+        if let Some(tile) = self.tiles.get_mut(pos) {
+            tile.agents.retain(|a| *a != id);
+        }
     }
 
     pub fn can_walk(&self, pos: &Position) -> bool {

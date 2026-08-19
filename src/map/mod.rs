@@ -9,11 +9,17 @@ pub mod minimap_ui;
 mod position;
 mod session;
 mod storage;
+mod tile_agents;
 
 pub use crate::map::position::Position;
 pub use crate::map::storage::Map;
 pub use floors::FloorEntities;
 pub use minimap::MinimapData;
+pub use tile_agents::sync_tile_agents;
+// Not read outside the index yet — a later task's tile-agent bookkeeping is
+// expected to need it.
+#[allow(unused_imports)]
+pub use tile_agents::IndexedOn;
 
 pub struct MapPlugin;
 
@@ -30,6 +36,10 @@ impl Plugin for MapPlugin {
             .add_observer(events::on_describe_map)
             .add_observer(events::on_tile_changed)
             .add_systems(Startup, (minimap::load_from_disk, floors::setup_floors))
+            .add_systems(
+                PreUpdate,
+                sync_tile_agents.run_if(in_state(GameState::InGame)),
+            )
             .add_systems(PostUpdate, floors::update_floors_visibility)
             .add_systems(
                 FixedUpdate,
