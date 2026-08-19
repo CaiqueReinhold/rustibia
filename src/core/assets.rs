@@ -6,16 +6,13 @@ use bevy::tasks::futures_lite::future;
 use bevy::tasks::{IoTaskPool, Task};
 
 use crate::core::items::{ItemConfigs, read_item_configs};
-use crate::core::sprite::{Appearances, read_sprite_sheets, read_sprites_config};
-use crate::core::{GameState, OutfitId, OutfitSprite, SpriteConfig, SpriteSheet};
+use crate::core::sprite::{Appearances, SpriteConfigs, read_sprite_sheets, read_sprites_config};
+use crate::core::{GameState, SpriteSheet};
 use crate::items::{ItemConfig, ItemId};
 
 #[derive(Resource)]
 pub struct LoadTasks {
-    sprite_conf_task: Task<(
-        HashMap<ItemId, Arc<SpriteConfig>>,
-        HashMap<OutfitId, OutfitSprite>,
-    )>,
+    sprite_conf_task: Task<SpriteConfigs>,
     sprite_sheet_task: Task<HashMap<String, SpriteSheet>>,
     items_task: Task<HashMap<ItemId, Arc<ItemConfig>>>,
 }
@@ -55,11 +52,10 @@ pub fn pool_load_task(
             future::block_on(future::poll_once(&mut tasks.sprite_sheet_task)),
         );
         match results {
-            (Some((items, outfits)), Some(sprite_sheet)) => {
+            (Some(configs), Some(sprite_sheet)) => {
                 commands.insert_resource(Appearances::new(
                     sprite_sheet,
-                    items,
-                    outfits,
+                    configs,
                     asset_server.clone(),
                 ));
                 game_assets.sheets_loaded = true;

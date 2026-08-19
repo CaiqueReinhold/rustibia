@@ -12,6 +12,11 @@ use crate::items::ItemId;
 
 pub type OutfitId = u16;
 pub type OutfitColors = (u8, u8, u8, u8);
+/// Ids of the `effect` and `missile` appearance categories. Both are sparse and
+/// small (effects reach 309, missiles 62) and neither shares a namespace with
+/// items or outfits, so they stay separate maps rather than one merged one.
+pub type EffectId = u16;
+pub type MissileId = u16;
 
 #[derive(Debug)]
 pub struct OutfitSprite {
@@ -25,20 +30,23 @@ pub struct Appearances {
     sheets: HashMap<String, SpriteSheet>,
     items: HashMap<ItemId, Arc<SpriteConfig>>,
     outfits: HashMap<OutfitId, OutfitSprite>,
+    effects: HashMap<EffectId, Arc<SpriteConfig>>,
+    missiles: HashMap<MissileId, Arc<SpriteConfig>>,
     asset_server: AssetServer,
 }
 
 impl Appearances {
     pub(super) fn new(
         sheets: HashMap<String, SpriteSheet>,
-        items: HashMap<u16, Arc<SpriteConfig>>,
-        outfits: HashMap<u16, OutfitSprite>,
+        configs: SpriteConfigs,
         asset_server: AssetServer,
     ) -> Self {
         Appearances {
             sheets,
-            items,
-            outfits,
+            items: configs.items,
+            outfits: configs.outfits,
+            effects: configs.effects,
+            missiles: configs.missiles,
             asset_server,
         }
     }
@@ -57,6 +65,21 @@ impl Appearances {
 
     pub fn get_outfit(&self, id: OutfitId) -> Option<&OutfitSprite> {
         self.outfits.get(&id)
+    }
+
+    /// `None` means the server named an effect this client's assets do not have,
+    /// the same failure `get_outfit` reports — a client too old for the server.
+    ///
+    /// Unused until the effect plugin lands; the assets and the parsing are in
+    /// place ahead of it. Drop the `allow` with the first real caller.
+    #[allow(dead_code)]
+    pub fn get_effect(&self, id: EffectId) -> Option<&Arc<SpriteConfig>> {
+        self.effects.get(&id)
+    }
+
+    #[allow(dead_code)]
+    pub fn get_missile(&self, id: MissileId) -> Option<&Arc<SpriteConfig>> {
+        self.missiles.get(&id)
     }
 
     pub fn get_sheet(&self, group: &str) -> &SpriteSheet {
@@ -89,22 +112,29 @@ impl SpriteSheet {
     }
 }
 
-// #[derive(Debug)]
-// pub enum AnimationLoopType {
-//     Infinite,
-//     PingPong,
-// }
+/// What happens when an animation runs off its last phase.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum AnimationLoop {
+    /// Wrap to phase zero forever. Every animated outfit is this.
+    Infinite,
+    /// Walk back down to phase zero, then up again.
+    PingPong,
+    /// Run `count` times and then stop, holding the last phase. No outfit is
+    /// counted, so this can never freeze a creature; it is what makes an effect
+    /// a one-shot, and 188 items genuinely play once too.
+    Counted { count: u32 },
+}
 
 #[derive(Debug)]
 pub enum SpriteAnimation {
     Static,
     Uniform {
-        // loop_type: AnimationLoopType,
+        loop_mode: AnimationLoop,
         phase_count: u32,
         phase_duration: Duration,
     },
     NonUniform {
-        // loop_type: AnimationLoopType,
+        loop_mode: AnimationLoop,
         phases: Vec<UVec2>,
     },
 }
@@ -115,6 +145,14 @@ impl SpriteAnimation {
             SpriteAnimation::Static => 1,
             SpriteAnimation::Uniform { phase_count, .. } => *phase_count,
             SpriteAnimation::NonUniform { phases, .. } => phases.len() as u32,
+        }
+    }
+
+    pub fn loop_mode(&self) -> AnimationLoop {
+        match self {
+            SpriteAnimation::Static => AnimationLoop::Infinite,
+            SpriteAnimation::Uniform { loop_mode, .. }
+            | SpriteAnimation::NonUniform { loop_mode, .. } => *loop_mode,
         }
     }
 }
@@ -133,10 +171,15 @@ pub struct SpriteConfig {
     pub shift: Vec2,
 }
 
-pub fn read_sprites_config() -> (
-    HashMap<ItemId, Arc<SpriteConfig>>,
-    HashMap<OutfitId, OutfitSprite>,
-) {
+#[derive(Debug, Default)]
+pub struct SpriteConfigs {
+    pub items: HashMap<ItemId, Arc<SpriteConfig>>,
+    pub outfits: HashMap<OutfitId, OutfitSprite>,
+    pub effects: HashMap<EffectId, Arc<SpriteConfig>>,
+    pub missiles: HashMap<MissileId, Arc<SpriteConfig>>,
+}
+
+pub fn read_sprites_config() -> SpriteConfigs {
     let Ok(contents) = fs::read_to_string("assets/configs/sprite.json") else {
         panic!("Could not read sprites file");
     };
@@ -162,7 +205,26 @@ pub fn read_sprites_config() -> (
         );
     }
 
-    (items, outfits)
+    SpriteConfigs {
+        items,
+        outfits,
+        effects: read_flat_configs(&sprites["effects"]),
+        missiles: read_flat_configs(&sprites["missiles"]),
+    }
+}
+
+/// Effects and missiles are flat lists of configs keyed by their own id — no
+/// still/moving split, one frame group each.
+fn read_flat_configs(value: &Value) -> HashMap<u16, Arc<SpriteConfig>> {
+    let mut configs = HashMap::new();
+    let Some(entries) = value.as_array() else {
+        return configs;
+    };
+    for conf in entries.iter() {
+        let sprite = read_sprite_config(conf);
+        configs.insert(sprite.id, Arc::new(sprite));
+    }
+    configs
 }
 
 fn read_sprite_config(conf: &Value) -> SpriteConfig {
@@ -218,11 +280,17 @@ fn read_animation(value: &Value) -> SpriteAnimation {
     match value {
         Value::Null => SpriteAnimation::Static,
         Value::Object(anim) => {
-            // let loop_type = if anim.get("loop_type").unwrap().as_str().unwrap() == "INFINITE" {
-            //     AnimationLoopType::Infinite
-            // } else {
-            //     AnimationLoopType::PingPong
-            // };
+            // `loop_count` accompanies COUNTED only; the protobuf leaves it unset for
+            // the endless modes. A COUNTED animation without one is malformed data,
+            // so it is read as a single run rather than as "loop forever" — that way
+            // a broken effect disappears instead of burning a slot permanently.
+            let loop_mode = match anim["loop_type"].as_str() {
+                Some("PINGPONG") => AnimationLoop::PingPong,
+                Some("COUNTED") => AnimationLoop::Counted {
+                    count: anim["loop_count"].as_u64().unwrap_or(1).max(1) as u32,
+                },
+                _ => AnimationLoop::Infinite,
+            };
             match &anim["phases"] {
                 Value::Array(anim_phases) => {
                     let mut phases: Vec<UVec2> = Vec::new();
@@ -232,13 +300,14 @@ fn read_animation(value: &Value) -> SpriteAnimation {
                             phase[1].as_u64().unwrap() as u32,
                         ));
                     }
-                    SpriteAnimation::NonUniform { phases }
+                    SpriteAnimation::NonUniform { loop_mode, phases }
                 }
                 _ => {
                     let phase_count = anim["phase_count"].as_u64().unwrap() as u32;
                     let phase_duration =
                         Duration::from_millis(anim["phase_duration"].as_u64().unwrap());
                     SpriteAnimation::Uniform {
+                        loop_mode,
                         phase_count,
                         phase_duration,
                     }
@@ -318,6 +387,101 @@ mod tests {
         let config = read_sprite_config(&config_json(""));
 
         assert_eq!(config.shift, Vec2::ZERO);
+    }
+
+    /// The shipped `sprite.json` is generated by a separate repository, so nothing
+    /// but this stops the two drifting: a renamed key or a category the generator
+    /// stopped emitting would otherwise only surface as a panic at startup.
+    ///
+    /// It reads the real 11 MB file, which is why it is the one slow test here.
+    #[test]
+    fn the_shipped_config_loads() {
+        let configs = read_sprites_config();
+
+        assert_eq!(configs.items.len(), 41841);
+        assert_eq!(configs.outfits.len(), 1404);
+        assert_eq!(configs.effects.len(), 207);
+        assert_eq!(configs.missiles.len(), 56);
+
+        // Effect 1 is the red hit splash: six phases, played once.
+        let effect = configs.effects.get(&1).expect("effect 1 is present");
+        assert_eq!(effect.animation.total_animation_phases(), 6);
+        assert_eq!(
+            effect.animation.loop_mode(),
+            AnimationLoop::Counted { count: 1 }
+        );
+
+        // Missiles are static and 3x3 -- eight flight directions plus the centre --
+        // and `boxes` is indexed by pattern_x, so it is shorter than an outfit's.
+        let missile = configs.missiles.get(&1).expect("missile 1 is present");
+        assert!(matches!(missile.animation, SpriteAnimation::Static));
+        assert_eq!(missile.pattern_x, 3);
+        assert_eq!(missile.boxes.len(), 3);
+    }
+
+    fn animation_json(body: &str) -> SpriteAnimation {
+        read_animation(&serde_json::from_str::<Value>(body).unwrap())
+    }
+
+    /// The loop mode drives whether an effect is a one-shot or a permanent field
+    /// effect, so it has to survive the trip through the config.
+    #[test]
+    fn a_counted_animation_carries_its_count() {
+        let animation = animation_json(
+            r#"{"loop_type": "COUNTED", "loop_count": 5,
+                "phase_count": 3, "phase_duration": 100, "phases": null}"#,
+        );
+
+        assert_eq!(animation.loop_mode(), AnimationLoop::Counted { count: 5 });
+        assert_eq!(animation.total_animation_phases(), 3);
+    }
+
+    #[test]
+    fn the_endless_loop_types_are_distinguished() {
+        let infinite = animation_json(
+            r#"{"loop_type": "INFINITE", "loop_count": null,
+                "phase_count": 2, "phase_duration": 100, "phases": null}"#,
+        );
+        let pingpong = animation_json(
+            r#"{"loop_type": "PINGPONG", "loop_count": null,
+                "phase_count": 2, "phase_duration": 100, "phases": null}"#,
+        );
+
+        assert_eq!(infinite.loop_mode(), AnimationLoop::Infinite);
+        assert_eq!(pingpong.loop_mode(), AnimationLoop::PingPong);
+    }
+
+    /// A COUNTED animation with no count is malformed. Reading it as a single run
+    /// makes the effect disappear; reading it as endless would leak the slot.
+    #[test]
+    fn a_counted_animation_without_a_count_runs_once() {
+        let animation = animation_json(
+            r#"{"loop_type": "COUNTED", "loop_count": null,
+                "phase_count": 2, "phase_duration": 100, "phases": null}"#,
+        );
+
+        assert_eq!(animation.loop_mode(), AnimationLoop::Counted { count: 1 });
+    }
+
+    /// A count of zero would finish the animation before its first phase is shown.
+    #[test]
+    fn a_zero_count_is_treated_as_one_run() {
+        let animation = animation_json(
+            r#"{"loop_type": "COUNTED", "loop_count": 0,
+                "phase_count": 2, "phase_duration": 100, "phases": null}"#,
+        );
+
+        assert_eq!(animation.loop_mode(), AnimationLoop::Counted { count: 1 });
+    }
+
+    /// Missiles have no animation at all, and a static sprite must not pretend to
+    /// have a loop mode that matters.
+    #[test]
+    fn a_missing_animation_is_static() {
+        let animation = animation_json("null");
+
+        assert!(matches!(animation, SpriteAnimation::Static));
+        assert_eq!(animation.total_animation_phases(), 1);
     }
 
     /// A non-zero shift must not disturb the bounding box it is applied on top of:
