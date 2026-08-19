@@ -16,10 +16,6 @@ pub use crate::map::storage::Map;
 pub use floors::FloorEntities;
 pub use minimap::MinimapData;
 pub use tile_agents::sync_tile_agents;
-// Not read outside the index yet — a later task's tile-agent bookkeeping is
-// expected to need it.
-#[allow(unused_imports)]
-pub use tile_agents::IndexedOn;
 
 pub struct MapPlugin;
 

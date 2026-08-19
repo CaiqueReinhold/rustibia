@@ -50,6 +50,8 @@ impl Map {
     }
 
     /// The agent drawn on top of this tile, or `None`. Mirrors `peek_item`.
+    // Not called outside tests yet — the right-click targeting gesture that
+    // reads this arrives in a later task.
     #[allow(dead_code)]
     pub fn topmost_agent(&self, pos: &Position) -> Option<AgentId> {
         self.tiles.get(pos)?.agents.last().copied()
@@ -265,5 +267,20 @@ mod tests {
     fn an_unknown_tile_reports_no_friction() {
         let map = Map::default();
         assert_eq!(map.get_tile_friction(&at(10, 10)), None);
+    }
+
+    /// `replace_tile` only replaces items; a tile update (e.g. a door opening)
+    /// must not evict the agents standing there. A wholesale
+    /// `MapTile { items, ..Default::default() }` would pass every other test
+    /// in this module while silently emptying the agent index on every tile
+    /// change.
+    #[test]
+    fn replace_tile_preserves_agents_standing_there() {
+        let mut map = Map::default();
+        map.index_agent(5, &at(10, 10));
+
+        map.replace_tile(vec![item(100, vec![ItemFlag::Ground], None)], &at(10, 10));
+
+        assert_eq!(map.agents_on(&at(10, 10)), &[5]);
     }
 }
