@@ -6,6 +6,7 @@ use crate::player::interaction::{
 };
 use crate::player::movement::{MovementQueue, PlayerElevation};
 use crate::player::pathfinding::AutoWalkTarget;
+use crate::player::target::CombatTarget;
 
 /// Clears everything about the character that just left.
 ///
@@ -22,6 +23,7 @@ pub(super) fn cleanup_session(mut commands: Commands) {
     commands.remove_resource::<AutoWalkTarget>();
     commands.remove_resource::<PendingWalkAction>();
     commands.remove_resource::<ContainerNavTarget>();
+    commands.insert_resource(CombatTarget::default());
 }
 
 #[cfg(test)]
@@ -38,6 +40,7 @@ mod tests {
         world.init_resource::<PlayerElevation>();
         world.init_resource::<MouseHoverState>();
         world.init_resource::<InteractionMode>();
+        world.init_resource::<CombatTarget>();
         world
     }
 
@@ -79,5 +82,17 @@ mod tests {
             *world.resource::<InteractionMode>(),
             InteractionMode::Idle
         ));
+    }
+
+    /// A target from the previous character must not be waiting when a new one
+    /// logs in.
+    #[test]
+    fn cleanup_clears_the_combat_target() {
+        let mut world = seeded_world();
+        world.insert_resource(CombatTarget(Some(7)));
+
+        world.run_system_once(cleanup_session).unwrap();
+
+        assert_eq!(*world.resource::<CombatTarget>(), CombatTarget(None));
     }
 }

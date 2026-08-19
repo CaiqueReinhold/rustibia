@@ -135,8 +135,6 @@ pub struct RemoveAgent {
     pub agent_id: AgentId,
 }
 
-// Nothing observes this yet — the observer arrives in Task 11.
-#[allow(dead_code)]
 #[derive(Event, Debug)]
 pub struct TargetChanged {
     pub agent_id: Option<AgentId>,

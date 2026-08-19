@@ -20,6 +20,18 @@ pub mod z_order {
     /// Ground and border items render in a separate pass below agents.
     /// -1.0 exceeds the max viewport position delta (~16 tiles × 0.02 = 0.32).
     pub const GROUND_PASS_OFFSET: f32 = -1.0;
+    /// Just under `AGENT_Z_OFFSET`: OTClient draws the square before the outfit,
+    /// so it renders beneath the creature it marks.
+    pub const TARGET_SQUARE_Z_OFFSET: f32 = 0.012;
+}
+
+pub mod target {
+    /// OTClient uses `max(2 * scaleFactor, 1)`; at 1x that is 2 logical pixels.
+    pub const SQUARE_THICKNESS: f32 = 2.0;
+    /// Red is the attack square. OTClient sets it from Lua on
+    /// `onAttackingCreatureChange` rather than in the C++ draw path; `#FF0000` is
+    /// the long-standing convention across forks.
+    pub const SQUARE_COLOR: bevy::color::Color = bevy::color::Color::srgb(1.0, 0.0, 0.0);
 }
 
 pub mod agent {

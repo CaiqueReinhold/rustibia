@@ -7,6 +7,7 @@ mod keyboard;
 mod movement;
 pub mod pathfinding;
 mod session;
+pub mod target;
 pub use interaction::{ContainerNavTarget, InteractionMode, MouseHoverState};
 
 use crate::core::{GameState, SessionCleanup, SessionEnding};
@@ -20,6 +21,7 @@ impl Plugin for PlayerPlugin {
             .init_resource::<keyboard::Keybinds>()
             .init_resource::<movement::MovementQueue>()
             .init_resource::<movement::PlayerElevation>()
+            .init_resource::<target::CombatTarget>()
             .add_systems(Startup, keyboard::init_repeat_state)
             .add_systems(
                 OnExit(GameState::InGame),
@@ -76,6 +78,7 @@ impl Plugin for PlayerPlugin {
             .add_observer(interaction::on_targeting_tile_changed)
             .add_observer(interaction::on_targeting_container_updated)
             .add_observer(interaction::on_targeting_container_closed)
-            .add_observer(interaction::on_targeting_inventory_updated);
+            .add_observer(interaction::on_targeting_inventory_updated)
+            .add_observer(target::on_target_changed);
     }
 }
