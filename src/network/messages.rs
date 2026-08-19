@@ -32,6 +32,7 @@ const CLI_REQUEST_CHANNELS: u8 = 13;
 const CLI_OPEN_CHANNEL: u8 = 14;
 const CLI_CLOSE_CHANNEL: u8 = 15;
 const CLI_OPEN_PM_CHAT: u8 = 16;
+const CLI_SET_TARGET: u8 = 17;
 
 #[derive(Clone, Debug)]
 pub enum ClientMessage {
@@ -91,6 +92,12 @@ pub enum ClientMessage {
     OpenPmChat {
         name: String,
     },
+    // Nothing constructs this outside tests yet — the right-click gesture that
+    // sends it arrives in a later task.
+    #[allow(dead_code)]
+    SetTarget {
+        agent_id: Option<AgentId>,
+    },
 }
 
 // server
@@ -117,6 +124,7 @@ const MSG_CHAT_MESSAGE: u8 = 19;
 const MSG_CHANNEL_LIST: u8 = 20;
 const MSG_INTRODUCE_PLAYER: u8 = 21;
 const MSG_FLOATING_TEXT: u8 = 22;
+const MSG_TARGET_CHANGED: u8 = 23;
 
 #[derive(Clone, Debug)]
 pub enum ServerMessage {
@@ -229,6 +237,9 @@ pub enum ServerMessage {
         position: Position,
         text_type: FloatingTextType,
         color: Option<(u8, u8, u8)>,
+    },
+    TargetChanged {
+        agent_id: Option<AgentId>,
     },
 }
 
@@ -509,6 +520,9 @@ fn decode_message(buf: &mut Reader) -> Result<ServerMessage, MessageDecodeError>
         MSG_REMOVE_AGENT => Ok(ServerMessage::RemoveAgent {
             agent_id: buf.read_u16_le()?,
         }),
+        MSG_TARGET_CHANGED => Ok(ServerMessage::TargetChanged {
+            agent_id: decode_optional_agent(buf.read_u16_le()?),
+        }),
         MSG_MOVE_AGENT => Ok(ServerMessage::MoveAgent {
             agent_id: buf.read_u16_le()?,
             direction: decode_direction(buf)?,
@@ -686,6 +700,14 @@ fn decode_optional_item(buf: &mut Reader) -> Result<Option<ItemId>, MessageDecod
     }
 }
 
+fn decode_optional_agent(raw: u16) -> Option<AgentId> {
+    if raw == 0xFFFF { None } else { Some(raw) }
+}
+
+fn encode_optional_agent(agent_id: Option<AgentId>, dst: &mut BytesMut) {
+    dst.put_u16_le(agent_id.unwrap_or(0xFFFF));
+}
+
 fn decode_direction(buf: &mut Reader) -> Result<WalkingDirection, MessageDecodeError> {
     match buf.read_u8()? {
         0x00 => Ok(WalkingDirection::North),
@@ -800,6 +822,10 @@ impl Encoder for GameMessageCodec {
             ClientMessage::CloseChannel { channel } => {
                 dst.put_u8(CLI_CLOSE_CHANNEL);
                 dst.put_u16_le(channel);
+            }
+            ClientMessage::SetTarget { agent_id } => {
+                dst.put_u8(CLI_SET_TARGET);
+                encode_optional_agent(agent_id, dst);
             }
             ClientMessage::OpenPmChat { name } => {
                 dst.put_u8(CLI_OPEN_PM_CHAT);
@@ -934,6 +960,17 @@ mod tests {
         });
         assert_eq!(payload[0], CLI_OPEN_PM_CHAT);
         assert_eq!(&payload[1..], b"Rizael");
+    }
+
+    #[test]
+    fn set_target_encodes_some_and_none() {
+        let payload = payload_of(ClientMessage::SetTarget { agent_id: Some(7) });
+        assert_eq!(payload[0], CLI_SET_TARGET);
+        assert_eq!(u16::from_le_bytes([payload[1], payload[2]]), 7);
+
+        let payload = payload_of(ClientMessage::SetTarget { agent_id: None });
+        assert_eq!(payload[0], CLI_SET_TARGET);
+        assert_eq!(u16::from_le_bytes([payload[1], payload[2]]), 0xFFFF);
     }
 
     use asynchronous_codec::Decoder;
@@ -1081,6 +1118,23 @@ mod tests {
             buf.is_empty(),
             "reading three colour bytes that were not sent would leave the frame short"
         );
+    }
+
+    #[test]
+    fn target_changed_decodes_some_and_none() {
+        let mut codec = GameMessageCodec {};
+
+        let mut buf = frame(&[MSG_TARGET_CHANGED, 0x09, 0x00]);
+        assert!(matches!(
+            codec.decode(&mut buf).unwrap().unwrap(),
+            ServerMessage::TargetChanged { agent_id: Some(9) }
+        ));
+
+        let mut buf = frame(&[MSG_TARGET_CHANGED, 0xFF, 0xFF]);
+        assert!(matches!(
+            codec.decode(&mut buf).unwrap().unwrap(),
+            ServerMessage::TargetChanged { agent_id: None }
+        ));
     }
 
     /// An unknown discriminant must be a decode error, not a silent default — this

@@ -135,6 +135,13 @@ pub struct RemoveAgent {
     pub agent_id: AgentId,
 }
 
+// Nothing observes this yet — the observer arrives in Task 11.
+#[allow(dead_code)]
+#[derive(Event, Debug)]
+pub struct TargetChanged {
+    pub agent_id: Option<AgentId>,
+}
+
 #[derive(Event, Debug)]
 pub struct MoveAgent {
     pub agent_id: AgentId,
@@ -287,6 +294,9 @@ pub fn route_event(msg: ServerMessage, commands: &mut Commands) {
         }
         ServerMessage::RemoveAgent { agent_id } => {
             commands.trigger(RemoveAgent { agent_id });
+        }
+        ServerMessage::TargetChanged { agent_id } => {
+            commands.trigger(TargetChanged { agent_id });
         }
         ServerMessage::MoveAgent {
             agent_id,
