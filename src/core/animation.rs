@@ -111,6 +111,7 @@ mod tests {
                 phase_duration: PHASE,
             },
             boxes: Vec::new(),
+            shift: Vec2::ZERO,
         })
     }
 
@@ -196,6 +197,7 @@ mod tests {
             sprite_ids: vec![10],
             animation: SpriteAnimation::Static,
             boxes: Vec::new(),
+            shift: Vec2::ZERO,
         });
         let entity = world.spawn(SpriteAnimator::new(config, 0, 0, 0)).id();
         world.clear_trackers();

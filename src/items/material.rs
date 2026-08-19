@@ -11,6 +11,7 @@ pub struct ItemInstance {
     pub _pad: u32, // required std430 alignment padding before vec2
     pub bbox_min: Vec2,
     pub bbox_size: Vec2,
+    pub shift: Vec2,
 }
 
 #[derive(Asset, AsBindGroup, TypePath, Debug, Clone, Default)]

@@ -130,6 +130,7 @@ pub fn spawn_agent(
             outfit.still_sprite.boxes.clone().try_into().unwrap(),
             outfit.moving_sprite.boxes.clone().try_into().unwrap(),
         ],
+        shift: outfit.still_sprite.shift,
         ..default()
     };
 
@@ -146,6 +147,7 @@ pub fn spawn_agent(
     let bbox = &outfit.still_sprite.boxes[facing as usize];
     instance.bbox_min = bbox.min;
     instance.bbox_size = bbox.max;
+    instance.shift = outfit.still_sprite.shift;
 
     let world_position = position.to_world();
     let elevation = map.get_elevation(&position) as f32;
@@ -178,7 +180,8 @@ pub fn spawn_agent(
         commands.entity(entity).insert(mana.clone());
     }
 
-    let mut world_y_offset = outfit.still_sprite.boxes[0].max.y / 2.0 + 5.0;
+    let mut world_y_offset =
+        outfit.still_sprite.boxes[0].max.y / 2.0 + outfit.still_sprite.shift.y + 5.0;
     if health.is_some() {
         world_y_offset += HUD_BAR_HEIGHT;
     }
@@ -413,6 +416,7 @@ pub fn update_agent_instances(
                 | ((agent.outfit_colors.3 as u32) << 24);
             instance.bbox_min = bbox.min;
             instance.bbox_size = bbox.max;
+            instance.shift = agent.shift;
         });
     }
 }
@@ -430,8 +434,9 @@ pub fn agent_rect(agents_q: Query<(&Transform, &Agent, Option<&Moving>)>, mut gi
         );
 
         let mesh_start = pos.translation.truncate();
-        let iso =
-            mesh_start + (agent.boxes[moving][agent.direction as usize].min * Vec2::new(0.5, -0.5));
+        let iso = mesh_start
+            + (agent.boxes[moving][agent.direction as usize].min * Vec2::new(0.5, -0.5))
+            - agent.shift * Vec2::new(1.0, -1.0);
         let bbox_size = agent.boxes[moving][agent.direction as usize].max;
 
         gizmos.rect_2d(iso, bbox_size, Color::srgb(1.0, 1.0, 0.0));

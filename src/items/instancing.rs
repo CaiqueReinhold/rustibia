@@ -154,17 +154,17 @@ fn spawn_item(
     } else {
         0.001 * stack_index as f32
     };
-    let shift_x = if sheet.sprite_size.x <= 32.0 {
+    let half_tile_x = if sheet.sprite_size.x <= 32.0 {
         16.0
     } else {
         0.0
     };
-    let shift_y = if sheet.sprite_size.y <= 32.0 {
+    let half_tile_y = if sheet.sprite_size.y <= 32.0 {
         -16.0
     } else {
         0.0
     };
-    let translation = Vec3::new(-elevation + shift_x, elevation + shift_y, z);
+    let translation = Vec3::new(-elevation + half_tile_x, elevation + half_tile_y, z);
 
     commands
         .spawn((
@@ -189,6 +189,7 @@ fn init_instance(instance: &mut ItemInstance, sprite: &SpriteConfig, patterns: (
         instance.bbox_min = Vec2::ZERO;
         instance.bbox_size = Vec2::new(32.0, 32.0);
     }
+    instance.shift = sprite.shift;
 }
 
 fn init_material(

@@ -130,6 +130,7 @@ pub struct SpriteConfig {
     pub sprite_ids: Vec<u32>,
     pub animation: SpriteAnimation,
     pub boxes: Vec<Rect>,
+    pub shift: Vec2,
 }
 
 pub fn read_sprites_config() -> (
@@ -192,6 +193,13 @@ fn read_sprite_config(conf: &Value) -> SpriteConfig {
         });
     }
 
+    // Absent for the great majority of appearances; `(0, 0)` then means "draw where
+    // the bounding box says", which is what the flag's absence means in the protobuf.
+    let shift = match &conf["shift"] {
+        Value::Array(s) => Vec2::new(s[0].as_u64().unwrap() as f32, s[1].as_u64().unwrap() as f32),
+        _ => Vec2::ZERO,
+    };
+
     SpriteConfig {
         id,
         group,
@@ -202,6 +210,7 @@ fn read_sprite_config(conf: &Value) -> SpriteConfig {
         sprite_ids,
         boxes,
         animation,
+        shift,
     }
 }
 
@@ -272,4 +281,52 @@ pub fn read_sprite_sheets() -> HashMap<String, SpriteSheet> {
     }
 
     sheets_map
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn config_json(extra: &str) -> Value {
+        serde_json::from_str(&format!(
+            r#"{{
+                "id": 1, "group": "g",
+                "pattern_x": 4, "pattern_y": 1, "pattern_z": 1, "layers": 1,
+                "sprite_ids": [0, 1, 2, 3],
+                "animation": null,
+                "boxes": [[0, 0, 32, 32], [0, 0, 32, 32], [0, 0, 32, 32], [0, 0, 32, 32]]
+                {extra}
+            }}"#
+        ))
+        .unwrap()
+    }
+
+    /// `shift` is the appearance's art displacement (OTClient's `m_displacement`).
+    /// Player outfits carry `(8, 8)`; it is what the agent shader subtracts.
+    #[test]
+    fn shift_is_read_from_the_config() {
+        let config = read_sprite_config(&config_json(r#", "shift": [8, 8]"#));
+
+        assert_eq!(config.shift, Vec2::new(8.0, 8.0));
+    }
+
+    /// The flag is absent for most appearances — the demon among them, which is why
+    /// a hard-coded padding fitted the player and pushed the demon off its tile.
+    /// Absent must mean zero, not "keep the last value" and not a panic.
+    #[test]
+    fn a_missing_shift_is_zero() {
+        let config = read_sprite_config(&config_json(""));
+
+        assert_eq!(config.shift, Vec2::ZERO);
+    }
+
+    /// A non-zero shift must not disturb the bounding box it is applied on top of:
+    /// the two are independent inputs to `calculate_world_pos`.
+    #[test]
+    fn shift_does_not_disturb_the_boxes() {
+        let shifted = read_sprite_config(&config_json(r#", "shift": [8, 8]"#));
+        let unshifted = read_sprite_config(&config_json(""));
+
+        assert_eq!(shifted.boxes, unshifted.boxes);
+    }
 }

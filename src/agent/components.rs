@@ -33,6 +33,7 @@ pub struct Agent {
     pub outfit_colors: (u8, u8, u8, u8),
     pub speed: u16,
     pub boxes: [[Rect; 4]; 2],
+    pub shift: Vec2,
 }
 
 impl Agent {

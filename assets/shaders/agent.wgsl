@@ -10,6 +10,7 @@ struct AgentInstance {
     outfit_colors: u32, // packed: head | body<<8 | legs<<16 | feet<<24
     bbox_min: vec2<f32>,
     bbox_size: vec2<f32>,
+    shift: vec2<f32>,
 }
 
 @group(#{MATERIAL_BIND_GROUP}) @binding(0)
@@ -178,13 +179,14 @@ fn calculate_world_pos(
     mesh_size: f32,
     bbox_min: vec2<f32>,
     bbox_size: vec2<f32>,
+    shift: vec2<f32>,
     instance_index: u32
 ) -> vec4<f32> {
     let local01 = position.xy / mesh_size;
     var scaled = local01 * bbox_size;
     let bbox_center = (bbox_min * 2.0 + bbox_size - mesh_size) * vec2<f32>(0.5, -0.5);
-    let padding = vec2<f32>(7, -8);
-    let final_local = scaled + bbox_center - padding;
+    let displacement = shift * vec2<f32>(1.0, -1.0);
+    let final_local = scaled + bbox_center - displacement;
     var world_from_local = mesh_functions::get_world_from_local(instance_index);
     return mesh_functions::mesh2d_position_local_to_world(
         world_from_local,
@@ -209,7 +211,7 @@ fn vertex(vertex: Vertex) -> VertexOutput {
     let inst_index = mesh_functions::get_tag(vertex.instance_index);
     let inst = instances[inst_index];
     out.world_position = calculate_world_pos(
-        vertex.position, 64.0, inst.bbox_min, inst.bbox_size, vertex.instance_index
+        vertex.position, 64.0, inst.bbox_min, inst.bbox_size, inst.shift, vertex.instance_index
     );
     out.position = mesh_functions::mesh2d_position_world_to_clip(out.world_position);
     out.uv = adjust_uv_to_bbox(vertex.uv, 64.0, inst.bbox_min, inst.bbox_size);

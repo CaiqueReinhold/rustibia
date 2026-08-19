@@ -14,6 +14,7 @@ pub struct AgentInstance {
     pub outfit_colors: u32, // packed: head | body<<8 | legs<<16 | feet<<24 (indices into COLOR_TABLE)
     pub bbox_min: Vec2,
     pub bbox_size: Vec2,
+    pub shift: Vec2,
 }
 
 #[repr(C)]
