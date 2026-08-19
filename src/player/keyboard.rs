@@ -5,7 +5,10 @@ use bevy::prelude::*;
 use crate::{
     agent::{FacingDirection, WalkingDirection},
     game_ui::EnterChatMode,
+    map::Map,
+    player::interaction::InteractionIntent,
     player::movement::{ChangePlayerDirection, MovePlayer},
+    player::target::{CombatTarget, TargetSquare, refresh_target_square},
 };
 
 #[derive(Clone, Debug)]
@@ -202,10 +205,82 @@ fn route_action(action: &PlayerAction, commands: &mut Commands) {
 }
 
 pub fn cancel_targeting_on_escape(
-    keyboard: Res<ButtonInput<KeyCode>>,
+    mut commands: Commands,
     mut mode: ResMut<crate::player::InteractionMode>,
+    mut combat_target: ResMut<CombatTarget>,
+    map: Res<Map>,
+    square_q: Query<Entity, With<TargetSquare>>,
+    keyboard: Res<ButtonInput<KeyCode>>,
 ) {
-    if mode.is_targeting() && keyboard.just_pressed(KeyCode::Escape) {
+    if !keyboard.just_pressed(KeyCode::Escape) {
+        return;
+    }
+
+    // The use-with crosshair is the more modal state and wins.
+    if mode.is_targeting() {
         *mode = crate::player::InteractionMode::Idle;
+        return;
+    }
+
+    if combat_target.0.is_some() {
+        combat_target.set_locally(None);
+        refresh_target_square(&mut commands, &combat_target, &map, &square_q);
+        commands.trigger(InteractionIntent::SetTarget(None));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::items::{InventorySlot, ItemPlacement};
+    use crate::player::InteractionMode;
+    use bevy::ecs::system::RunSystemOnce;
+
+    fn seeded_world() -> World {
+        let mut world = World::new();
+        world.init_resource::<InteractionMode>();
+        world.init_resource::<CombatTarget>();
+        world.insert_resource(Map::default());
+        world
+    }
+
+    fn press_escape(world: &mut World) {
+        let mut keyboard = ButtonInput::<KeyCode>::default();
+        keyboard.press(KeyCode::Escape);
+        world.insert_resource(keyboard);
+    }
+
+    /// Escape must not clear a combat target while the use-with crosshair is up —
+    /// the player is cancelling the crosshair, not their target.
+    #[test]
+    fn escape_cancels_the_crosshair_before_the_target() {
+        let mut world = seeded_world();
+        world.insert_resource(CombatTarget(Some(7)));
+        *world.resource_mut::<InteractionMode>() = InteractionMode::Targeting {
+            source: ItemPlacement::Inventory {
+                slot: InventorySlot::Head,
+            },
+            source_item_id: 1,
+        };
+        press_escape(&mut world);
+
+        world.run_system_once(cancel_targeting_on_escape).unwrap();
+
+        assert!(matches!(
+            *world.resource::<InteractionMode>(),
+            InteractionMode::Idle
+        ));
+        assert_eq!(world.resource::<CombatTarget>().0, Some(7));
+    }
+
+    #[test]
+    fn escape_clears_the_target_when_no_crosshair_is_up() {
+        let mut world = seeded_world();
+        world.insert_resource(CombatTarget(Some(7)));
+        press_escape(&mut world);
+
+        world.run_system_once(cancel_targeting_on_escape).unwrap();
+
+        assert_eq!(world.resource::<CombatTarget>().0, None);
     }
 }

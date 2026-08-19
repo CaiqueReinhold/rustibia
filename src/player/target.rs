@@ -21,18 +21,12 @@ pub struct CombatTarget(pub Option<AgentId>);
 
 impl CombatTarget {
     /// Applies a locally-predicted value.
-    // Not called outside tests yet — the right-click targeting gesture that
-    // calls this via `apply_click` arrives in a later task.
-    #[allow(dead_code)]
     pub fn set_locally(&mut self, agent_id: Option<AgentId>) {
         self.0 = agent_id;
     }
 
     /// What clicking `agent_id` should produce: clicking the current target
     /// clears it, clicking anything else selects it.
-    // Not called outside tests yet — the right-click targeting gesture that
-    // calls this via `apply_click` arrives in a later task.
-    #[allow(dead_code)]
     pub fn next_for_click(&self, agent_id: AgentId) -> Option<AgentId> {
         if self.0 == Some(agent_id) {
             None
@@ -47,9 +41,6 @@ impl CombatTarget {
     /// a value to send without having already applied it, so "optimistic before
     /// send" is a property of this function rather than of statement order in the
     /// gesture handler.
-    // Not called outside tests yet — the right-click targeting gesture that
-    // sends `SetTarget` arrives in a later task.
-    #[allow(dead_code)]
     pub fn apply_click(&mut self, agent_id: AgentId) -> Option<AgentId> {
         let next = self.next_for_click(agent_id);
         self.set_locally(next);
@@ -313,5 +304,46 @@ mod tests {
             "the square draws under the creature"
         );
         assert!(composed < TOP_Z_OFFSET, "and under top-layer items");
+    }
+
+    /// `refresh_target_square` despawns any existing square before spawning a new
+    /// one. Without that despawn, switching targets leaves the old square behind
+    /// as an orphaned child of the previous target — this drives the real
+    /// observer across two targets in a row and pins that only the newest
+    /// square survives, parented under the newest target.
+    #[test]
+    fn switching_targets_leaves_exactly_one_square() {
+        use crate::conf::z_order::AGENT_Z_OFFSET;
+
+        let mut world = World::new();
+        world.init_resource::<CombatTarget>();
+        let mut map = Map::default();
+        let first_agent = world
+            .spawn(Transform::from_xyz(0.0, 0.0, AGENT_Z_OFFSET))
+            .id();
+        let second_agent = world
+            .spawn(Transform::from_xyz(32.0, 0.0, AGENT_Z_OFFSET))
+            .id();
+        map.add_agent(7, first_agent);
+        map.add_agent(9, second_agent);
+        world.insert_resource(map);
+        world.add_observer(on_target_changed);
+
+        world.trigger(TargetChanged { agent_id: Some(7) });
+        world.flush();
+        world.trigger(TargetChanged { agent_id: Some(9) });
+        world.flush();
+
+        let squares: Vec<Entity> = world
+            .query_filtered::<Entity, With<TargetSquare>>()
+            .iter(&world)
+            .collect();
+        assert_eq!(squares.len(), 1, "exactly one square should exist");
+
+        let parent = world.get::<ChildOf>(squares[0]).unwrap().parent();
+        assert_eq!(
+            parent, second_agent,
+            "the surviving square should be parented under the newest target"
+        );
     }
 }

@@ -92,9 +92,6 @@ pub enum ClientMessage {
     OpenPmChat {
         name: String,
     },
-    // Nothing constructs this outside tests yet — the right-click gesture that
-    // sends it arrives in a later task.
-    #[allow(dead_code)]
     SetTarget {
         agent_id: Option<AgentId>,
     },

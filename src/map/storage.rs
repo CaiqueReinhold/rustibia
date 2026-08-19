@@ -48,16 +48,17 @@ impl Map {
         tile.items = items;
     }
 
-    // Not called outside tests yet — the right-click targeting gesture that
-    // reads these arrives in a later task.
-    #[allow(dead_code)]
     pub fn agents_on(&self, pos: &Position) -> &[AgentId] {
         self.tiles.get(pos).map_or(&[], |t| t.agents.as_slice())
     }
 
     /// The agent drawn on top of this tile, or `None`. Mirrors `peek_item`.
-    // Not called outside tests yet — the right-click targeting gesture that
-    // reads this arrives in a later task.
+    ///
+    /// Not called by production code: the right-click targeting resolver
+    /// (`gestures::targetable_agent_on`) needs to skip the local player, which
+    /// this has no way to express, so it walks `agents_on` in reverse itself
+    /// instead. Kept for the `agents_on(...).last()` case this method exists to
+    /// name, and exercised directly by `tile_agents.rs` tests.
     #[allow(dead_code)]
     pub fn topmost_agent(&self, pos: &Position) -> Option<AgentId> {
         self.tiles.get(pos)?.agents.last().copied()
