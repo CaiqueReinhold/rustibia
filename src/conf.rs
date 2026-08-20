@@ -32,6 +32,11 @@ pub mod z_order {
     /// absolute value here puts the square in front of the creature instead of
     /// under it.
     pub const TARGET_SQUARE_LOCAL_Z: f32 = TARGET_SQUARE_Z_OFFSET - AGENT_Z_OFFSET;
+
+    /// Effects draw above ground, items and creatures, and below `Top` items —
+    /// OTClient's tile draw order. Sits between `AGENT_Z_OFFSET` (0.013) and
+    /// `TOP_Z_OFFSET` (0.015).
+    pub const EFFECT_Z_OFFSET: f32 = 0.014;
 }
 
 pub mod target {
@@ -95,6 +100,16 @@ pub mod floating_text {
     pub const SPEECH_MAX_LINES: usize = 5;
     pub const SPEECH_MAX_WIDTH_PX: f32 = 180.0;
     pub const SPEECH_GAP_PX: f32 = 2.0;
+}
+
+pub mod effects {
+    use std::time::Duration;
+
+    /// How long a `Static` effect stays on screen. Effects 200, 211 and 212 have
+    /// no animation at all, so nothing else would ever end them. OTClient gives a
+    /// static effect one frame tick (75 ms), which at 60 fps reads as a glitch;
+    /// 300 ms is a hair over the shortest animated effect's full pass (270 ms).
+    pub const STATIC_DURATION: Duration = Duration::from_millis(300);
 }
 
 pub mod ui {
