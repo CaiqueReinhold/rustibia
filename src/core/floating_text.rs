@@ -39,7 +39,7 @@ use crate::conf::ui::chat::LOCAL_CHANNEL_COLOR;
 use crate::conf::viewport::{GAME_VIEW_HEIGHT, GAME_VIEW_WIDTH};
 use crate::game_ui::scaling::logical_size;
 use crate::game_ui::{GameUiAssets, GameViewport};
-use crate::map::Position;
+use crate::map::{Map, Position};
 use crate::network::events::ShowFloatingText;
 use crate::player::components::Player;
 
@@ -258,7 +258,9 @@ pub fn on_floating_text(
     mut commands: Commands,
     time: Res<Time>,
     ui_assets: Res<GameUiAssets>,
+    map: Res<Map>,
     viewport_q: Query<Entity, With<GameViewport>>,
+    agent_pos_q: Query<&Position>,
     // `Without` on both sides is what makes these two `&mut Text` queries provably
     // disjoint; without it Bevy panics at runtime on conflicting access.
     mut hp_q: Query<(Entity, &FloatingText, &mut HitPointsText, &mut Text), Without<SpeechBlock>>,
@@ -268,6 +270,13 @@ pub fn on_floating_text(
     >,
 ) {
     let Ok(viewport) = viewport_q.single() else {
+        return;
+    };
+    let Some(anchor) = map
+        .get_agent(event.agent_id)
+        .and_then(|entity| agent_pos_q.get(entity).ok())
+        .cloned()
+    else {
         return;
     };
     let now = time.elapsed();
@@ -280,7 +289,7 @@ pub fn on_floating_text(
             // Snapshot before any mutation, so planning stays a pure function.
             let live: Vec<LiveHitPoints> = hp_q
                 .iter()
-                .filter(|(_, ft, _, _)| ft.anchor == event.position)
+                .filter(|(_, ft, _, _)| ft.anchor == anchor)
                 .map(|(entity, ft, hp, _)| LiveHitPoints {
                     entity,
                     offset_y: ft.offset_y,
@@ -304,7 +313,7 @@ pub fn on_floating_text(
                     commands.spawn((
                         FloatingText {
                             kind: FloatingTextType::HitPoints,
-                            anchor: event.position.clone(),
+                            anchor: anchor.clone(),
                             spawned_at: now,
                             offset_y,
                         },
@@ -336,7 +345,7 @@ pub fn on_floating_text(
         FloatingTextType::PlayerMessage => {
             let existing = speech_q
                 .iter()
-                .find(|(_, ft, _, _)| ft.anchor == event.position)
+                .find(|(_, ft, _, _)| ft.anchor == anchor)
                 .map(|(entity, _, _, _)| entity);
 
             let line = (
@@ -361,7 +370,7 @@ pub fn on_floating_text(
             commands.spawn((
                 FloatingText {
                     kind: FloatingTextType::PlayerMessage,
-                    anchor: event.position.clone(),
+                    anchor: anchor.clone(),
                     spawned_at: now,
                     offset_y: 0.0,
                 },
@@ -615,24 +624,26 @@ pub fn position_floating_texts(
     }
 }
 
-/// Dev-only floating text, since no server producer exists yet.
+/// Dev-only floating text, driven from the keyboard instead of the server.
 ///
-/// - `F9` — a number on the player's own tile in a fixed colour: repeated presses
+/// - `F9` — a number over the player in a fixed colour: repeated presses
 ///   exercise **merging**.
-/// - `F10` — a number on the player's own tile in a rotating colour: repeated
-///   presses exercise **staggering**.
-/// - `F11` — speech on the player's own tile: repeated presses exercise
-///   **queueing** into one block.
-/// - `F12` — speech on a neighbouring tile, alternating left and right: exercises
-///   **cross-tile push** against a block on the player's own tile.
+/// - `F10` — a number over the player in a rotating colour: repeated presses
+///   exercise **staggering**.
+/// - `F11` — speech over the player: repeated presses exercise **queueing**
+///   into one block.
+/// - `F12` — speech over the nearest other agent: exercises **cross-tile push**
+///   against a block on the player's own tile. A no-op with nobody else in
+///   view, since the message names an agent and no longer names a tile.
 #[cfg(feature = "debug")]
 pub fn debug_spawn_floating_text(
     mut commands: Commands,
     keys: Res<ButtonInput<KeyCode>>,
-    player_q: Query<&Position, With<Player>>,
+    player_q: Query<(&Player, &Position)>,
+    others_q: Query<(&crate::agent::Agent, &Position), Without<Player>>,
     mut nonce: Local<u32>,
 ) {
-    let Ok(player) = player_q.single() else {
+    let Ok((player, player_pos)) = player_q.single() else {
         return;
     };
 
@@ -651,7 +662,7 @@ pub fn debug_spawn_floating_text(
     if merge {
         commands.trigger(ShowFloatingText {
             text: format!("-{}", 1 + r % 99),
-            position: player.clone(),
+            agent_id: player.agent_id,
             text_type: FloatingTextType::HitPoints,
             color: Some((255, 64, 64)),
         });
@@ -666,7 +677,7 @@ pub fn debug_spawn_floating_text(
         ];
         commands.trigger(ShowFloatingText {
             text: format!("-{}", 1 + r % 99),
-            position: player.clone(),
+            agent_id: player.agent_id,
             text_type: FloatingTextType::HitPoints,
             color: Some(COLORS[r % COLORS.len()]),
         });
@@ -679,20 +690,39 @@ pub fn debug_spawn_floating_text(
             "exura vita",
             "a deliberately long sentence to exercise the wrap width",
         ];
-        // One tile per key, so queueing and cross-tile push can be exercised
+        // One key per speaker, so queueing and cross-tile push can be exercised
         // separately rather than at random.
-        let position = if speech {
-            player.clone()
+        let speaker = if speech {
+            Some(player.agent_id)
         } else {
-            player.delta(if r.is_multiple_of(2) { -1 } else { 1 }, 0)
+            nearest_other_agent(player_pos, &others_q)
+        };
+        let Some(agent_id) = speaker else {
+            warn!("F12 needs another agent in view to speak from");
+            return;
         };
         commands.trigger(ShowFloatingText {
             text: LINES[r % LINES.len()].to_owned(),
-            position,
+            agent_id,
             text_type: FloatingTextType::PlayerMessage,
             color: None,
         });
     }
+}
+
+/// The agent nearest the player on the player's own floor, if any.
+#[cfg(feature = "debug")]
+fn nearest_other_agent(
+    player_pos: &Position,
+    others_q: &Query<(&crate::agent::Agent, &Position), Without<Player>>,
+) -> Option<crate::agent::AgentId> {
+    others_q
+        .iter()
+        .filter(|(_, pos)| pos.z == player_pos.z)
+        .min_by_key(|(_, pos)| {
+            pos.x.abs_diff(player_pos.x) as u32 + pos.y.abs_diff(player_pos.y) as u32
+        })
+        .map(|(agent, _)| agent.agent_id)
 }
 
 #[cfg(test)]
@@ -1098,11 +1128,31 @@ mod tests {
     use crate::game_ui::{GameUiAssets, GameViewport};
     use crate::network::events::ShowFloatingText;
 
-    /// A world with the two things the observer needs from the app: a viewport to
-    /// parent to, and the UI font.
+    use crate::agent::AgentId;
+
+    /// The agent every observer test speaks and bleeds through, standing on
+    /// `SPEAKER_TILE`.
+    const SPEAKER: AgentId = 1;
+
+    fn speaker_tile() -> Position {
+        Position::new(10, 10, 7)
+    }
+
+    /// Registers an agent standing on `pos`, exactly as `on_spawn_agent` does, so
+    /// the observer can resolve the id the wire message carries back to a tile.
+    fn agent_at(world: &mut World, agent_id: AgentId, pos: Position) -> Entity {
+        let entity = world.spawn(pos).id();
+        world.resource_mut::<Map>().add_agent(agent_id, entity);
+        entity
+    }
+
+    /// A world with the three things the observer needs from the app: a viewport
+    /// to parent to, the UI font, and a `Map` that can turn the agent id on the
+    /// wire into the tile the text pins to.
     fn observer_world() -> World {
         let mut world = World::new();
         world.init_resource::<Time>();
+        world.init_resource::<Map>();
         world.insert_resource(GameUiAssets {
             font: Handle::default(),
             window: Default::default(),
@@ -1114,6 +1164,7 @@ mod tests {
         });
         world.spawn(GameViewport);
         world.add_observer(on_floating_text);
+        agent_at(&mut world, SPEAKER, speaker_tile());
         world
     }
 
@@ -1130,7 +1181,7 @@ mod tests {
         let mut world = observer_world();
         world.trigger(ShowFloatingText {
             text: "-25".to_owned(),
-            position: Position::new(10, 10, 7),
+            agent_id: SPEAKER,
             text_type: FloatingTextType::HitPoints,
             color: None,
         });
@@ -1161,7 +1212,7 @@ mod tests {
             let mut world = observer_world();
             world.trigger(ShowFloatingText {
                 text: "-25".to_owned(),
-                position: Position::new(10, 10, 7),
+                agent_id: SPEAKER,
                 text_type: kind,
                 color: None,
             });
@@ -1184,7 +1235,7 @@ mod tests {
         for text in ["-12", "-8"] {
             world.trigger(ShowFloatingText {
                 text: text.to_owned(),
-                position: Position::new(10, 10, 7),
+                agent_id: SPEAKER,
                 text_type: FloatingTextType::HitPoints,
                 color: Some((255, 255, 255)),
             });
@@ -1200,7 +1251,7 @@ mod tests {
         for text in ["hi there", "how are you"] {
             world.trigger(ShowFloatingText {
                 text: text.to_owned(),
-                position: Position::new(10, 10, 7),
+                agent_id: SPEAKER,
                 text_type: FloatingTextType::PlayerMessage,
                 color: None,
             });
@@ -1216,10 +1267,13 @@ mod tests {
     #[test]
     fn a_message_on_another_tile_starts_its_own_block() {
         let mut world = observer_world();
-        for (x, text) in [(10u16, "hi"), (11, "hello")] {
+        const NEIGHBOUR: AgentId = 2;
+        agent_at(&mut world, NEIGHBOUR, Position::new(11, 10, 7));
+
+        for (speaker, text) in [(SPEAKER, "hi"), (NEIGHBOUR, "hello")] {
             world.trigger(ShowFloatingText {
                 text: text.to_owned(),
-                position: Position::new(x, 10, 7),
+                agent_id: speaker,
                 text_type: FloatingTextType::PlayerMessage,
                 color: None,
             });
@@ -1229,13 +1283,88 @@ mod tests {
         assert_eq!(world.query::<&SpeechBlock>().iter(&world).count(), 2);
     }
 
+    /// The wire message names an agent, but the text is pinned to a *tile*: two
+    /// agents sharing one tile share one block, exactly as two messages from one
+    /// agent do. Keying the block on the speaker instead would give this two
+    /// blocks stacked on the same spot.
+    #[test]
+    fn two_agents_on_one_tile_share_a_block() {
+        let mut world = observer_world();
+        const NEIGHBOUR: AgentId = 2;
+        agent_at(&mut world, NEIGHBOUR, speaker_tile());
+
+        for (speaker, text) in [(SPEAKER, "hi"), (NEIGHBOUR, "hello")] {
+            world.trigger(ShowFloatingText {
+                text: text.to_owned(),
+                agent_id: speaker,
+                text_type: FloatingTextType::PlayerMessage,
+                color: None,
+            });
+            world.flush();
+        }
+
+        let mut q = world.query::<&SpeechBlock>();
+        let block = q.single(&world).expect("one tile, one block");
+        assert_eq!(block.compose(), "hi\nhello");
+    }
+
+    /// The agent's position is read once, at spawn, and never again — so a speaker
+    /// who walks away leaves the text behind on the tile they spoke from, and
+    /// their next line starts a new block on the new tile.
+    #[test]
+    fn a_speaker_who_walks_away_leaves_the_text_behind() {
+        let mut world = observer_world();
+        let speaker = world.resource::<Map>().get_agent(SPEAKER).unwrap();
+
+        let speak = |world: &mut World| {
+            world.trigger(ShowFloatingText {
+                text: "hi".to_owned(),
+                agent_id: SPEAKER,
+                text_type: FloatingTextType::PlayerMessage,
+                color: None,
+            });
+            world.flush();
+        };
+
+        speak(&mut world);
+        let walked_to = Position::new(speaker_tile().x + 1, speaker_tile().y, speaker_tile().z);
+        world.entity_mut(speaker).insert(walked_to.clone());
+        speak(&mut world);
+
+        let anchors: Vec<Position> = world
+            .query_filtered::<&FloatingText, With<SpeechBlock>>()
+            .iter(&world)
+            .map(|ft| ft.anchor.clone())
+            .collect();
+        assert_eq!(anchors.len(), 2, "the first block stayed where it was said");
+        assert!(anchors.contains(&speaker_tile()));
+        assert!(anchors.contains(&walked_to));
+    }
+
+    /// An agent the client has never seen — or has already despawned — has no
+    /// tile to pin to, so its text is dropped rather than landing on some
+    /// default tile.
+    #[test]
+    fn text_from_an_unknown_agent_is_dropped() {
+        let mut world = observer_world();
+        world.trigger(ShowFloatingText {
+            text: "-25".to_owned(),
+            agent_id: SPEAKER + 99,
+            text_type: FloatingTextType::HitPoints,
+            color: None,
+        });
+        world.flush();
+
+        assert_eq!(world.query::<&FloatingText>().iter(&world).count(), 0);
+    }
+
     #[test]
     fn the_oldest_line_drops_at_the_cap() {
         let mut world = observer_world();
         for i in 0..=ft::SPEECH_MAX_LINES {
             world.trigger(ShowFloatingText {
                 text: format!("line {i}"),
-                position: Position::new(10, 10, 7),
+                agent_id: SPEAKER,
                 text_type: FloatingTextType::PlayerMessage,
                 color: None,
             });
@@ -1265,7 +1394,7 @@ mod tests {
         let mut world = observer_world();
         world.trigger(ShowFloatingText {
             text: "-1".to_owned(),
-            position: Position::new(10, 10, 7),
+            agent_id: SPEAKER,
             text_type: FloatingTextType::HitPoints,
             color: None,
         });
@@ -1282,7 +1411,7 @@ mod tests {
         let mut world = observer_world();
         world.trigger(ShowFloatingText {
             text: "-1".to_owned(),
-            position: Position::new(10, 10, 7),
+            agent_id: SPEAKER,
             text_type: FloatingTextType::HitPoints,
             color: None,
         });
@@ -1304,14 +1433,14 @@ mod tests {
         // A short line, then a long one that outlives it.
         world.trigger(ShowFloatingText {
             text: "hi".to_owned(),
-            position: Position::new(10, 10, 7),
+            agent_id: SPEAKER,
             text_type: FloatingTextType::PlayerMessage,
             color: None,
         });
         world.flush();
         world.trigger(ShowFloatingText {
             text: "x".repeat(200),
-            position: Position::new(10, 10, 7),
+            agent_id: SPEAKER,
             text_type: FloatingTextType::PlayerMessage,
             color: None,
         });
@@ -1335,7 +1464,7 @@ mod tests {
         let hit = |world: &mut World| {
             world.trigger(ShowFloatingText {
                 text: "-1".to_owned(),
-                position: Position::new(10, 10, 7),
+                agent_id: SPEAKER,
                 text_type: FloatingTextType::HitPoints,
                 color: Some((255, 255, 255)),
             });
@@ -1361,7 +1490,7 @@ mod tests {
         let mut world = observer_world();
         world.trigger(ShowFloatingText {
             text: "hi".to_owned(),
-            position: Position::new(10, 10, 7),
+            agent_id: SPEAKER,
             text_type: FloatingTextType::PlayerMessage,
             color: None,
         });
@@ -1381,7 +1510,7 @@ mod tests {
         let mut world = observer_world();
         world.trigger(ShowFloatingText {
             text: "hi".to_owned(),
-            position: Position::new(10, 10, 7),
+            agent_id: SPEAKER,
             text_type: FloatingTextType::PlayerMessage,
             color: None,
         });

@@ -98,30 +98,33 @@ pub enum ClientMessage {
 }
 
 // server
-const MSG_PONG: u8 = 0;
-const MSG_LOGIN_ERROR: u8 = 1;
-const MSG_DESCRIBE_MAP: u8 = 2;
-const MSG_TILE_CHANGED: u8 = 3;
-const MSG_PLAYER_WALK_ACK: u8 = 4;
-const MSG_PLAYER_POS: u8 = 5;
-const MSG_DESCRIBE_PLAYER: u8 = 6;
-const MSG_TEXT_MESSAGE: u8 = 7;
-const MSG_OPEN_CONTAINER: u8 = 8;
-const MSG_UPDATE_CONTAINER: u8 = 9;
-const MSG_CONTAINER_CLOSED: u8 = 10;
-const MSG_PLAYER_WALK_DENIED: u8 = 11;
-const MSG_INVETORY_SLOT_UPDATED: u8 = 12;
-const MSG_PLAYER_CAPACITY_UPDATED: u8 = 13;
-const MSG_AGENT_DIRECTION_CHANGED: u8 = 14;
-const MSG_REMOVE_AGENT: u8 = 15;
-const MSG_MOVE_AGENT: u8 = 16;
-const MSG_SPAWN_AGENT: u8 = 17;
-const MSG_TELEPORT_AGENT: u8 = 18;
-const MSG_CHAT_MESSAGE: u8 = 19;
-const MSG_CHANNEL_LIST: u8 = 20;
-const MSG_INTRODUCE_PLAYER: u8 = 21;
-const MSG_FLOATING_TEXT: u8 = 22;
-const MSG_TARGET_CHANGED: u8 = 23;
+const SRV_PONG: u8 = 0;
+const SRV_LOGIN_ERROR: u8 = 1;
+const SRV_DESCRIBE_MAP: u8 = 2;
+const SRV_TILE_CHANGED: u8 = 3;
+const SRV_PLAYER_WALK_ACK: u8 = 4;
+const SRV_PLAYER_POS: u8 = 5;
+const SRV_DESCRIBE_PLAYER: u8 = 6;
+const SRV_TEXT_MESSAGE: u8 = 7;
+const SRV_OPEN_CONTAINER: u8 = 8;
+const SRV_UPDATE_CONTAINER: u8 = 9;
+const SRV_CONTAINER_CLOSED: u8 = 10;
+const SRV_PLAYER_WALK_DENIED: u8 = 11;
+const SRV_INVETORY_SLOT_UPDATED: u8 = 12;
+const SRV_PLAYER_CAPACITY_UPDATED: u8 = 13;
+const SRV_AGENT_DIRECTION_CHANGED: u8 = 14;
+const SRV_REMOVE_AGENT: u8 = 15;
+const SRV_MOVE_AGENT: u8 = 16;
+const SRV_SPAWN_AGENT: u8 = 17;
+const SRV_TELEPORT_AGENT: u8 = 18;
+const SRV_CHAT_MESSAGE: u8 = 19;
+const SRV_CHANNEL_LIST: u8 = 20;
+const SRV_INTRODUCE_PLAYER: u8 = 21;
+const SRV_FLOATING_TEXT: u8 = 22;
+const SRV_TARGET_CHANGED: u8 = 23;
+const SRV_AGENT_LIFE_UPDATED: u8 = 24;
+const SRV_SHOW_EFFECT: u8 = 25;
+const SRV_LAUNCH_MISSILE: u8 = 26;
 
 #[derive(Clone, Debug)]
 pub enum ServerMessage {
@@ -209,7 +212,7 @@ pub enum ServerMessage {
         position: Position,
         facing: FacingDirection,
         name: String,
-        health: Health,
+        health: u8,
         speed: u16,
     },
     TeleportAgent {
@@ -231,12 +234,21 @@ pub enum ServerMessage {
     },
     FloatingText {
         text: String,
-        position: Position,
+        agent_id: AgentId,
         text_type: FloatingTextType,
         color: Option<(u8, u8, u8)>,
     },
     TargetChanged {
         agent_id: Option<AgentId>,
+    },
+    ShowEffect {
+        effect_id: u16,
+        position: Position,
+        delta: Vec<(i8, i8)>,
+    },
+    AgentLifeChanged {
+        agent_id: AgentId,
+        life: u8,
     },
 }
 
@@ -313,6 +325,10 @@ impl<'a> Reader<'a> {
         Ok(self.read_bytes(1)?[0])
     }
 
+    fn read_i8(&mut self) -> Result<i8, MessageDecodeError> {
+        Ok(self.read_bytes(1)?[0] as i8)
+    }
+
     fn read_u16_le(&mut self) -> Result<u16, MessageDecodeError> {
         let b = self.read_bytes(2)?;
         Ok(u16::from_le_bytes([b[0], b[1]]))
@@ -367,9 +383,9 @@ impl Decoder for GameMessageCodec {
 
 fn decode_message(buf: &mut Reader) -> Result<ServerMessage, MessageDecodeError> {
     match buf.read_u8()? {
-        MSG_PONG => Ok(ServerMessage::Pong),
-        MSG_LOGIN_ERROR => Ok(ServerMessage::LoginError),
-        MSG_DESCRIBE_PLAYER => {
+        SRV_PONG => Ok(ServerMessage::Pong),
+        SRV_LOGIN_ERROR => Ok(ServerMessage::LoginError),
+        SRV_DESCRIBE_PLAYER => {
             let agent_id = buf.read_u16_le()?;
             let position = decode_position(buf)?;
             let facing = decode_facing(buf)?;
@@ -424,7 +440,7 @@ fn decode_message(buf: &mut Reader) -> Result<ServerMessage, MessageDecodeError>
                 inventory_trinket,
             })
         }
-        MSG_DESCRIBE_MAP => {
+        SRV_DESCRIBE_MAP => {
             let center = decode_position(buf)?;
             let floor = buf.read_u8()?;
             let mut tiles = Box::new([[None; STACK_MAX_VISIBLE_ITEMS]; TILES_X * TILES_Y]);
@@ -437,12 +453,12 @@ fn decode_message(buf: &mut Reader) -> Result<ServerMessage, MessageDecodeError>
                 center,
             })
         }
-        MSG_TILE_CHANGED => {
+        SRV_TILE_CHANGED => {
             let position = decode_position(buf)?;
             let items = Box::new(decode_tile(buf)?);
             Ok(ServerMessage::TileChanged { position, items })
         }
-        MSG_PLAYER_WALK_ACK => {
+        SRV_PLAYER_WALK_ACK => {
             let position = decode_position(buf)?;
             let mut floor_tiles: Vec<(u8, Box<[ItemStack]>)> = Vec::new();
             let mut floor = buf.read_u8()?;
@@ -460,17 +476,17 @@ fn decode_message(buf: &mut Reader) -> Result<ServerMessage, MessageDecodeError>
                 tiles: floor_tiles,
             })
         }
-        MSG_PLAYER_POS => {
+        SRV_PLAYER_POS => {
             let position = decode_position(buf)?;
             Ok(ServerMessage::PlayerPosition { position })
         }
-        MSG_TEXT_MESSAGE => {
+        SRV_TEXT_MESSAGE => {
             let text_len = buf.read_u16_le()? as usize;
             let text = buf.read_string(text_len)?;
             let message_type = decode_text_type(buf.read_u8()?)?;
             Ok(ServerMessage::TextMessage { text, message_type })
         }
-        MSG_OPEN_CONTAINER => {
+        SRV_OPEN_CONTAINER => {
             let container_id = buf.read_u16_le()?;
             let capacity = buf.read_u8()?;
             let has_parent = buf.read_u8()? != 0;
@@ -485,7 +501,7 @@ fn decode_message(buf: &mut Reader) -> Result<ServerMessage, MessageDecodeError>
                 items,
             })
         }
-        MSG_UPDATE_CONTAINER => {
+        SRV_UPDATE_CONTAINER => {
             let container_id = buf.read_u16_le()?;
             let items = decode_items(buf)?;
             Ok(ServerMessage::UpdateContainer {
@@ -493,12 +509,12 @@ fn decode_message(buf: &mut Reader) -> Result<ServerMessage, MessageDecodeError>
                 items,
             })
         }
-        MSG_CONTAINER_CLOSED => {
+        SRV_CONTAINER_CLOSED => {
             let container_id = buf.read_u16_le()?;
             Ok(ServerMessage::ContainerClosed { container_id })
         }
-        MSG_PLAYER_WALK_DENIED => Ok(ServerMessage::PlayerWalkDenied),
-        MSG_INVETORY_SLOT_UPDATED => {
+        SRV_PLAYER_WALK_DENIED => Ok(ServerMessage::PlayerWalkDenied),
+        SRV_INVETORY_SLOT_UPDATED => {
             let slot = InventorySlot::from_id(buf.read_u8()?);
             let Some(slot) = slot else {
                 return Err(MessageDecodeError::WrongSequence);
@@ -506,35 +522,32 @@ fn decode_message(buf: &mut Reader) -> Result<ServerMessage, MessageDecodeError>
             let item_id = decode_optional_item(buf)?;
             Ok(ServerMessage::IventorySlotUpdated { slot, item_id })
         }
-        MSG_PLAYER_CAPACITY_UPDATED => {
+        SRV_PLAYER_CAPACITY_UPDATED => {
             let capacity = buf.read_u32_le()?;
             Ok(ServerMessage::PlayerCapacityUpdated { capacity })
         }
-        MSG_AGENT_DIRECTION_CHANGED => Ok(ServerMessage::AgentChangedDirection {
+        SRV_AGENT_DIRECTION_CHANGED => Ok(ServerMessage::AgentChangedDirection {
             agent_id: buf.read_u16_le()?,
             facing: decode_facing(buf)?,
         }),
-        MSG_REMOVE_AGENT => Ok(ServerMessage::RemoveAgent {
+        SRV_REMOVE_AGENT => Ok(ServerMessage::RemoveAgent {
             agent_id: buf.read_u16_le()?,
         }),
-        MSG_TARGET_CHANGED => Ok(ServerMessage::TargetChanged {
+        SRV_TARGET_CHANGED => Ok(ServerMessage::TargetChanged {
             agent_id: decode_optional_agent(buf)?,
         }),
-        MSG_MOVE_AGENT => Ok(ServerMessage::MoveAgent {
+        SRV_MOVE_AGENT => Ok(ServerMessage::MoveAgent {
             agent_id: buf.read_u16_le()?,
             direction: decode_direction(buf)?,
             from: decode_position(buf)?,
         }),
-        MSG_SPAWN_AGENT => {
+        SRV_SPAWN_AGENT => {
             let agent_id = buf.read_u16_le()?;
             let position = decode_position(buf)?;
             let facing = decode_facing(buf)?;
             let name_len = buf.read_u16_le()? as usize;
             let name = buf.read_string(name_len)?;
-            let health = Health {
-                current: buf.read_u32_le()?,
-                max: buf.read_u32_le()?,
-            };
+            let health = buf.read_u8()?;
             let outfit_id = buf.read_u16_le()?;
             let color1 = buf.read_u8()?;
             let color2 = buf.read_u8()?;
@@ -551,11 +564,11 @@ fn decode_message(buf: &mut Reader) -> Result<ServerMessage, MessageDecodeError>
                 speed,
             })
         }
-        MSG_TELEPORT_AGENT => Ok(ServerMessage::TeleportAgent {
+        SRV_TELEPORT_AGENT => Ok(ServerMessage::TeleportAgent {
             agent_id: buf.read_u16_le()?,
             position: decode_position(buf)?,
         }),
-        MSG_CHAT_MESSAGE => {
+        SRV_CHAT_MESSAGE => {
             let author = buf.read_u16_le()?;
             let message_type = decode_chat_message_type(buf.read_u8()?)?;
             let channel = buf.read_u16_le()?;
@@ -568,7 +581,7 @@ fn decode_message(buf: &mut Reader) -> Result<ServerMessage, MessageDecodeError>
                 text,
             })
         }
-        MSG_CHANNEL_LIST => {
+        SRV_CHANNEL_LIST => {
             let count = buf.read_u16_le()? as usize;
             let mut channels = Vec::new();
             for _ in 0..count {
@@ -579,23 +592,38 @@ fn decode_message(buf: &mut Reader) -> Result<ServerMessage, MessageDecodeError>
             }
             Ok(ServerMessage::ChannelList { channels })
         }
-        MSG_INTRODUCE_PLAYER => {
+        SRV_INTRODUCE_PLAYER => {
             let local_id = buf.read_u16_le()?;
             let name_len = buf.read_u16_le()? as usize;
             let name = buf.read_string(name_len)?;
             Ok(ServerMessage::IntroducePlayer { local_id, name })
         }
-        MSG_FLOATING_TEXT => {
+        SRV_FLOATING_TEXT => {
             let text_len = buf.read_u16_le()? as usize;
             let text = buf.read_string(text_len)?;
-            let position = decode_position(buf)?;
+            let agent_id = buf.read_u16_le()?;
             let text_type = decode_floating_text_type(buf.read_u8()?)?;
             let color = decode_optional_color(buf)?;
             Ok(ServerMessage::FloatingText {
                 text,
-                position,
+                agent_id,
                 text_type,
                 color,
+            })
+        }
+        SRV_AGENT_LIFE_UPDATED => {
+            let agent_id = buf.read_u16_le()?;
+            let life = buf.read_u8()?;
+            Ok(ServerMessage::AgentLifeChanged { agent_id, life })
+        }
+        SRV_SHOW_EFFECT => {
+            let effect_id = buf.read_u16_le()?;
+            let position = decode_position(buf)?;
+            let delta = decode_position_delta(buf)?;
+            Ok(ServerMessage::ShowEffect {
+                effect_id,
+                position,
+                delta,
             })
         }
         _ => Err(MessageDecodeError::WrongSequence),
@@ -704,6 +732,24 @@ fn decode_optional_agent(buf: &mut Reader) -> Result<Option<AgentId>, MessageDec
     } else {
         Ok(Some(agent_id))
     }
+}
+
+fn decode_position_delta(buf: &mut Reader) -> Result<Vec<(i8, i8)>, MessageDecodeError> {
+    let rem = buf.remaining();
+
+    if rem == 0 {
+        return Ok(Vec::with_capacity(0));
+    }
+
+    if rem.is_multiple_of(2) {
+        return Err(MessageDecodeError::TrailingBytes(1));
+    }
+    let size = rem / 2;
+    let mut delta = Vec::with_capacity(size);
+    for _ in 0..size {
+        delta.push((buf.read_i8()?, buf.read_i8()?));
+    }
+    Ok(delta)
 }
 
 fn encode_optional_agent(agent_id: Option<AgentId>, dst: &mut BytesMut) {
@@ -987,7 +1033,7 @@ mod tests {
 
     #[test]
     fn decodes_a_chat_message() {
-        let mut payload = vec![MSG_CHAT_MESSAGE];
+        let mut payload = vec![SRV_CHAT_MESSAGE];
         payload.extend_from_slice(&3u16.to_le_bytes()); // author
         payload.push(0x03); // Channel
         payload.extend_from_slice(&7u16.to_le_bytes()); // channel
@@ -1015,7 +1061,7 @@ mod tests {
 
     #[test]
     fn decodes_introduce_player() {
-        let mut payload = vec![MSG_INTRODUCE_PLAYER];
+        let mut payload = vec![SRV_INTRODUCE_PLAYER];
         payload.extend_from_slice(&9u16.to_le_bytes());
         payload.extend_from_slice(&6u16.to_le_bytes());
         payload.extend_from_slice(b"Rizael");
@@ -1038,7 +1084,7 @@ mod tests {
     #[test]
     fn decodes_every_entry_of_a_channel_list() {
         let entries: [(u16, &[u8]); 3] = [(1, b"World Chat"), (2, b"Advertising"), (7, b"Help")];
-        let mut payload = vec![MSG_CHANNEL_LIST];
+        let mut payload = vec![SRV_CHANNEL_LIST];
         payload.extend_from_slice(&(entries.len() as u16).to_le_bytes());
         for (id, name) in entries.iter() {
             payload.extend_from_slice(&id.to_le_bytes());
@@ -1065,12 +1111,10 @@ mod tests {
     /// prefix width or discriminant fails one of the two tests.
     #[test]
     fn decodes_a_floating_text_with_a_colour() {
-        let mut payload = vec![MSG_FLOATING_TEXT];
+        let mut payload = vec![SRV_FLOATING_TEXT];
         payload.extend_from_slice(&3u16.to_le_bytes()); // text length
         payload.extend_from_slice(b"-25");
-        payload.extend_from_slice(&100u16.to_le_bytes()); // x
-        payload.extend_from_slice(&200u16.to_le_bytes()); // y
-        payload.push(7); // z
+        payload.extend_from_slice(&100u16.to_le_bytes()); // agent id
         payload.push(0x01); // HitPoints
         payload.push(0x01); // colour present
         payload.extend_from_slice(&[255, 0, 64]);
@@ -1080,12 +1124,12 @@ mod tests {
         match codec.decode(&mut buf).unwrap().unwrap() {
             ServerMessage::FloatingText {
                 text,
-                position,
+                agent_id,
                 text_type,
                 color,
             } => {
                 assert_eq!(text, "-25");
-                assert_eq!(position, Position::new(100, 200, 7));
+                assert_eq!(agent_id, 100u16);
                 assert!(matches!(text_type, FloatingTextType::HitPoints));
                 assert_eq!(color, Some((255, 0, 64)));
             }
@@ -1096,12 +1140,10 @@ mod tests {
 
     #[test]
     fn decodes_a_floating_text_without_a_colour() {
-        let mut payload = vec![MSG_FLOATING_TEXT];
+        let mut payload = vec![SRV_FLOATING_TEXT];
         payload.extend_from_slice(&2u16.to_le_bytes());
         payload.extend_from_slice(b"hi");
-        payload.extend_from_slice(&1u16.to_le_bytes());
-        payload.extend_from_slice(&2u16.to_le_bytes());
-        payload.push(7);
+        payload.extend_from_slice(&1u16.to_le_bytes()); // agent id
         payload.push(0x02); // PlayerMessage
         payload.push(0x00); // colour absent
 
@@ -1109,8 +1151,12 @@ mod tests {
         let mut buf = frame(&payload);
         match codec.decode(&mut buf).unwrap().unwrap() {
             ServerMessage::FloatingText {
-                text_type, color, ..
+                agent_id,
+                text_type,
+                color,
+                ..
             } => {
+                assert_eq!(agent_id, 1u16);
                 assert!(matches!(text_type, FloatingTextType::PlayerMessage));
                 assert_eq!(color, None, "no colour bytes may be consumed");
             }
@@ -1126,13 +1172,13 @@ mod tests {
     fn target_changed_decodes_some_and_none() {
         let mut codec = GameMessageCodec {};
 
-        let mut buf = frame(&[MSG_TARGET_CHANGED, 0x09, 0x00]);
+        let mut buf = frame(&[SRV_TARGET_CHANGED, 0x09, 0x00]);
         assert!(matches!(
             codec.decode(&mut buf).unwrap().unwrap(),
             ServerMessage::TargetChanged { agent_id: Some(9) }
         ));
 
-        let mut buf = frame(&[MSG_TARGET_CHANGED, 0xFF, 0xFF]);
+        let mut buf = frame(&[SRV_TARGET_CHANGED, 0xFF, 0xFF]);
         assert!(matches!(
             codec.decode(&mut buf).unwrap().unwrap(),
             ServerMessage::TargetChanged { agent_id: None }
@@ -1143,11 +1189,9 @@ mod tests {
     /// is the loud failure that makes a pinning test unnecessary for the enum.
     #[test]
     fn an_unknown_floating_text_type_is_rejected() {
-        let mut payload = vec![MSG_FLOATING_TEXT];
-        payload.extend_from_slice(&0u16.to_le_bytes());
-        payload.extend_from_slice(&1u16.to_le_bytes());
-        payload.extend_from_slice(&2u16.to_le_bytes());
-        payload.push(7);
+        let mut payload = vec![SRV_FLOATING_TEXT];
+        payload.extend_from_slice(&0u16.to_le_bytes()); // empty text
+        payload.extend_from_slice(&1u16.to_le_bytes()); // agent id
         payload.push(0x09); // not a type
         payload.push(0x00);
 
@@ -1163,7 +1207,7 @@ mod tests {
     /// buffer and panic, killing the connection task.
     #[test]
     fn rejects_a_length_field_past_the_end_of_the_payload() {
-        let mut payload = vec![MSG_INTRODUCE_PLAYER];
+        let mut payload = vec![SRV_INTRODUCE_PLAYER];
         payload.extend_from_slice(&9u16.to_le_bytes());
         payload.extend_from_slice(&600u16.to_le_bytes()); // claims 600 bytes of name
         payload.extend_from_slice(b"Rizael");
@@ -1181,7 +1225,7 @@ mod tests {
     /// next frame's bytes; now it stops at the payload boundary.
     #[test]
     fn rejects_a_tile_with_no_terminator() {
-        let mut payload = vec![MSG_TILE_CHANGED];
+        let mut payload = vec![SRV_TILE_CHANGED];
         payload.extend_from_slice(&1u16.to_le_bytes()); // x
         payload.extend_from_slice(&2u16.to_le_bytes()); // y
         payload.push(7); // z
@@ -1190,7 +1234,7 @@ mod tests {
 
         let mut codec = GameMessageCodec {};
         let mut buf = frame(&payload);
-        buf.extend_from_slice(&frame(&[MSG_PLAYER_WALK_DENIED])); // the next frame
+        buf.extend_from_slice(&frame(&[SRV_PLAYER_WALK_DENIED])); // the next frame
 
         assert!(matches!(
             codec.decode(&mut buf),
@@ -1207,7 +1251,7 @@ mod tests {
     /// would otherwise misread every field of a version-skewed message.
     #[test]
     fn rejects_a_payload_with_unread_bytes() {
-        let mut payload = vec![MSG_CONTAINER_CLOSED];
+        let mut payload = vec![SRV_CONTAINER_CLOSED];
         payload.extend_from_slice(&4u16.to_le_bytes());
         payload.push(0xAB); // one byte too many
 
@@ -1224,7 +1268,7 @@ mod tests {
         let mut codec = GameMessageCodec {};
         let mut buf = BytesMut::new();
         buf.extend_from_slice(&10u16.to_le_bytes()); // declares 10 bytes
-        buf.extend_from_slice(&[MSG_PLAYER_POS, 1, 0]); // only 3 arrived
+        buf.extend_from_slice(&[SRV_PLAYER_POS, 1, 0]); // only 3 arrived
 
         assert!(codec.decode(&mut buf).unwrap().is_none());
         assert_eq!(buf.len(), 5, "the partial frame is left buffered");
@@ -1232,7 +1276,7 @@ mod tests {
 
     #[test]
     fn rejects_an_unknown_chat_message_type() {
-        let mut payload = vec![MSG_CHAT_MESSAGE];
+        let mut payload = vec![SRV_CHAT_MESSAGE];
         payload.extend_from_slice(&0u16.to_le_bytes());
         payload.push(0x09); // not a valid type
         payload.extend_from_slice(&0u16.to_le_bytes());

@@ -79,7 +79,7 @@ pub struct ShowTextMessage {
 #[derive(Event, Debug)]
 pub struct ShowFloatingText {
     pub text: String,
-    pub position: Position,
+    pub agent_id: AgentId,
     pub text_type: FloatingTextType,
     pub color: Option<(u8, u8, u8)>,
 }
@@ -154,7 +154,7 @@ pub struct SpawnAgent {
     pub position: Position,
     pub facing: FacingDirection,
     pub name: String,
-    pub health: Health,
+    pub health: u8,
     pub speed: u16,
 }
 
@@ -175,6 +175,19 @@ pub struct ChannelListReceived {
 pub struct PlayerIntroduced {
     pub local_id: u16,
     pub name: String,
+}
+
+#[derive(Event, Debug)]
+pub struct AgentLifeChanged {
+    pub agent_id: u16,
+    pub life: u8,
+}
+
+#[derive(Event, Debug)]
+pub struct ShowEffect {
+    pub effect_id: u16,
+    pub position: Position,
+    pub delta: Vec<(i8, i8)>,
 }
 
 pub fn route_event(msg: ServerMessage, commands: &mut Commands) {
@@ -350,15 +363,29 @@ pub fn route_event(msg: ServerMessage, commands: &mut Commands) {
         }
         ServerMessage::FloatingText {
             text,
-            position,
+            agent_id,
             text_type,
             color,
         } => {
             commands.trigger(ShowFloatingText {
                 text,
-                position,
+                agent_id,
                 text_type,
                 color,
+            });
+        }
+        ServerMessage::AgentLifeChanged { agent_id, life } => {
+            commands.trigger(AgentLifeChanged { agent_id, life });
+        }
+        ServerMessage::ShowEffect {
+            effect_id,
+            position,
+            delta,
+        } => {
+            commands.trigger(ShowEffect {
+                effect_id,
+                position,
+                delta,
             });
         }
     }

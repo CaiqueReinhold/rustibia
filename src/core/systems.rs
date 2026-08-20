@@ -8,22 +8,6 @@ use crate::network::SendMessage;
 
 const PING_INTERVAL: Duration = Duration::from_secs(2);
 
-/// The last measured round-trip time, written by the IO task and read by the UI.
-///
-/// Deliberately not measured from Bevy systems. A timestamp taken beside
-/// `commands.trigger(SendMessage(Ping))` is stamped when the command is *queued*,
-/// and the reply is only observed once `receive_messages` runs in `Update` and the
-/// resulting trigger is flushed — so such a reading folds in a command flush on the
-/// way out, and a frame boundary plus another flush on the way back. At 60fps that
-/// quantises every sample by up to 16ms and turns any frame hitch into a phantom
-/// latency spike. Both timestamps are therefore taken inside
-/// [`crate::network::PersistentConnection::run`], immediately around the socket
-/// write and the frame decode.
-///
-/// The `Arc<AtomicU64>` is what lets the IO task write it: the task outlives any
-/// single system and has no `World` access, so a plain resource would not do.
-/// Microseconds, because a healthy LAN round trip is under a millisecond and
-/// storing milliseconds would read as a flat zero.
 #[derive(Resource, Clone, Default)]
 pub struct PingState(Arc<AtomicU64>);
 

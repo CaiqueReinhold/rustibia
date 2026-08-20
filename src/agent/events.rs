@@ -2,14 +2,14 @@ use bevy::{mesh::MeshTag, prelude::*, render::storage::ShaderStorageBuffer};
 
 use crate::{
     agent::{
-        Agent, AgentHud, AgentInstance, AgentMaterial, LoadedMaterials, MoveQueue, Moving,
+        Agent, AgentHud, AgentInstance, AgentMaterial, Health, LoadedMaterials, MoveQueue, Moving,
         StartAgentMove, spawn_agent,
     },
     conf::agent::{ADDON_1_FLAG, ADDON_2_FLAG},
     core::{Appearances, InstanceManager},
     game_ui::GameUiAssets,
     map::{FloorEntities, Map, Position},
-    network::events::{ClientOutdated, MoveAgent, RemoveAgent, SpawnAgent},
+    network::events::{AgentLifeChanged, ClientOutdated, MoveAgent, RemoveAgent, SpawnAgent},
 };
 
 pub fn on_spawn_agent(
@@ -55,7 +55,10 @@ pub fn on_spawn_agent(
         ADDON_1_FLAG | ADDON_2_FLAG,
         event.position.clone(),
         event.name.clone(),
-        Some(event.health.clone()),
+        Some(Health {
+            current: event.health as u32,
+            max: 100,
+        }),
         None,
         event.agent_id,
     ) else {
@@ -126,4 +129,18 @@ pub fn on_remove_agent(
     }
     instances.dealloc_index(tag.0);
     commands.entity(agent_entity).despawn();
+}
+
+pub fn on_agent_life_changed(
+    event: On<AgentLifeChanged>,
+    mut agent_q: Query<&mut Health>,
+    map: Res<Map>,
+) {
+    let Some(agent_entity) = map.get_agent(event.agent_id) else {
+        return;
+    };
+    let Ok(mut health) = agent_q.get_mut(agent_entity) else {
+        return;
+    };
+    health.current = event.life as u32;
 }
