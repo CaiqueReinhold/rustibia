@@ -42,7 +42,7 @@ impl SpriteAnimator {
             finished: false,
         };
         if !s.config.animation.never_advances() {
-            s.skip_empty_phases();
+            s.settle_on_timed_phase();
             s.timer = Timer::new(
                 s.config.animation.phase_duration(s.current_phase),
                 TimerMode::Repeating,
@@ -56,32 +56,84 @@ impl SpriteAnimator {
         self.finished
     }
 
-    /// One phase forward, then re-point the timer at however long the new phase
+    /// One phase forward, then settle onto a displayed phase: skip forward
+    /// past any phase the config gives no time to, or, if the run just
+    /// finished resting on padding, roll back to the last phase that had any
+    /// time. Then re-point the timer at however long the phase it lands on
     /// lasts. For a uniform animation that sets the value it already had, so
     /// there is one code path rather than two.
     fn advance(&mut self) {
         self.step();
-        self.skip_empty_phases();
+        self.settle_on_timed_phase();
         self.timer
             .set_duration(self.config.animation.phase_duration(self.current_phase));
     }
 
-    /// Steps past phases the config gives no time to, so the animator always
-    /// rests on one that is actually displayed.
+    /// Moves off any phase the config gives no time to, so the animator always
+    /// rests on one that is actually displayed -- forward while the run is
+    /// still going, backward once it has finished on padding.
     ///
-    /// Bounded by the phase count, which is safe because an animation whose every
-    /// phase is empty reports `never_advances` and is never ticked at all.
-    fn skip_empty_phases(&mut self) {
-        for _ in 0..self.config.animation.total_animation_phases() {
+    /// The forward walk below terminates on its own -- it is a fixed-count
+    /// loop, not a search, so it exits regardless of the config. `never_advances`
+    /// (see `new`) plays no part in that; what it buys is different, keeping
+    /// the timer on its zero-duration `Once` sentinel so `tick_sprite_animators`
+    /// skips this animator without ever calling this method.
+    ///
+    /// PingPong's walk is a cycle of length `2n - 2`, not `n`: it revisits
+    /// every interior phase twice per lap and each end phase once, so reaching
+    /// a given phase can take up to `2n - 2` steps. The bound below rounds
+    /// that up to `2n` rather than special-casing PingPong.
+    ///
+    /// A counted run can finish resting on an untimed phase: `step` holds the
+    /// last phase rather than advancing past it once finished, so the forward
+    /// walk can never reach anything beyond it. That case is handed to
+    /// `rest_on_last_timed_phase`, which walks backward instead.
+    fn settle_on_timed_phase(&mut self) {
+        let phase_count = self.config.animation.total_animation_phases();
+        for _ in 0..2 * phase_count {
             if self.finished || !self.config.animation.phase_is_untimed(self.current_phase) {
-                return;
+                break;
             }
             self.step();
         }
+
+        // Defence in depth, not redundancy: this is only ever a no-op because
+        // the `2n` bound above is exactly right for every loop mode. If that
+        // bound were ever wrong again, the forward loop could exit early on an
+        // untimed phase of a run that never finishes (Infinite, PingPong) --
+        // and without this guard that phase would simply be displayed. With
+        // it, a wrong bound instead shows up as a backward stutter on an
+        // otherwise-looping animation, which is a far more visible bug to
+        // notice than a silently wrong frame.
+        if self.finished && self.config.animation.phase_is_untimed(self.current_phase) {
+            self.rest_on_last_timed_phase();
+        }
     }
 
-    /// One phase forward, honouring the loop mode. Split out of `advance` so the
-    /// zero-duration skip added next can reuse it without re-arming each time.
+    /// Walks backward from a finished run's untimed tail to the last phase the
+    /// config actually gave time to -- the frame a despawn observer sees, and,
+    /// for an item (which is never despawned), the frame it is stuck showing
+    /// for good. Without this, effect 221 finishes on its padding rather than
+    /// its last real frame, and items 22679 and 24925 rest on their padding
+    /// permanently.
+    ///
+    /// The `self.current_phase > 0` guard is what makes this terminate and
+    /// keeps it from underflowing -- structurally, the walk is monotone
+    /// decreasing and bounded below by it regardless of the config. What
+    /// `never_advances` (see `new`) actually buys is different: it guarantees
+    /// this animator only ever ticks (and so only ever gets here) when some
+    /// phase in the config is timed, which is what guarantees the phase this
+    /// stops on is a real one rather than just phase 0 because the guard ran
+    /// out.
+    fn rest_on_last_timed_phase(&mut self) {
+        while self.current_phase > 0 && self.config.animation.phase_is_untimed(self.current_phase) {
+            self.current_phase -= 1;
+        }
+    }
+
+    /// One phase forward, honouring the loop mode -- the logic `advance` used
+    /// to run directly, factored out so `settle_on_timed_phase` can call it
+    /// without re-arming the timer on every internal hop.
     fn step(&mut self) {
         let phase_count = self.config.animation.total_animation_phases();
         // A one-phase animation has nowhere to advance to. Counted still has to
@@ -478,13 +530,15 @@ mod tests {
         tick(&mut world, entity, Duration::from_millis(100));
         tick(&mut world, entity, Duration::from_millis(100));
 
+        let animator = world.entity(entity).get::<SpriteAnimator>().unwrap();
         assert!(
-            world
-                .entity(entity)
-                .get::<SpriteAnimator>()
-                .unwrap()
-                .is_finished(),
+            animator.is_finished(),
             "the padded tail must not hold the animation open"
+        );
+        assert_eq!(
+            animator.current_sprite_ids[0], 20,
+            "must rest on phase 1's sprite, the last one the config timed -- \
+             not phase 3's padding"
         );
     }
 
@@ -514,8 +568,11 @@ mod tests {
         assert_eq!(animator.current_sprite_ids[0], 20);
     }
 
-    /// The skip is bounded by the phase count, and an all-empty animation never
-    /// ticks at all -- together that is what stops the skip becoming a spin.
+    /// `settle_on_timed_phase` never runs at all here: `never_advances` (see `new`)
+    /// leaves the timer on its zero-duration `Once` sentinel for an all-empty
+    /// config, and `tick_sprite_animators` skips a zero-duration timer
+    /// outright. That is what holds this still -- not the skip loop's bound,
+    /// which this test does not exercise.
     #[test]
     fn an_all_empty_animation_holds_still_without_spinning() {
         let config = Arc::new(SpriteConfig {
@@ -539,6 +596,42 @@ mod tests {
         let (_, sprite_id) = tick(&mut world, entity, Duration::from_secs(10));
 
         assert_eq!(sprite_id, 10, "nothing to advance to");
+    }
+
+    /// PingPong's walk is a cycle of length `2n - 2`, not `n`: for these 4
+    /// phases that's 6 steps, not 4. A bound of `n` exhausts after the config's
+    /// only timed phase (index 0) has been passed once each direction but
+    /// before the walk gets back to it, stranding the animator on phase 1 --
+    /// untimed -- for ever: `tick_sprite_animators` skips a zero-duration timer,
+    /// so a stranded animator freezes silently rather than erroring.
+    #[test]
+    fn a_pingpong_walk_recovers_a_timed_phase_past_the_short_bound() {
+        let config = Arc::new(SpriteConfig {
+            id: 6,
+            group: "test".to_string(),
+            pattern_x: 1,
+            pattern_y: 1,
+            pattern_z: 1,
+            layers: 1,
+            sprite_ids: vec![10, 20, 30, 40],
+            animation: SpriteAnimation::NonUniform {
+                loop_mode: AnimationLoop::PingPong,
+                phases: vec![UVec2::new(100, 100), UVec2::ZERO, UVec2::ZERO, UVec2::ZERO],
+            },
+            boxes: Vec::new(),
+            shift: Vec2::ZERO,
+        });
+        let mut world = World::new();
+        let entity = spawn_with(&mut world, config);
+
+        // One full lap: 0 -> 1 -> 2 -> 3 -> 2 -> 1 -> 0, back to the only
+        // timed phase, all inside the 100 ms tick that fires phase 0's timer.
+        let (_, sprite_id) = tick(&mut world, entity, Duration::from_millis(100));
+
+        assert_eq!(
+            sprite_id, 10,
+            "must recover phase 0, not strand on phase 1's padding"
+        );
     }
 
     /// A finished animator stops consuming ticks, so a one-shot effect waiting to
