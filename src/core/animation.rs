@@ -73,7 +73,7 @@ impl SpriteAnimator {
     /// phase is empty reports `never_advances` and is never ticked at all.
     fn skip_empty_phases(&mut self) {
         for _ in 0..self.config.animation.total_animation_phases() {
-            if self.finished || !self.config.animation.phase_is_empty(self.current_phase) {
+            if self.finished || !self.config.animation.phase_is_untimed(self.current_phase) {
                 return;
             }
             self.step();

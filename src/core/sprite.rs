@@ -180,7 +180,7 @@ impl SpriteAnimation {
     ///
     /// Read off the range and never off a sample: whether a phase is skipped
     /// must not depend on a dice roll.
-    pub fn phase_is_empty(&self, phase: u32) -> bool {
+    pub fn phase_is_untimed(&self, phase: u32) -> bool {
         match self {
             SpriteAnimation::Static => true,
             SpriteAnimation::Uniform { phase_duration, .. } => phase_duration.is_zero(),
@@ -194,17 +194,25 @@ impl SpriteAnimation {
     /// True when no phase has any time on it, so nothing will ever move this
     /// animation forward. Static animations, and any config that is all zeros.
     ///
-    /// This is what makes the zero-phase skip in `SpriteAnimator` terminate: an
-    /// animation that ticks at all has at least one phase to stop on.
+    /// `SpriteAnimator::new` uses this to decide whether to arm a real timer at
+    /// all: when it's true, the timer is left on its zero-duration `Once`
+    /// sentinel, which is what makes `tick_sprite_animators` skip the animator
+    /// without ever ticking it. It says nothing about whether a walk over the
+    /// phases terminates -- that is the walk's own loop bound.
     pub fn never_advances(&self) -> bool {
-        (0..self.total_animation_phases()).all(|phase| self.phase_is_empty(phase))
+        (0..self.total_animation_phases()).all(|phase| self.phase_is_untimed(phase))
     }
 
-    /// One pass over every phase, sampling each once. The lifetime of an effect
-    /// whose loop mode would otherwise never end it.
+    /// One pass over every phase's duration, sampling each phase independently.
+    /// Not the same value an animator would sample while actually running: a
+    /// `Counted { count }` loop's real lifetime is `count` such passes, not
+    /// one, and each caller gets its own independent samples.
     ///
-    /// Unused until `src/core/effects.rs` lands and reads it to size an effect
-    /// entity's lifetime. Drop the `allow` with that first real caller.
+    /// Unused until `src/core/effects.rs` lands, which reads it to size an
+    /// effect entity's lifetime for the loop modes that never finish on their
+    /// own. All 13 non-`COUNTED` effects are `Uniform`, so for every real
+    /// caller today the sampling is moot and the result is exact. Drop the
+    /// `allow` with that first real caller.
     #[allow(dead_code)]
     pub fn pass_duration(&self) -> Duration {
         (0..self.total_animation_phases())
@@ -581,6 +589,12 @@ mod tests {
     /// Effect 41 carries `[1, 250]`, and 491 item phases carry ranges too — the
     /// torches and campfires. The range is the point: sampling is what keeps
     /// them out of lockstep.
+    ///
+    /// A 301-value range makes 64 samples landing on the same value fail
+    /// only by astronomical bad luck, so the distinctness check is not a
+    /// flake risk. Without it, deleting the sampling arm entirely -- always
+    /// returning `range.x` -- passed every other test in this file; this is
+    /// the one that actually exercises `fastrand`.
     #[test]
     fn a_ranged_phase_samples_inside_its_range() {
         let animation = animation_json(
@@ -588,31 +602,55 @@ mod tests {
                 "phase_duration": null, "phases": [[100, 400]]}"#,
         );
 
+        let mut samples = std::collections::HashSet::new();
         for _ in 0..64 {
             let sampled = animation.phase_duration(0);
             assert!(
                 sampled >= Duration::from_millis(100) && sampled <= Duration::from_millis(400),
                 "sampled {sampled:?} outside [100ms, 400ms]"
             );
+            samples.insert(sampled);
         }
+        assert!(
+            samples.len() > 1,
+            "64 samples over a 301-value range all came back identical"
+        );
     }
 
     /// Emptiness decides whether a phase is skipped, so it must be read off the
     /// range and never off a sample — otherwise a `[0, n]` phase would be
     /// skipped or kept depending on the roll.
     #[test]
-    fn a_phase_is_empty_only_when_its_whole_range_is_zero() {
+    fn a_phase_is_untimed_only_when_its_whole_range_is_zero() {
         let animation = animation_json(
             r#"{"loop_type": "COUNTED", "loop_count": 1, "phase_count": null,
                 "phase_duration": null, "phases": [[100, 100], [0, 0], [0, 250]]}"#,
         );
 
-        assert!(!animation.phase_is_empty(0));
-        assert!(animation.phase_is_empty(1));
+        assert!(!animation.phase_is_untimed(0));
+        assert!(animation.phase_is_untimed(1));
         assert!(
-            !animation.phase_is_empty(2),
+            !animation.phase_is_untimed(2),
             "a [0, 250] phase can still take time"
         );
+    }
+
+    /// The `Uniform` arm has its own zero check, separate from `NonUniform`'s
+    /// range check -- a `phase_duration: 0` config is what an item with a
+    /// static-looking but technically animated appearance would produce.
+    #[test]
+    fn a_uniform_phase_is_untimed_only_at_zero_duration() {
+        let zero_duration = animation_json(
+            r#"{"loop_type": "INFINITE", "loop_count": null,
+                "phase_count": 2, "phase_duration": 0, "phases": null}"#,
+        );
+        let timed = animation_json(
+            r#"{"loop_type": "INFINITE", "loop_count": null,
+                "phase_count": 2, "phase_duration": 100, "phases": null}"#,
+        );
+
+        assert!(zero_duration.phase_is_untimed(0));
+        assert!(!timed.phase_is_untimed(0));
     }
 
     /// This is the guard that makes the skip loop in `SpriteAnimator` safe: an
