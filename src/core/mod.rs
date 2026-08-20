@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy::sprite_render::Material2dPlugin;
 
 mod animation;
 mod assets;
@@ -34,9 +35,14 @@ pub struct CorePlugin;
 
 impl Plugin for CorePlugin {
     fn build(&self, app: &mut App) {
-        app.init_resource::<systems::PingState>()
+        app.add_plugins(Material2dPlugin::<effects::EffectMaterial>::default())
+            .init_resource::<systems::PingState>()
             .init_resource::<systems::PingTimer>()
-            .add_systems(Startup, assets::start_load_tasks)
+            .init_resource::<effects::EffectInstances>()
+            .add_systems(
+                Startup,
+                (assets::start_load_tasks, effects::setup_resources),
+            )
             .add_systems(
                 FixedUpdate,
                 (
@@ -75,6 +81,7 @@ impl Plugin for CorePlugin {
             )
             .add_observer(text::on_text_message)
             .add_observer(floating_text::on_floating_text)
+            .add_observer(effects::on_show_effect)
             .configure_sets(OnExit(GameState::InGame), SessionCleanup)
             .add_systems(
                 OnExit(GameState::InGame),

@@ -1,7 +1,9 @@
 use std::collections::HashMap;
+use std::sync::Arc;
 use std::time::Duration;
 
 use bevy::asset::RenderAssetUsages;
+use bevy::mesh::MeshTag;
 use bevy::prelude::*;
 use bevy::render::render_resource::{AsBindGroup, ShaderType};
 use bevy::render::storage::ShaderStorageBuffer;
@@ -10,9 +12,11 @@ use bevy::sprite_render::{AlphaMode2d, Material2d};
 
 use crate::conf::effects::STATIC_DURATION;
 use crate::conf::z_order::EFFECT_Z_OFFSET;
-use crate::core::InstanceManager;
 use crate::core::sprite::{AnimationLoop, SpriteAnimation, SpriteConfig};
+use crate::core::{Appearances, InstanceManager, SpriteAnimator};
+use crate::map::FloorEntities;
 use crate::map::Position;
+use crate::network::events::ShowEffect;
 
 /// One effect's slot in the shader storage buffer.
 ///
@@ -81,6 +85,116 @@ pub fn setup_resources(mut commands: Commands, mut buffers: ResMut<Assets<Shader
         by_group: HashMap::new(),
         buffer: buffers.add(ShaderStorageBuffer::new(&[0], RenderAssetUsages::all())),
     });
+}
+
+/// A live effect. Children of the floor entity for their tile, so floor
+/// occlusion hides them without this module knowing that floors exist.
+#[derive(Component)]
+pub struct Effect {
+    /// `None` when the animation ends itself — the animator is the authority.
+    /// `Some` for the 16 effects whose loop mode never would.
+    ttl: Option<Timer>,
+}
+
+fn init_material(
+    group: &str,
+    appearances: &Appearances,
+    materials: &mut Assets<EffectMaterial>,
+    meshes: &mut Assets<Mesh>,
+    effect_materials: &mut EffectMaterials,
+) {
+    let sheet = appearances.get_sheet(group);
+    let material = materials.add(EffectMaterial {
+        texture: sheet.texture().clone(),
+        atlas_grid: sheet.grid_size,
+        mesh_size: sheet.sprite_size,
+        instances: effect_materials.buffer.clone(),
+    });
+    let mesh = meshes.add(Mesh::from(Rectangle::new(
+        sheet.sprite_size.x,
+        sheet.sprite_size.y,
+    )));
+    effect_materials
+        .by_group
+        .insert(group.to_string(), (mesh, material));
+}
+
+pub fn on_show_effect(
+    event: On<ShowEffect>,
+    mut commands: Commands,
+    mut instances: ResMut<EffectInstances>,
+    mut effect_materials: ResMut<EffectMaterials>,
+    mut materials: ResMut<Assets<EffectMaterial>>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    appearances: Res<Appearances>,
+    floors: Res<FloorEntities>,
+) {
+    // `None` means the server named an effect these assets do not have — the
+    // same "client older than server" failure `get_outfit` reports. Nothing in
+    // the rest of the message is usable without the config.
+    let Some(sprite) = appearances.get_effect(event.effect_id) else {
+        warn!(
+            "server sent effect {}, which this client's assets do not have",
+            event.effect_id
+        );
+        return;
+    };
+    let sprite = Arc::clone(sprite);
+    let sprite_size = appearances.get_sheet(&sprite.group).sprite_size;
+
+    if !effect_materials.by_group.contains_key(&sprite.group) {
+        init_material(
+            &sprite.group,
+            &appearances,
+            &mut materials,
+            &mut meshes,
+            &mut effect_materials,
+        );
+    }
+    let (mesh, material) = effect_materials.by_group[&sprite.group].clone();
+
+    for tile in effect_tiles(&event.position, &event.delta) {
+        let (pattern_x, pattern_y) = pattern_for(&tile, &sprite);
+        let animator = SpriteAnimator::new(Arc::clone(&sprite), pattern_x, pattern_y, 0);
+
+        let index = instances.alloc_index();
+        let instance = instances.get_mut(index);
+        instance.sprite_id = animator.current_sprite_ids[0];
+        instance.shift = sprite.shift;
+        // NOTE: a box's `.max` holds a SIZE, not a maximum corner —
+        // `read_sprite_config` parses `[x, y, w, h]` into `Rect { min, max }` and
+        // the shader consumes the second pair as an extent. Do not "correct" this
+        // to `max - min`; it shrinks every effect. `boxes` is indexed by
+        // pattern_x alone: effect 41 is 2x2 with 2 boxes, effect 1 has 6 phases
+        // and 1 box.
+        match sprite.boxes.get(pattern_x as usize) {
+            Some(bbox) => {
+                instance.bbox_min = bbox.min;
+                instance.bbox_size = bbox.max;
+            }
+            None => {
+                instance.bbox_min = Vec2::ZERO;
+                instance.bbox_size = sprite_size;
+            }
+        }
+
+        let entity = commands
+            .spawn((
+                Effect {
+                    ttl: lifetime(&sprite.animation).map(|d| Timer::new(d, TimerMode::Once)),
+                },
+                Mesh2d(mesh.clone()),
+                MeshMaterial2d(material.clone()),
+                MeshTag(index),
+                Transform::from_translation(anchor(tile.to_world(), sprite_size)),
+                Visibility::Inherited,
+                animator,
+            ))
+            .id();
+        commands
+            .entity(floors.floors[tile.z as usize])
+            .add_child(entity);
+    }
 }
 
 /// Every tile the message paints: the base position, then one per delta.
@@ -224,7 +338,10 @@ mod tests {
         let sprite = config(3, 3);
         let position = Position::new(1028, 1029, 7);
 
-        assert_eq!(pattern_for(&position, &sprite), pattern_for(&position, &sprite));
+        assert_eq!(
+            pattern_for(&position, &sprite),
+            pattern_for(&position, &sprite)
+        );
     }
 
     /// `to_world` returns the tile's TOP-LEFT CORNER. A 32 px quad is centred on

@@ -69,10 +69,6 @@ impl Appearances {
 
     /// `None` means the server named an effect this client's assets do not have,
     /// the same failure `get_outfit` reports — a client too old for the server.
-    ///
-    /// Unused until the effect plugin lands; the assets and the parsing are in
-    /// place ahead of it. Drop the `allow` with the first real caller.
-    #[allow(dead_code)]
     pub fn get_effect(&self, id: EffectId) -> Option<&Arc<SpriteConfig>> {
         self.effects.get(&id)
     }
