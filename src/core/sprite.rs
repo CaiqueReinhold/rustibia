@@ -208,12 +208,10 @@ impl SpriteAnimation {
     /// `Counted { count }` loop's real lifetime is `count` such passes, not
     /// one, and each caller gets its own independent samples.
     ///
-    /// Unused until `src/core/effects.rs` lands, which reads it to size an
-    /// effect entity's lifetime for the loop modes that never finish on their
-    /// own. All 13 non-`COUNTED` effects are `Uniform`, so for every real
-    /// caller today the sampling is moot and the result is exact. Drop the
-    /// `allow` with that first real caller.
-    #[allow(dead_code)]
+    /// Reads it to size an effect entity's lifetime for the loop modes that
+    /// never finish on their own. All 13 non-`COUNTED` effects are `Uniform`,
+    /// so for every real caller today the sampling is moot and the result is
+    /// exact.
     pub fn pass_duration(&self) -> Duration {
         (0..self.total_animation_phases())
             .map(|phase| self.phase_duration(phase))

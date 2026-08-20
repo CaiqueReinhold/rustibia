@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::time::Duration;
 
 use bevy::asset::RenderAssetUsages;
 use bevy::prelude::*;
@@ -7,7 +8,11 @@ use bevy::render::storage::ShaderStorageBuffer;
 use bevy::shader::ShaderRef;
 use bevy::sprite_render::{AlphaMode2d, Material2d};
 
+use crate::conf::effects::STATIC_DURATION;
+use crate::conf::z_order::EFFECT_Z_OFFSET;
 use crate::core::InstanceManager;
+use crate::core::sprite::{AnimationLoop, SpriteAnimation, SpriteConfig};
+use crate::map::Position;
 
 /// One effect's slot in the shader storage buffer.
 ///
@@ -76,4 +81,234 @@ pub fn setup_resources(mut commands: Commands, mut buffers: ResMut<Assets<Shader
         by_group: HashMap::new(),
         buffer: buffers.add(ShaderStorageBuffer::new(&[0], RenderAssetUsages::all())),
     });
+}
+
+/// Every tile the message paints: the base position, then one per delta.
+///
+/// The wire carries no floor per tile, so an area effect is flat by
+/// construction.
+fn effect_tiles(base: &Position, delta: &[(i8, i8)]) -> Vec<Position> {
+    let mut tiles = Vec::with_capacity(delta.len() + 1);
+    tiles.push(base.clone());
+    tiles.extend(
+        delta
+            .iter()
+            .map(|(dx, dy)| base.delta(*dx as i32, *dy as i32)),
+    );
+    tiles
+}
+
+/// The pattern a tile draws, taken from its own absolute coordinates.
+///
+/// 196 of the 207 effects are 1x1 and always get `(0, 0)`. For the eleven 2x2
+/// and 3x3 ones this is what tiles a field seamlessly across an area instead of
+/// repeating one corner — and it is stable per tile, so a repeat of the same
+/// area effect does not shimmer.
+fn pattern_for(position: &Position, sprite: &SpriteConfig) -> (u32, u32) {
+    (
+        position.x as u32 % sprite.pattern_x.max(1),
+        position.y as u32 % sprite.pattern_y.max(1),
+    )
+}
+
+/// Where an effect's quad sits, from its tile's world position and its sheet's
+/// sprite size.
+///
+/// `Position::to_world` returns the tile's TOP-LEFT CORNER. A 64 px quad centres
+/// on that corner correctly — large Tibia sprites extend up and to the left of
+/// their tile — and a 32 px one has to be nudged half a tile down and right. The
+/// rule is per axis because two effect sheet groups are 32x64 and 64x32.
+fn anchor(world: Vec3, sprite_size: Vec2) -> Vec3 {
+    let half_tile_x = if sprite_size.x <= 32.0 { 16.0 } else { 0.0 };
+    let half_tile_y = if sprite_size.y <= 32.0 { -16.0 } else { 0.0 };
+    Vec3::new(
+        world.x + half_tile_x,
+        world.y + half_tile_y,
+        world.z + EFFECT_Z_OFFSET,
+    )
+}
+
+/// How long an effect lives, or `None` when its own animation ends it.
+///
+/// `Counted` is 191 of the 207 effects and is left to `SpriteAnimator`, because
+/// `count` is a number of RUNS: one effect runs 402 times over 3.2 s, and a rule
+/// expressed in a single pass would cut it to 8 ms. The other 16 never finish on
+/// their own.
+///
+/// The `never_advances` arm comes first because `SpriteAnimation::Static`
+/// reports `AnimationLoop::Infinite` — matching on the loop mode alone would
+/// give a static effect a zero-length pass.
+fn lifetime(animation: &SpriteAnimation) -> Option<Duration> {
+    if animation.never_advances() {
+        return Some(STATIC_DURATION);
+    }
+    match animation.loop_mode() {
+        AnimationLoop::Counted { .. } => None,
+        AnimationLoop::Infinite | AnimationLoop::PingPong => Some(animation.pass_duration()),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::core::sprite::{AnimationLoop, SpriteAnimation, SpriteConfig};
+    use std::time::Duration;
+
+    fn config(pattern_x: u32, pattern_y: u32) -> SpriteConfig {
+        SpriteConfig {
+            id: 1,
+            group: "effect-32-32-0".to_string(),
+            pattern_x,
+            pattern_y,
+            pattern_z: 1,
+            layers: 1,
+            sprite_ids: vec![0],
+            animation: SpriteAnimation::Static,
+            boxes: Vec::new(),
+            shift: Vec2::ZERO,
+        }
+    }
+
+    /// An empty delta is what the server sends today, and it must mean "just
+    /// this tile" rather than "no tiles".
+    #[test]
+    fn an_empty_delta_paints_only_the_base_tile() {
+        let tiles = effect_tiles(&Position::new(100, 200, 7), &[]);
+
+        assert_eq!(tiles, vec![Position::new(100, 200, 7)]);
+    }
+
+    /// Deltas are relative to the base tile, and the base tile plays too. The
+    /// wire carries no floor per tile, so an area effect is flat.
+    #[test]
+    fn deltas_paint_extra_tiles_around_the_base() {
+        let tiles = effect_tiles(&Position::new(100, 200, 7), &[(1, 0), (0, -1), (-1, -1)]);
+
+        assert_eq!(
+            tiles,
+            vec![
+                Position::new(100, 200, 7),
+                Position::new(101, 200, 7),
+                Position::new(100, 199, 7),
+                Position::new(99, 199, 7),
+            ]
+        );
+    }
+
+    /// 196 of the 207 effects are 1x1 and must always land on pattern zero.
+    #[test]
+    fn a_single_pattern_effect_always_draws_pattern_zero() {
+        let sprite = config(1, 1);
+
+        assert_eq!(pattern_for(&Position::new(100, 200, 7), &sprite), (0, 0));
+        assert_eq!(pattern_for(&Position::new(101, 201, 7), &sprite), (0, 0));
+    }
+
+    /// The eleven patterned effects tile across an area by absolute coordinate,
+    /// which is what makes a 3x3 field seamless instead of nine copies of one
+    /// corner.
+    #[test]
+    fn a_patterned_effect_walks_its_patterns_across_adjacent_tiles() {
+        let sprite = config(3, 3);
+
+        let row: Vec<(u32, u32)> = (99..102)
+            .map(|x| pattern_for(&Position::new(x, 200, 7), &sprite))
+            .collect();
+
+        assert_eq!(row, vec![(0, 2), (1, 2), (2, 2)]);
+    }
+
+    /// Stability matters: a repeat of the same area effect must not shimmer.
+    #[test]
+    fn a_tiles_pattern_does_not_change_between_casts() {
+        let sprite = config(3, 3);
+        let position = Position::new(1028, 1029, 7);
+
+        assert_eq!(pattern_for(&position, &sprite), pattern_for(&position, &sprite));
+    }
+
+    /// `to_world` returns the tile's TOP-LEFT CORNER. A 32 px quad is centred on
+    /// its transform, so it must be nudged half a tile down and right to cover
+    /// the tile it belongs to.
+    #[test]
+    fn a_32px_sprite_is_nudged_onto_its_tile() {
+        let placed = anchor(Vec3::new(100.0, 200.0, 5.0), Vec2::new(32.0, 32.0));
+
+        assert_eq!(placed.x, 116.0);
+        assert_eq!(placed.y, 184.0);
+    }
+
+    /// A 64 px sprite centres on the corner correctly — large Tibia sprites
+    /// extend up and to the left of the tile they occupy.
+    #[test]
+    fn a_64px_sprite_keeps_the_tile_corner() {
+        let placed = anchor(Vec3::new(100.0, 200.0, 5.0), Vec2::new(64.0, 64.0));
+
+        assert_eq!(placed.x, 100.0);
+        assert_eq!(placed.y, 200.0);
+    }
+
+    /// Two effect sheet groups are 32x64 and 64x32, so the correction has to be
+    /// decided per axis. Applying it to both, or neither, puts them half a tile
+    /// out on one axis.
+    #[test]
+    fn a_mixed_size_sprite_is_corrected_on_one_axis_only() {
+        let placed = anchor(Vec3::new(100.0, 200.0, 5.0), Vec2::new(32.0, 64.0));
+
+        assert_eq!(placed.x, 116.0, "32 px wide, so nudged");
+        assert_eq!(placed.y, 200.0, "64 px tall, so not");
+    }
+
+    /// Effects draw over creatures and under top items.
+    #[test]
+    fn an_effect_sits_between_the_agent_and_the_top_item_planes() {
+        use crate::conf::z_order::{AGENT_Z_OFFSET, TOP_Z_OFFSET};
+
+        let placed = anchor(Vec3::new(0.0, 0.0, 5.0), Vec2::new(32.0, 32.0));
+
+        assert!(placed.z > 5.0 + AGENT_Z_OFFSET);
+        assert!(placed.z < 5.0 + TOP_Z_OFFSET);
+    }
+
+    /// 191 of the 207 effects are counted, and `count` is a number of RUNS: one
+    /// runs 402 times over 3.2 s. The animator is the only thing that knows
+    /// that, so it stays the authority.
+    #[test]
+    fn a_counted_effect_defers_to_its_animator() {
+        let animation = SpriteAnimation::Uniform {
+            loop_mode: AnimationLoop::Counted { count: 402 },
+            phase_count: 2,
+            phase_duration: Duration::from_millis(4),
+        };
+
+        assert_eq!(lifetime(&animation), None);
+    }
+
+    /// The 13 infinite effects would otherwise never be despawned.
+    #[test]
+    fn an_endless_effect_lives_exactly_one_pass() {
+        let infinite = SpriteAnimation::Uniform {
+            loop_mode: AnimationLoop::Infinite,
+            phase_count: 8,
+            phase_duration: Duration::from_millis(100),
+        };
+        let pingpong = SpriteAnimation::Uniform {
+            loop_mode: AnimationLoop::PingPong,
+            phase_count: 4,
+            phase_duration: Duration::from_millis(50),
+        };
+
+        assert_eq!(infinite.total_animation_phases(), 8);
+        assert_eq!(lifetime(&infinite), Some(Duration::from_millis(800)));
+        assert_eq!(lifetime(&pingpong), Some(Duration::from_millis(200)));
+    }
+
+    /// Effects 200, 211 and 212 have no animation at all. `loop_mode()` reports
+    /// `Infinite` for a static animation, so a lifetime rule written on the loop
+    /// mode alone would give them a zero-length pass and flash them for one
+    /// frame.
+    #[test]
+    fn a_static_effect_gets_the_fixed_duration() {
+        assert_eq!(lifetime(&SpriteAnimation::Static), Some(STATIC_DURATION));
+    }
 }
