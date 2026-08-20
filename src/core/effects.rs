@@ -295,10 +295,46 @@ fn lifetime(animation: &SpriteAnimation) -> Option<Duration> {
     }
 }
 
+/// Collects effects that are over: the ttl decides for the 16 that carry one,
+/// the animator for the 191 that do not.
+///
+/// Runs `.after(AnimationSet)`. `SpriteAnimator` sets `finished` only once the
+/// last phase has had its full time on screen, so despawning in the same frame
+/// cuts nothing short — while running before the animator would hold every
+/// effect one frame past its end.
+pub fn despawn_finished_effects(
+    mut commands: Commands,
+    time: Res<Time>,
+    mut effects: Query<(Entity, &mut Effect, &SpriteAnimator)>,
+) {
+    for (entity, mut effect, animator) in &mut effects {
+        let done = match effect.ttl.as_mut() {
+            Some(timer) => timer.tick(time.delta()).just_finished(),
+            None => animator.is_finished(),
+        };
+        if done {
+            commands.entity(entity).despawn();
+        }
+    }
+}
+
+pub fn on_remove_effect(
+    event: On<Remove, Effect>,
+    tags: Query<&MeshTag, With<Effect>>,
+    mut instances: ResMut<InstanceManager<EffectInstance>>,
+) {
+    let Ok(tag) = tags.get(event.entity) else {
+        return;
+    };
+
+    instances.dealloc_index(tag.0);
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::core::sprite::{AnimationLoop, SpriteAnimation, SpriteConfig};
+    use bevy::ecs::system::RunSystemOnce;
     use std::time::Duration;
 
     fn config(pattern_x: u32, pattern_y: u32) -> SpriteConfig {
@@ -519,5 +555,122 @@ mod tests {
     #[test]
     fn a_static_effect_gets_the_fixed_duration() {
         assert_eq!(lifetime(&SpriteAnimation::Static), Some(STATIC_DURATION));
+    }
+
+    /// A counted animation, 2 phases of 100 ms, run once: finished after 200 ms.
+    fn counted_animator() -> SpriteAnimator {
+        SpriteAnimator::new(
+            Arc::new(SpriteConfig {
+                animation: SpriteAnimation::Uniform {
+                    loop_mode: AnimationLoop::Counted { count: 1 },
+                    phase_count: 2,
+                    phase_duration: Duration::from_millis(100),
+                },
+                sprite_ids: vec![10, 20],
+                ..config(1, 1)
+            }),
+            0,
+            0,
+            0,
+        )
+    }
+
+    fn advance_and_run(world: &mut World, delta: Duration) {
+        world.resource_mut::<Time<()>>().advance_by(delta);
+        world
+            .run_system_once(crate::core::tick_sprite_animators)
+            .unwrap();
+        world.run_system_once(despawn_finished_effects).unwrap();
+    }
+
+    fn world_with_time() -> World {
+        let mut world = World::new();
+        world.insert_resource(Time::<()>::default());
+        world.init_resource::<InstanceManager<EffectInstance>>();
+        world
+    }
+
+    /// 191 of the 207 effects end this way. The animator sets `finished` only
+    /// after the last phase has had its full time on screen, so despawning in
+    /// the same frame cuts nothing short.
+    #[test]
+    fn a_counted_effect_is_despawned_when_its_animation_finishes() {
+        let mut world = world_with_time();
+        let entity = world.spawn((Effect { ttl: None }, counted_animator())).id();
+
+        advance_and_run(&mut world, Duration::from_millis(100));
+        assert!(world.get_entity(entity).is_ok(), "one phase still to run");
+
+        advance_and_run(&mut world, Duration::from_millis(100));
+        assert!(world.get_entity(entity).is_err());
+    }
+
+    /// The 16 that never finish on their own. Their animator keeps looping, so
+    /// nothing but the timer will ever collect them.
+    #[test]
+    fn an_effect_with_a_ttl_is_despawned_when_it_expires() {
+        let mut world = world_with_time();
+        let entity = world
+            .spawn((
+                Effect {
+                    ttl: Some(Timer::new(Duration::from_millis(300), TimerMode::Once)),
+                },
+                counted_animator(),
+            ))
+            .id();
+
+        advance_and_run(&mut world, Duration::from_millis(299));
+        assert!(world.get_entity(entity).is_ok());
+
+        advance_and_run(&mut world, Duration::from_millis(1));
+        assert!(world.get_entity(entity).is_err());
+    }
+
+    /// A ttl is the authority for the effects that have one: an animator that
+    /// happens to finish first must not cut them short.
+    #[test]
+    fn a_ttl_outranks_a_finished_animator() {
+        let mut world = world_with_time();
+        let entity = world
+            .spawn((
+                Effect {
+                    ttl: Some(Timer::new(Duration::from_secs(5), TimerMode::Once)),
+                },
+                counted_animator(),
+            ))
+            .id();
+
+        // Two frames of 100 ms, because the animator advances at most one phase
+        // per frame — after these its `is_finished()` is true.
+        advance_and_run(&mut world, Duration::from_millis(100));
+        advance_and_run(&mut world, Duration::from_millis(100));
+
+        assert!(
+            world.get_entity(entity).is_ok(),
+            "the ttl decides, not the animator"
+        );
+    }
+
+    /// Without this a long session leaks the instance buffer: every effect ever
+    /// played would hold its slot for ever.
+    #[test]
+    fn despawning_an_effect_frees_its_instance_slot() {
+        let mut world = World::new();
+        world.init_resource::<InstanceManager<EffectInstance>>();
+        world.add_observer(on_remove_effect);
+        let index = world
+            .resource_mut::<InstanceManager<EffectInstance>>()
+            .alloc_index();
+        let entity = world.spawn((Effect { ttl: None }, MeshTag(index))).id();
+
+        world.despawn(entity);
+
+        assert_eq!(
+            world
+                .resource_mut::<InstanceManager<EffectInstance>>()
+                .alloc_index(),
+            index,
+            "the freed slot must be handed out again"
+        );
     }
 }

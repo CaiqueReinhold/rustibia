@@ -79,9 +79,16 @@ impl Plugin for CorePlugin {
                     .in_set(AnimationSet)
                     .run_if(in_state(GameState::InGame)),
             )
+            .add_systems(
+                Update,
+                effects::despawn_finished_effects
+                    .after(AnimationSet)
+                    .run_if(in_state(GameState::InGame)),
+            )
             .add_observer(text::on_text_message)
             .add_observer(floating_text::on_floating_text)
             .add_observer(effects::on_show_effect)
+            .add_observer(effects::on_remove_effect)
             .configure_sets(OnExit(GameState::InGame), SessionCleanup)
             .add_systems(
                 OnExit(GameState::InGame),
