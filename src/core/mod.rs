@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 mod animation;
 mod assets;
+mod effects;
 mod floating_text;
 mod instances;
 mod items;
