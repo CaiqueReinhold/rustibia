@@ -330,6 +330,49 @@ pub fn on_remove_effect(
     instances.dealloc_index(tag.0);
 }
 
+/// Writes the animator's current frame into the effect's buffer slot.
+///
+/// The `Changed<SpriteAnimator>` filter is only meaningful because
+/// `tick_sprite_animators` writes through `bypass_change_detection` and flags a
+/// change on a real phase advance and nothing else. Break that and this matches
+/// every effect every frame, and the whole buffer is re-uploaded each frame.
+///
+/// Only `sprite_id` moves: an effect's bbox and shift are fixed for its whole
+/// life, because its pattern never changes.
+pub fn update_effect_instances(
+    effects: Query<(&SpriteAnimator, &MeshTag), (With<Effect>, Changed<SpriteAnimator>)>,
+    mut instances: ResMut<InstanceManager<EffectInstance>>,
+) {
+    for (animator, tag) in &effects {
+        instances.update(tag.0, |instance| {
+            instance.sprite_id = animator.current_sprite_ids[0];
+        });
+    }
+}
+
+pub fn upload_effect_buffer(
+    mut instances: ResMut<InstanceManager<EffectInstance>>,
+    mut buffers: ResMut<Assets<ShaderStorageBuffer>>,
+    effect_materials: Res<EffectMaterials>,
+    mut materials: ResMut<Assets<EffectMaterial>>,
+) {
+    if !instances.is_dirty() {
+        return;
+    }
+
+    let Some(ssb) = buffers.get_mut(&effect_materials.buffer) else {
+        return;
+    };
+    ssb.set_data(instances.get_buffer_data());
+    instances.reset_dirty();
+
+    // Touching each material marks it changed, which is what makes the render
+    // world re-extract the bind group pointing at the buffer just rewritten.
+    for (_, material) in effect_materials.by_group.values() {
+        let _ = materials.get_mut(material);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
