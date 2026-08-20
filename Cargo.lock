@@ -4943,6 +4943,7 @@ dependencies = [
  "bytes",
  "chrono",
  "cosmic-text",
+ "fastrand",
  "futures",
  "pathfinding",
  "reqwest",

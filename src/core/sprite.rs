@@ -155,6 +155,58 @@ impl SpriteAnimation {
             | SpriteAnimation::NonUniform { loop_mode, .. } => *loop_mode,
         }
     }
+
+    /// How long `phase` is displayed.
+    ///
+    /// A non-uniform phase carries a `[min, max]` range. 911 of the 919 effect
+    /// phases have `min == max`, but the 8 that differ — and the 491 item phases
+    /// that do — are sampled, which is what stops a room full of torches
+    /// flickering in lockstep.
+    pub fn phase_duration(&self, phase: u32) -> Duration {
+        match self {
+            SpriteAnimation::Static => Duration::ZERO,
+            SpriteAnimation::Uniform { phase_duration, .. } => *phase_duration,
+            SpriteAnimation::NonUniform { phases, .. } => match phases.get(phase as usize) {
+                Some(range) if range.y > range.x => {
+                    Duration::from_millis(fastrand::u32(range.x..=range.y) as u64)
+                }
+                Some(range) => Duration::from_millis(range.x as u64),
+                None => Duration::ZERO,
+            },
+        }
+    }
+
+    /// Whether the config gives `phase` no time at all.
+    ///
+    /// Read off the range and never off a sample: whether a phase is skipped
+    /// must not depend on a dice roll.
+    pub fn phase_is_empty(&self, phase: u32) -> bool {
+        match self {
+            SpriteAnimation::Static => true,
+            SpriteAnimation::Uniform { phase_duration, .. } => phase_duration.is_zero(),
+            SpriteAnimation::NonUniform { phases, .. } => match phases.get(phase as usize) {
+                Some(range) => range.x == 0 && range.y == 0,
+                None => true,
+            },
+        }
+    }
+
+    /// True when no phase has any time on it, so nothing will ever move this
+    /// animation forward. Static animations, and any config that is all zeros.
+    ///
+    /// This is what makes the zero-phase skip in `SpriteAnimator` terminate: an
+    /// animation that ticks at all has at least one phase to stop on.
+    pub fn never_advances(&self) -> bool {
+        (0..self.total_animation_phases()).all(|phase| self.phase_is_empty(phase))
+    }
+
+    /// One pass over every phase, sampling each once. The lifetime of an effect
+    /// whose loop mode would otherwise never end it.
+    pub fn pass_duration(&self) -> Duration {
+        (0..self.total_animation_phases())
+            .map(|phase| self.phase_duration(phase))
+            .sum()
+    }
 }
 
 #[derive(Debug)]
@@ -492,5 +544,111 @@ mod tests {
         let unshifted = read_sprite_config(&config_json(""));
 
         assert_eq!(shifted.boxes, unshifted.boxes);
+    }
+
+    /// A uniform animation holds every phase for the same time, so the phase
+    /// index must not change the answer.
+    #[test]
+    fn a_uniform_animation_reports_one_duration_for_every_phase() {
+        let animation = animation_json(
+            r#"{"loop_type": "INFINITE", "loop_count": null,
+                "phase_count": 3, "phase_duration": 120, "phases": null}"#,
+        );
+
+        for phase in 0..3 {
+            assert_eq!(animation.phase_duration(phase), Duration::from_millis(120));
+        }
+    }
+
+    /// 77 of the 207 effects are non-uniform. Reading one shared duration off
+    /// them is what left them frozen on phase 0.
+    #[test]
+    fn a_non_uniform_animation_reports_each_phases_own_duration() {
+        let animation = animation_json(
+            r#"{"loop_type": "COUNTED", "loop_count": 1, "phase_count": null,
+                "phase_duration": null, "phases": [[100, 100], [250, 250], [50, 50]]}"#,
+        );
+
+        assert_eq!(animation.phase_duration(0), Duration::from_millis(100));
+        assert_eq!(animation.phase_duration(1), Duration::from_millis(250));
+        assert_eq!(animation.phase_duration(2), Duration::from_millis(50));
+    }
+
+    /// Effect 41 carries `[1, 250]`, and 491 item phases carry ranges too — the
+    /// torches and campfires. The range is the point: sampling is what keeps
+    /// them out of lockstep.
+    #[test]
+    fn a_ranged_phase_samples_inside_its_range() {
+        let animation = animation_json(
+            r#"{"loop_type": "COUNTED", "loop_count": 1, "phase_count": null,
+                "phase_duration": null, "phases": [[100, 400]]}"#,
+        );
+
+        for _ in 0..64 {
+            let sampled = animation.phase_duration(0);
+            assert!(
+                sampled >= Duration::from_millis(100) && sampled <= Duration::from_millis(400),
+                "sampled {sampled:?} outside [100ms, 400ms]"
+            );
+        }
+    }
+
+    /// Emptiness decides whether a phase is skipped, so it must be read off the
+    /// range and never off a sample — otherwise a `[0, n]` phase would be
+    /// skipped or kept depending on the roll.
+    #[test]
+    fn a_phase_is_empty_only_when_its_whole_range_is_zero() {
+        let animation = animation_json(
+            r#"{"loop_type": "COUNTED", "loop_count": 1, "phase_count": null,
+                "phase_duration": null, "phases": [[100, 100], [0, 0], [0, 250]]}"#,
+        );
+
+        assert!(!animation.phase_is_empty(0));
+        assert!(animation.phase_is_empty(1));
+        assert!(
+            !animation.phase_is_empty(2),
+            "a [0, 250] phase can still take time"
+        );
+    }
+
+    /// This is the guard that makes the skip loop in `SpriteAnimator` safe: an
+    /// animation with no phase worth waiting on is never ticked at all.
+    #[test]
+    fn an_animation_with_no_timed_phase_never_advances() {
+        let all_zero = animation_json(
+            r#"{"loop_type": "COUNTED", "loop_count": 1, "phase_count": null,
+                "phase_duration": null, "phases": [[0, 0], [0, 0]]}"#,
+        );
+        let padded_tail = animation_json(
+            r#"{"loop_type": "COUNTED", "loop_count": 1, "phase_count": null,
+                "phase_duration": null, "phases": [[100, 100], [0, 0]]}"#,
+        );
+
+        assert!(all_zero.never_advances());
+        assert!(
+            animation_json("null").never_advances(),
+            "a static animation"
+        );
+        assert!(
+            !padded_tail.never_advances(),
+            "effect 221's shape still runs"
+        );
+    }
+
+    /// The lifetime of an endless effect is one pass over its phases.
+    #[test]
+    fn a_pass_sums_every_phase() {
+        let uniform = animation_json(
+            r#"{"loop_type": "INFINITE", "loop_count": null,
+                "phase_count": 8, "phase_duration": 100, "phases": null}"#,
+        );
+        let non_uniform = animation_json(
+            r#"{"loop_type": "COUNTED", "loop_count": 1, "phase_count": null,
+                "phase_duration": null, "phases": [[100, 100], [250, 250]]}"#,
+        );
+
+        assert_eq!(uniform.pass_duration(), Duration::from_millis(800));
+        assert_eq!(non_uniform.pass_duration(), Duration::from_millis(350));
+        assert_eq!(animation_json("null").pass_duration(), Duration::ZERO);
     }
 }
