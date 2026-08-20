@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use std::sync::Arc;
 use std::time::Duration;
 
-use crate::core::sprite::{AnimationLoop, SpriteAnimation, SpriteConfig};
+use crate::core::sprite::{AnimationLoop, SpriteConfig};
 
 pub const MAX_LAYERS: usize = 6;
 
@@ -26,20 +26,12 @@ pub struct SpriteAnimator {
 
 impl SpriteAnimator {
     pub fn new(config: Arc<SpriteConfig>, pattern_x: u32, pattern_y: u32, pattern_z: u32) -> Self {
-        let duration = match &config.animation {
-            SpriteAnimation::Static => Duration::ZERO,
-            SpriteAnimation::Uniform { phase_duration, .. } => *phase_duration,
-            SpriteAnimation::NonUniform { .. } => Duration::ZERO,
-        };
-        let timer = if duration.is_zero() {
-            Timer::new(Duration::ZERO, TimerMode::Once)
-        } else {
-            Timer::new(duration, TimerMode::Repeating)
-        };
         let mut s = SpriteAnimator {
             config,
             current_sprite_ids: [0; MAX_LAYERS],
-            timer,
+            // Replaced below unless the animation never advances at all, in which
+            // case a zero-duration timer is what `tick_sprite_animators` skips.
+            timer: Timer::new(Duration::ZERO, TimerMode::Once),
             current_phase: 0,
             pattern_x,
             pattern_y,
@@ -49,6 +41,9 @@ impl SpriteAnimator {
             descending: false,
             finished: false,
         };
+        if !s.config.animation.never_advances() {
+            s.timer = Timer::new(s.config.animation.phase_duration(0), TimerMode::Repeating);
+        }
         resolve_simple_sprite_ids(&mut s);
         s
     }
@@ -57,7 +52,18 @@ impl SpriteAnimator {
         self.finished
     }
 
+    /// One phase forward, then re-point the timer at however long the new phase
+    /// lasts. For a uniform animation that sets the value it already had, so
+    /// there is one code path rather than two.
     fn advance(&mut self) {
+        self.step();
+        self.timer
+            .set_duration(self.config.animation.phase_duration(self.current_phase));
+    }
+
+    /// One phase forward, honouring the loop mode. Split out of `advance` so the
+    /// zero-duration skip added next can reuse it without re-arming each time.
+    fn step(&mut self) {
         let phase_count = self.config.animation.total_animation_phases();
         // A one-phase animation has nowhere to advance to. Counted still has to
         // finish, or a one-phase effect would hang around for ever.
@@ -145,6 +151,7 @@ pub fn tick_sprite_animators(time: Res<Time>, mut query: Query<&mut SpriteAnimat
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::core::sprite::SpriteAnimation;
     use bevy::ecs::system::RunSystemOnce;
 
     const PHASE: Duration = Duration::from_millis(100);
@@ -336,6 +343,87 @@ mod tests {
         assert!(
             phases.iter().all(|(_, finished)| !*finished),
             "ping-pong never ends"
+        );
+    }
+
+    /// A non-uniform config: three phases of 100 ms, 250 ms and 50 ms, whose
+    /// sprite ids are 10, 20, 30.
+    fn non_uniform_config() -> Arc<SpriteConfig> {
+        Arc::new(SpriteConfig {
+            id: 2,
+            group: "test".to_string(),
+            pattern_x: 1,
+            pattern_y: 1,
+            pattern_z: 1,
+            layers: 1,
+            sprite_ids: vec![10, 20, 30],
+            animation: SpriteAnimation::NonUniform {
+                loop_mode: AnimationLoop::Counted { count: 1 },
+                phases: vec![
+                    UVec2::new(100, 100),
+                    UVec2::new(250, 250),
+                    UVec2::new(50, 50),
+                ],
+            },
+            boxes: Vec::new(),
+            shift: Vec2::ZERO,
+        })
+    }
+
+    fn spawn_with(world: &mut World, config: Arc<SpriteConfig>) -> Entity {
+        world.insert_resource(Time::<()>::default());
+        let entity = world.spawn(SpriteAnimator::new(config, 0, 0, 0)).id();
+        world.clear_trackers();
+        entity
+    }
+
+    /// Before this, a non-uniform animator got a zero-duration timer, was
+    /// skipped by the guard in `tick_sprite_animators`, and sat on phase 0 for
+    /// ever — 77 of the 207 effects and 946 items.
+    #[test]
+    fn a_non_uniform_animation_advances_on_each_phases_own_duration() {
+        let mut world = World::new();
+        let entity = spawn_with(&mut world, non_uniform_config());
+
+        // Phase 0 lasts 100 ms.
+        assert_eq!(tick(&mut world, entity, Duration::from_millis(99)).1, 10);
+        assert_eq!(tick(&mut world, entity, Duration::from_millis(1)).1, 20);
+
+        // Phase 1 lasts 250 ms, not another 100.
+        assert_eq!(tick(&mut world, entity, Duration::from_millis(100)).1, 20);
+        assert_eq!(tick(&mut world, entity, Duration::from_millis(149)).1, 20);
+        assert_eq!(tick(&mut world, entity, Duration::from_millis(1)).1, 30);
+    }
+
+    /// A counted animation holds its last phase and then reports finished.
+    ///
+    /// Note the tick sizes: `tick_sprite_animators` advances at most ONE phase
+    /// per frame, however much time is handed to it, so a run has to be walked
+    /// phase by phase rather than jumped in one big delta.
+    #[test]
+    fn a_non_uniform_counted_animation_finishes_after_its_last_phase() {
+        let mut world = World::new();
+        let entity = spawn_with(&mut world, non_uniform_config());
+
+        tick(&mut world, entity, Duration::from_millis(100)); // -> phase 1
+        tick(&mut world, entity, Duration::from_millis(250)); // -> phase 2
+        tick(&mut world, entity, Duration::from_millis(49));
+        assert!(
+            !world
+                .entity(entity)
+                .get::<SpriteAnimator>()
+                .unwrap()
+                .is_finished(),
+            "1 ms of the last phase still to run"
+        );
+
+        tick(&mut world, entity, Duration::from_millis(1));
+        assert!(
+            world
+                .entity(entity)
+                .get::<SpriteAnimator>()
+                .unwrap()
+                .is_finished()
         );
     }
 

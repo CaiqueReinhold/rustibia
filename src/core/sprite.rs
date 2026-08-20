@@ -202,6 +202,10 @@ impl SpriteAnimation {
 
     /// One pass over every phase, sampling each once. The lifetime of an effect
     /// whose loop mode would otherwise never end it.
+    ///
+    /// Unused until `src/core/effects.rs` lands and reads it to size an effect
+    /// entity's lifetime. Drop the `allow` with that first real caller.
+    #[allow(dead_code)]
     pub fn pass_duration(&self) -> Duration {
         (0..self.total_animation_phases())
             .map(|phase| self.phase_duration(phase))
