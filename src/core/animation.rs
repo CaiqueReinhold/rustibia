@@ -42,7 +42,11 @@ impl SpriteAnimator {
             finished: false,
         };
         if !s.config.animation.never_advances() {
-            s.timer = Timer::new(s.config.animation.phase_duration(0), TimerMode::Repeating);
+            s.skip_empty_phases();
+            s.timer = Timer::new(
+                s.config.animation.phase_duration(s.current_phase),
+                TimerMode::Repeating,
+            );
         }
         resolve_simple_sprite_ids(&mut s);
         s
@@ -57,8 +61,23 @@ impl SpriteAnimator {
     /// there is one code path rather than two.
     fn advance(&mut self) {
         self.step();
+        self.skip_empty_phases();
         self.timer
             .set_duration(self.config.animation.phase_duration(self.current_phase));
+    }
+
+    /// Steps past phases the config gives no time to, so the animator always
+    /// rests on one that is actually displayed.
+    ///
+    /// Bounded by the phase count, which is safe because an animation whose every
+    /// phase is empty reports `never_advances` and is never ticked at all.
+    fn skip_empty_phases(&mut self) {
+        for _ in 0..self.config.animation.total_animation_phases() {
+            if self.finished || !self.config.animation.phase_is_empty(self.current_phase) {
+                return;
+            }
+            self.step();
+        }
     }
 
     /// One phase forward, honouring the loop mode. Split out of `advance` so the
@@ -425,6 +444,101 @@ mod tests {
                 .unwrap()
                 .is_finished()
         );
+    }
+
+    /// Effect 221's shape: real phases, then a tail of `[0, 0]` padding. The
+    /// tail must cost one frame, not stall the animator for ever -- a stalled
+    /// counted animation never reports finished, and the effect entity that
+    /// waits on it is never despawned.
+    #[test]
+    fn a_zero_duration_tail_is_crossed_in_one_tick() {
+        let config = Arc::new(SpriteConfig {
+            id: 3,
+            group: "test".to_string(),
+            pattern_x: 1,
+            pattern_y: 1,
+            pattern_z: 1,
+            layers: 1,
+            sprite_ids: vec![10, 20, 30, 40],
+            animation: SpriteAnimation::NonUniform {
+                loop_mode: AnimationLoop::Counted { count: 1 },
+                phases: vec![
+                    UVec2::new(100, 100),
+                    UVec2::new(100, 100),
+                    UVec2::ZERO,
+                    UVec2::ZERO,
+                ],
+            },
+            boxes: Vec::new(),
+            shift: Vec2::ZERO,
+        });
+        let mut world = World::new();
+        let entity = spawn_with(&mut world, config);
+
+        tick(&mut world, entity, Duration::from_millis(100));
+        tick(&mut world, entity, Duration::from_millis(100));
+
+        assert!(
+            world
+                .entity(entity)
+                .get::<SpriteAnimator>()
+                .unwrap()
+                .is_finished(),
+            "the padded tail must not hold the animation open"
+        );
+    }
+
+    /// A leading empty phase is displayed for zero time, so the animator must
+    /// already be past it when it is first drawn.
+    #[test]
+    fn a_leading_empty_phase_is_skipped_at_construction() {
+        let config = Arc::new(SpriteConfig {
+            id: 4,
+            group: "test".to_string(),
+            pattern_x: 1,
+            pattern_y: 1,
+            pattern_z: 1,
+            layers: 1,
+            sprite_ids: vec![10, 20],
+            animation: SpriteAnimation::NonUniform {
+                loop_mode: AnimationLoop::Infinite,
+                phases: vec![UVec2::ZERO, UVec2::new(100, 100)],
+            },
+            boxes: Vec::new(),
+            shift: Vec2::ZERO,
+        });
+
+        let animator = SpriteAnimator::new(config, 0, 0, 0);
+
+        assert_eq!(animator.current_phase, 1);
+        assert_eq!(animator.current_sprite_ids[0], 20);
+    }
+
+    /// The skip is bounded by the phase count, and an all-empty animation never
+    /// ticks at all -- together that is what stops the skip becoming a spin.
+    #[test]
+    fn an_all_empty_animation_holds_still_without_spinning() {
+        let config = Arc::new(SpriteConfig {
+            id: 5,
+            group: "test".to_string(),
+            pattern_x: 1,
+            pattern_y: 1,
+            pattern_z: 1,
+            layers: 1,
+            sprite_ids: vec![10, 20],
+            animation: SpriteAnimation::NonUniform {
+                loop_mode: AnimationLoop::Infinite,
+                phases: vec![UVec2::ZERO, UVec2::ZERO],
+            },
+            boxes: Vec::new(),
+            shift: Vec2::ZERO,
+        });
+        let mut world = World::new();
+        let entity = spawn_with(&mut world, config);
+
+        let (_, sprite_id) = tick(&mut world, entity, Duration::from_secs(10));
+
+        assert_eq!(sprite_id, 10, "nothing to advance to");
     }
 
     /// A finished animator stops consuming ticks, so a one-shot effect waiting to
