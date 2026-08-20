@@ -13,7 +13,7 @@ use bevy::sprite_render::{AlphaMode2d, Material2d};
 use crate::conf::effects::STATIC_DURATION;
 use crate::conf::z_order::EFFECT_Z_OFFSET;
 use crate::core::sprite::{AnimationLoop, SpriteAnimation, SpriteConfig};
-use crate::core::{Appearances, InstanceManager, SpriteAnimator};
+use crate::core::{Appearances, InstanceManager, SpriteAnimator, SpriteSheet};
 use crate::map::FloorEntities;
 use crate::map::Position;
 use crate::network::events::ShowEffect;
@@ -94,12 +94,11 @@ pub struct Effect {
 
 fn init_material(
     group: &str,
-    appearances: &Appearances,
+    sheet: &SpriteSheet,
     materials: &mut Assets<EffectMaterial>,
     meshes: &mut Assets<Mesh>,
     effect_materials: &mut EffectMaterials,
 ) {
-    let sheet = appearances.get_sheet(group);
     let material = materials.add(EffectMaterial {
         texture: sheet.texture().clone(),
         atlas_grid: sheet.grid_size,
@@ -167,21 +166,19 @@ pub fn on_show_effect(
         return;
     };
     let sprite = Arc::clone(sprite);
+    let sheet = appearances.get_sheet(&sprite.group);
+    let sprite_size = sheet.sprite_size;
 
     if !effect_materials.by_group.contains_key(&sprite.group) {
         init_material(
             &sprite.group,
-            &appearances,
+            sheet,
             &mut materials,
             &mut meshes,
             &mut effect_materials,
         );
     }
     let (mesh, material) = effect_materials.by_group[&sprite.group].clone();
-    // `init_material` just read the sheet to build this material, and stashed
-    // its sprite size in `mesh_size` — reading it back off the material avoids
-    // asking `Appearances` for the sheet a second time.
-    let sprite_size = materials.get(&material).unwrap().mesh_size;
 
     // Computed once per message, not once per tile: `pass_duration` samples a
     // `NonUniform` animation's phases with `fastrand`, so rolling it inside the
