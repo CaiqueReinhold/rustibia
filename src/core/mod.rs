@@ -38,7 +38,7 @@ impl Plugin for CorePlugin {
         app.add_plugins(Material2dPlugin::<effects::EffectMaterial>::default())
             .init_resource::<systems::PingState>()
             .init_resource::<systems::PingTimer>()
-            .init_resource::<effects::EffectInstances>()
+            .init_resource::<InstanceManager<effects::EffectInstance>>()
             .add_systems(
                 Startup,
                 (assets::start_load_tasks, effects::setup_resources),
