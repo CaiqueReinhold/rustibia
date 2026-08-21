@@ -330,6 +330,19 @@ pub fn on_remove_effect(
     instances.dealloc_index(tag.0);
 }
 
+/// Despawns the session's effects and drops their buffer slots.
+///
+/// Mandatory, unlike floating text: effects are children of the floor entities,
+/// which are `Startup`-spawned and survive the session, so nothing else collects
+/// them. Mirrors `items::session::cleanup_session`, including replacing the
+/// instance manager wholesale rather than draining it.
+pub(super) fn cleanup_session(mut commands: Commands, effects: Query<Entity, With<Effect>>) {
+    for entity in &effects {
+        commands.entity(entity).despawn();
+    }
+    commands.insert_resource(InstanceManager::<EffectInstance>::default());
+}
+
 /// Writes the animator's current frame into the effect's buffer slot.
 ///
 /// The `Changed<SpriteAnimator>` filter is only meaningful because
@@ -714,6 +727,37 @@ mod tests {
                 .alloc_index(),
             index,
             "the freed slot must be handed out again"
+        );
+    }
+
+    /// The floor entities an effect hangs off are spawned at `Startup` and
+    /// outlive the session. Without this, an effect mid-animation at logout is
+    /// still hanging over the map in the next session.
+    #[test]
+    fn cleanup_despawns_every_effect_and_resets_the_buffer() {
+        let mut world = World::new();
+        world.init_resource::<InstanceManager<EffectInstance>>();
+        let index = world
+            .resource_mut::<InstanceManager<EffectInstance>>()
+            .alloc_index();
+        let entity = world.spawn((Effect { ttl: None }, MeshTag(index))).id();
+
+        world.run_system_once(cleanup_session).unwrap();
+
+        assert!(world.get_entity(entity).is_err());
+        assert!(
+            !world
+                .resource::<InstanceManager<EffectInstance>>()
+                .is_dirty(),
+            "a fresh manager, not the old one with a stale dirty flag"
+        );
+        assert_eq!(
+            world
+                .resource::<InstanceManager<EffectInstance>>()
+                .get_buffer_data()
+                .len(),
+            0,
+            "the previous session's slots must not survive"
         );
     }
 }

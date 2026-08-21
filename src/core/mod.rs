@@ -99,7 +99,7 @@ impl Plugin for CorePlugin {
             .configure_sets(OnExit(GameState::InGame), SessionCleanup)
             .add_systems(
                 OnExit(GameState::InGame),
-                session::cleanup_session.in_set(SessionCleanup),
+                (session::cleanup_session, effects::cleanup_session).in_set(SessionCleanup),
             );
 
         #[cfg(feature = "debug")]
