@@ -232,64 +232,77 @@ pub fn spawn_agent(
                     .id(),
             );
             if let Some(health) = &health {
-                health_bar_entity = Some(
-                    parent
-                        .spawn((
-                            Node {
-                                width: Val::Px(HUD_BAR_WIDTH),
-                                height: Val::Px(HUD_BAR_HEIGHT),
-                                border: UiRect::all(Val::Px(1.0)),
-                                margin: UiRect::top(Val::Px(2.0)),
-                                ..default()
-                            },
-                            BorderColor::all(Color::BLACK),
-                            BackgroundColor(Color::BLACK),
-                            Pickable::IGNORE,
-                        ))
-                        .with_child((
-                            HudBar {
-                                ratio: health.ratio(),
-                            },
-                            Node {
-                                width: Val::Percent(100.0),
-                                height: Val::Percent(100.0),
-                                ..default()
-                            },
-                            HealthState::from_ratio(health.ratio()),
-                            Pickable::IGNORE,
-                        ))
-                        .id(),
-                );
+                // `AgentHud.health_bar` must name the FILL, not the frame around
+                // it: `HudBar` and `HealthState` live on the fill, and every
+                // system that moves or recolours the bar looks them up by this
+                // entity. `.with_child(..).id()` returns the PARENT, so
+                // capturing it here recorded the frame, `get_mut` returned `Err`
+                // into an `if let Ok`, and the bar silently never moved.
+                parent
+                    .spawn((
+                        Node {
+                            width: Val::Px(HUD_BAR_WIDTH),
+                            height: Val::Px(HUD_BAR_HEIGHT),
+                            border: UiRect::all(Val::Px(1.0)),
+                            margin: UiRect::top(Val::Px(2.0)),
+                            ..default()
+                        },
+                        BorderColor::all(Color::BLACK),
+                        BackgroundColor(Color::BLACK),
+                        Pickable::IGNORE,
+                    ))
+                    .with_children(|frame| {
+                        health_bar_entity = Some(
+                            frame
+                                .spawn((
+                                    HudBar {
+                                        ratio: health.ratio(),
+                                    },
+                                    Node {
+                                        width: Val::Percent(100.0),
+                                        height: Val::Percent(100.0),
+                                        ..default()
+                                    },
+                                    HealthState::from_ratio(health.ratio()),
+                                    Pickable::IGNORE,
+                                ))
+                                .id(),
+                        );
+                    });
             }
 
             if let Some(mana) = mana {
-                mana_bar_entity = Some(
-                    parent
-                        .spawn((
-                            Node {
-                                width: Val::Px(HUD_BAR_WIDTH),
-                                height: Val::Px(HUD_BAR_HEIGHT),
-                                border: UiRect::all(Val::Px(1.0)),
-                                ..default()
-                            },
-                            BorderColor::all(Color::BLACK),
-                            BackgroundColor(Color::BLACK),
-                            Pickable::IGNORE,
-                        ))
-                        .with_child((
-                            HudBar {
-                                ratio: mana.ratio(),
-                            },
-                            Node {
-                                width: Val::Percent(100.0),
-                                height: Val::Percent(100.0),
-                                ..default()
-                            },
-                            BackgroundColor(ui_colors::MANA_BAR_COLOR.into()),
-                            Pickable::IGNORE,
-                        ))
-                        .id(),
-                );
+                // Same shape, same reason as the health bar above.
+                parent
+                    .spawn((
+                        Node {
+                            width: Val::Px(HUD_BAR_WIDTH),
+                            height: Val::Px(HUD_BAR_HEIGHT),
+                            border: UiRect::all(Val::Px(1.0)),
+                            ..default()
+                        },
+                        BorderColor::all(Color::BLACK),
+                        BackgroundColor(Color::BLACK),
+                        Pickable::IGNORE,
+                    ))
+                    .with_children(|frame| {
+                        mana_bar_entity = Some(
+                            frame
+                                .spawn((
+                                    HudBar {
+                                        ratio: mana.ratio(),
+                                    },
+                                    Node {
+                                        width: Val::Percent(100.0),
+                                        height: Val::Percent(100.0),
+                                        ..default()
+                                    },
+                                    BackgroundColor(ui_colors::MANA_BAR_COLOR.into()),
+                                    Pickable::IGNORE,
+                                ))
+                                .id(),
+                        );
+                    });
             }
         })
         .id();
