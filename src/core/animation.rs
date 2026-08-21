@@ -201,12 +201,16 @@ pub fn tick_sprite_animators(time: Res<Time>, mut query: Query<&mut SpriteAnimat
         }
 
         // Ticking through the `Mut` would mark the animator `Changed` on every
-        // frame, not just the ones where the phase advances. Downstream that is
-        // expensive: the `Changed<SpriteAnimator>` filters in the instance
-        // update systems stop filtering anything, every write dirties the
-        // instance buffer, and the whole SSBO is re-uploaded each frame for as
-        // long as a single animated item is on screen. The advance below is the
-        // only observable change, so it is the only one that gets flagged.
+        // frame, not just the ones where the phase advances, and every
+        // `Changed<SpriteAnimator>` filter downstream would stop filtering. The
+        // buffer uploads survive that — `InstanceManager::update` compares before
+        // it dirties, and a frame with no advance writes the same bytes back — so
+        // the cost is not a re-upload. It is re-deriving and comparing every
+        // instance every frame, and `animate_ui_items`, whose `&mut ImageNode`
+        // write is an unconditional `DerefMut`: every animated UI item would be
+        // `Changed` each frame, which bevy_ui's accessibility pass filters on and
+        // answers by re-walking the node's children. The advance below is the only
+        // observable change, so it is the only one that gets flagged.
         let inner = animator.bypass_change_detection();
         inner.timer.tick(time.delta());
         if !inner.timer.just_finished() {
@@ -299,7 +303,8 @@ mod tests {
 
     /// The whole point: a frame that only advances the timer must not mark the
     /// animator changed, or the `Changed<SpriteAnimator>` filters downstream
-    /// match everything and the instance buffer is re-uploaded every frame.
+    /// match everything and every animated entity is re-derived, compared, and
+    /// re-labelled each frame.
     #[test]
     fn a_tick_without_a_phase_advance_is_not_a_change() {
         let mut world = World::new();

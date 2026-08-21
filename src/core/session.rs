@@ -8,8 +8,13 @@ use crate::core::systems::{PingState, PingTimer};
 /// Each plugin registers its own `cleanup_session` into this set and resets only
 /// state it owns — nothing has to be made public for a central teardown module to
 /// reach it, and state added later is cleaned up in the file that introduced it.
-/// Members are order-independent: by the time they run the message pump is gone,
-/// so no observer is firing, and every `InGame`-gated system has stopped.
+/// Members are order-independent *with respect to each other*: by the time they
+/// run the message pump is gone and every `InGame`-gated system has stopped, so
+/// no member's cleanup can race another's. That does not mean no observer ever
+/// fires here — a member's own commands can still trigger one synchronously, the
+/// way `effects::cleanup_session`'s despawn triggers `on_remove_effect`; such an
+/// observer only ever touches state the same member owns, which is why the
+/// between-members guarantee still holds despite it.
 #[derive(SystemSet, Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct SessionCleanup;
 

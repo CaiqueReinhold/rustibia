@@ -302,6 +302,10 @@ fn lifetime(animation: &SpriteAnimation) -> Option<Duration> {
 /// last phase has had its full time on screen, so despawning in the same frame
 /// cuts nothing short — while running before the animator would hold every
 /// effect one frame past its end.
+///
+/// The query requires both components: `on_show_effect` always spawns them
+/// together, so an `Effect` without a `SpriteAnimator` is unreachable today —
+/// but were one ever to exist, it would sit here unvisited and leak silently.
 pub fn despawn_finished_effects(
     mut commands: Commands,
     time: Res<Time>,
@@ -348,7 +352,9 @@ pub(super) fn cleanup_session(mut commands: Commands, effects: Query<Entity, Wit
 /// The `Changed<SpriteAnimator>` filter is only meaningful because
 /// `tick_sprite_animators` writes through `bypass_change_detection` and flags a
 /// change on a real phase advance and nothing else. Break that and this matches
-/// every effect every frame, and the whole buffer is re-uploaded each frame.
+/// every effect every frame — one extra copy and comparison each, not an extra
+/// upload: `InstanceManager::update` dirties only when the bytes actually
+/// change, and `upload_effect_buffer` early-returns while clean.
 ///
 /// Only `sprite_id` moves: an effect's bbox and shift are fixed for its whole
 /// life, because its pattern never changes.
@@ -707,6 +713,101 @@ mod tests {
         );
     }
 
+    /// `items/instancing.rs` has no test module at all, and this batch copied
+    /// that gap along with the code it modelled: `update_effect_instances` and
+    /// `upload_effect_buffer` had zero coverage. A no-op update body, a wrong
+    /// layer index, a missing `reset_dirty`, and a missing `!is_dirty()`
+    /// short-circuit all survived the full suite before this test existed. (A
+    /// missing material-touch loop still does -- that only matters to the
+    /// render world's bind-group extraction, which nothing in this crate's
+    /// unit tests observes.)
+    #[test]
+    fn ticking_an_effect_moves_its_sprite_through_the_uploaded_buffer() {
+        let mut world = World::new();
+        world.insert_resource(Time::<()>::default());
+        world.init_resource::<InstanceManager<EffectInstance>>();
+        world.init_resource::<Assets<ShaderStorageBuffer>>();
+        let buffer = world
+            .resource_mut::<Assets<ShaderStorageBuffer>>()
+            .add(ShaderStorageBuffer::new(&[0], RenderAssetUsages::all()));
+        let buffer_handle = buffer.clone();
+        world.insert_resource(EffectMaterials {
+            by_group: HashMap::new(),
+            buffer,
+        });
+        world.init_resource::<Assets<EffectMaterial>>();
+
+        let index = world
+            .resource_mut::<InstanceManager<EffectInstance>>()
+            .alloc_index();
+        world.spawn((Effect { ttl: None }, counted_animator(), MeshTag(index)));
+
+        // The first upload is spawn-time bookkeeping, not part of what this test
+        // exercises: it clears the dirty flag `alloc_index` set and establishes
+        // the buffer's starting value (0, EffectInstance's default) before any
+        // animator tick has run.
+        world.run_system_once(upload_effect_buffer).unwrap();
+        let before = world
+            .resource::<InstanceManager<EffectInstance>>()
+            .get_buffer_data()[index as usize]
+            .sprite_id;
+
+        let run = |world: &mut World, delta: Duration| {
+            world.resource_mut::<Time<()>>().advance_by(delta);
+            world
+                .run_system_once(crate::core::tick_sprite_animators)
+                .unwrap();
+            world.run_system_once(update_effect_instances).unwrap();
+            world.run_system_once(upload_effect_buffer).unwrap();
+        };
+        // Two 100 ms phase boundaries: sprite 10 -> phase 1's sprite 20.
+        run(&mut world, Duration::from_millis(100));
+        run(&mut world, Duration::from_millis(100));
+
+        let after = world
+            .resource::<InstanceManager<EffectInstance>>()
+            .get_buffer_data()[index as usize]
+            .sprite_id;
+        assert_ne!(
+            before, after,
+            "the buffer slot never picked up the phase advance"
+        );
+        assert_eq!(
+            after, 20,
+            "must land on phase 1's sprite, not stay on phase 0's"
+        );
+        assert!(
+            !world
+                .resource::<InstanceManager<EffectInstance>>()
+                .is_dirty(),
+            "upload_effect_buffer must clear dirty once it has written the buffer"
+        );
+
+        // Prove the `!is_dirty()` guard actually short-circuits, not just that
+        // dirty ends up false: poison the SSBO directly (bypassing the
+        // manager, so `is_dirty()` stays false), then call the system again.
+        // A version that re-uploads unconditionally would silently overwrite
+        // the poison with the manager's (unchanged) data -- same final bytes
+        // as leaving it alone, so nothing upstream of this would notice.
+        world
+            .resource_mut::<Assets<ShaderStorageBuffer>>()
+            .get_mut(&buffer_handle)
+            .unwrap()
+            .data = Some(vec![0xAA, 0xBB, 0xCC, 0xDD]);
+
+        world.run_system_once(upload_effect_buffer).unwrap();
+
+        assert_eq!(
+            world
+                .resource::<Assets<ShaderStorageBuffer>>()
+                .get(&buffer_handle)
+                .unwrap()
+                .data,
+            Some(vec![0xAA, 0xBB, 0xCC, 0xDD]),
+            "upload_effect_buffer touched the SSBO while the instance manager was clean"
+        );
+    }
+
     /// Without this a long session leaks the instance buffer: every effect ever
     /// played would hold its slot for ever.
     #[test]
@@ -733,10 +834,19 @@ mod tests {
     /// The floor entities an effect hangs off are spawned at `Startup` and
     /// outlive the session. Without this, an effect mid-animation at logout is
     /// still hanging over the map in the next session.
+    ///
+    /// `on_remove_effect` is registered here deliberately: it is what makes
+    /// `cleanup_session`'s statement order load-bearing. Swap the despawn and
+    /// the `insert_resource` and the observer pushes the old index onto the
+    /// *fresh* manager's free list — `alloc_index` then hands that index out
+    /// while `data` is still empty, and the next session's first effect
+    /// indexes out of bounds in `get_mut`. Without the observer registered
+    /// that swap is invisible to this test.
     #[test]
     fn cleanup_despawns_every_effect_and_resets_the_buffer() {
         let mut world = World::new();
         world.init_resource::<InstanceManager<EffectInstance>>();
+        world.add_observer(on_remove_effect);
         let index = world
             .resource_mut::<InstanceManager<EffectInstance>>()
             .alloc_index();
@@ -758,6 +868,17 @@ mod tests {
                 .len(),
             0,
             "the previous session's slots must not survive"
+        );
+
+        // The fresh manager's free list must be empty too: a leftover entry
+        // from the old manager would hand out an index into a buffer that
+        // has not grown to cover it yet.
+        let mut manager = world.resource_mut::<InstanceManager<EffectInstance>>();
+        assert_eq!(manager.alloc_index(), 0);
+        assert_eq!(
+            manager.get_buffer_data().len(),
+            1,
+            "the fresh manager's free list must be empty"
         );
     }
 }

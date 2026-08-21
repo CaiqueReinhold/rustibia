@@ -477,8 +477,9 @@ mod tests {
         assert_eq!(missile.boxes.len(), 3);
     }
 
-    /// Two assumptions the effect renderer is built on, both read off the shape
-    /// of the shipped data rather than documented anywhere it generates from.
+    /// Three assumptions the effect renderer is built on, all read off the
+    /// shape of the shipped data rather than documented anywhere it generates
+    /// from.
     #[test]
     fn every_effect_is_shaped_the_way_the_renderer_assumes() {
         let configs = read_sprites_config();
@@ -487,6 +488,12 @@ mod tests {
             // The instance's bbox is `boxes[pattern_x]`. Were they ever indexed
             // per phase, or by pattern_x * pattern_y, every patterned effect
             // would draw a wrong crop of its cell.
+            //
+            // This cannot tell the two pattern axes apart: every shipped effect
+            // is square (pattern_x == pattern_y), so a swap of the axes at the
+            // `init_instance` call site would pass this just as well. Proven
+            // wrong only by the fact that no rectangular effect exists to show
+            // it — not proof the indexing is axis-correct.
             assert_eq!(
                 effect.boxes.len(),
                 effect.pattern_x as usize,
@@ -496,16 +503,37 @@ mod tests {
                 effect.pattern_x
             );
 
-            // `settle_on_timed_phase` is bounded by the phase count, which is
-            // only safe because an animation that ticks at all has a phase with
-            // time on it. Effect 221's `[0, 0]` tail is padding; a whole
-            // animation of zeros would be something else.
+            // An all-zero animated config would take `lifetime`'s
+            // `never_advances` arm and get `STATIC_DURATION` instead of a real
+            // playthrough -- rendering as a silent 300 ms still rather than an
+            // animation. `settle_on_timed_phase` itself no longer depends on
+            // this (its own doc records that `never_advances` plays no part in
+            // its termination); this assertion is about the lifetime, not the
+            // walk. Effect 221's `[0, 0]` tail is padding; a whole animation of
+            // zeros would be something else.
             if !matches!(effect.animation, SpriteAnimation::Static) {
                 assert!(
                     !effect.animation.never_advances(),
                     "effect {} is animated but no phase has any time on it",
                     effect.id
                 );
+            }
+
+            // A `[0, n]` range is "timed" by `phase_is_untimed`, so it does not
+            // trip `never_advances` and `lifetime` hands the effect no ttl --
+            // but `phase_duration` samples it and can roll 0, which parks the
+            // animator on `tick_sprite_animators`'s zero-duration guard for
+            // good. Nothing would ever collect the entity or its instance
+            // slot. Item 40576 ships `[0, 800]`, so this is a shape the data
+            // really produces.
+            if let SpriteAnimation::NonUniform { phases, .. } = &effect.animation {
+                for (i, range) in phases.iter().enumerate() {
+                    assert!(
+                        range.x > 0 || range.y == 0,
+                        "effect {} phase {i} has range {range:?}: a zero sample would freeze it forever",
+                        effect.id
+                    );
+                }
             }
         }
     }
