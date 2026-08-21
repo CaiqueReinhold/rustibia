@@ -741,8 +741,12 @@ fn decode_position_delta(buf: &mut Reader) -> Result<Vec<(i8, i8)>, MessageDecod
         return Ok(Vec::with_capacity(0));
     }
 
-    if rem.is_multiple_of(2) {
-        return Err(MessageDecodeError::TrailingBytes(1));
+    // A delta is an `(i8, i8)` pair, so a well-formed list is an even number of
+    // bytes by construction — the even case is the one to decode, not the one to
+    // reject. An odd remainder means the message was truncated mid-pair, and
+    // decoding `rem / 2` pairs anyway would silently swallow the stray byte.
+    if !rem.is_multiple_of(2) {
+        return Err(MessageDecodeError::TrailingBytes(rem % 2));
     }
     let size = rem / 2;
     let mut delta = Vec::with_capacity(size);
@@ -1288,5 +1292,88 @@ mod tests {
             codec.decode(&mut buf),
             Err(MessageDecodeError::WrongSequence)
         ));
+    }
+
+    /// A `ShowEffect` payload: id, position, then the raw delta bytes. The delta
+    /// list is trailing and carries no count, so its length is whatever is left
+    /// in the frame.
+    fn show_effect_payload(effect_id: u16, delta: &[(i8, i8)]) -> Vec<u8> {
+        let mut payload = vec![SRV_SHOW_EFFECT];
+        payload.extend_from_slice(&effect_id.to_le_bytes());
+        payload.extend_from_slice(&1028u16.to_le_bytes()); // x
+        payload.extend_from_slice(&1029u16.to_le_bytes()); // y
+        payload.push(7); // z
+        for (dx, dy) in delta {
+            payload.push(*dx as u8);
+            payload.push(*dy as u8);
+        }
+        payload
+    }
+
+    fn decoded_deltas(delta: &[(i8, i8)]) -> Vec<(i8, i8)> {
+        let mut codec = GameMessageCodec {};
+        let mut buf = frame(&show_effect_payload(1, delta));
+        match codec.decode(&mut buf) {
+            Ok(Some(ServerMessage::ShowEffect {
+                effect_id,
+                position,
+                delta,
+            })) => {
+                assert_eq!(effect_id, 1);
+                assert_eq!(position, Position::new(1028, 1029, 7));
+                delta
+            }
+            other => panic!("expected a ShowEffect, got {other:?}"),
+        }
+    }
+
+    /// The area-effect path: one message paints several tiles. This is what the
+    /// parity guard in `decode_position_delta` used to reject — a delta is two
+    /// bytes, so a well-formed list is always an even number of them, and the
+    /// guard had the test the wrong way round. It did not merely drop the
+    /// effect: a decode error breaks the IO loop, so the first area effect the
+    /// server ever sent would disconnect the player.
+    #[test]
+    fn a_show_effect_carries_its_deltas() {
+        assert_eq!(decoded_deltas(&[(1, 0)]), vec![(1, 0)]);
+    }
+
+    /// Negative components are the ordinary case — an area effect spreads in
+    /// every direction from its centre — and they are what makes the `i8` cast
+    /// on each byte load-bearing.
+    #[test]
+    fn a_delta_list_survives_negative_components() {
+        assert_eq!(
+            decoded_deltas(&[(1, 0), (0, -1), (-1, -1), (-128, 127)]),
+            vec![(1, 0), (0, -1), (-1, -1), (-128, 127)]
+        );
+    }
+
+    /// The only shape the server sends today, and the one path that worked
+    /// while the guard was inverted. It must keep working.
+    #[test]
+    fn a_show_effect_without_deltas_decodes_to_an_empty_list() {
+        assert_eq!(decoded_deltas(&[]), Vec::new());
+    }
+
+    /// An odd remainder means the frame was truncated mid-pair. Decoding
+    /// `rem / 2` pairs anyway would silently swallow the stray byte, which is
+    /// how a desynchronised stream turns into a wrong effect rather than an
+    /// error.
+    #[test]
+    fn a_truncated_delta_list_is_rejected() {
+        let mut payload = show_effect_payload(1, &[(1, 0)]);
+        payload.push(0x05); // half of a second delta
+
+        let mut codec = GameMessageCodec {};
+        let mut buf = frame(&payload);
+
+        assert!(
+            matches!(
+                codec.decode(&mut buf),
+                Err(MessageDecodeError::TrailingBytes(_))
+            ),
+            "a half-delta must be an error, not a dropped byte"
+        );
     }
 }
