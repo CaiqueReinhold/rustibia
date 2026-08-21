@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::{
     conf::map::{CONTAINER_COORD_FLAG, INVENTORY_COORD_FLAG},
     core::SpriteConfig,
-    items::ContainerId,
+    items::{ContainerId, fluid_cell},
     map::Position,
 };
 
@@ -116,6 +116,8 @@ pub enum ItemFlag {
     ForceUse,
     Avoid,
     BlockSight,
+    LiquidPool,
+    LiquidContainer,
 }
 
 #[derive(Debug, Eq)]
@@ -169,6 +171,20 @@ impl Item {
             }
         }
 
+        // A splash or fluid container indexes a COLOUR grid, so its pattern
+        // comes from what it holds rather than from where it lies. The subtype
+        // byte is the fluid; `amount` is that same byte, named for its other
+        // meaning.
+        //
+        // This must precede the position rule below, which would otherwise
+        // answer and pick a colour from the tile's coordinates.
+        if self.config.has_flag(ItemFlag::LiquidPool)
+            || self.config.has_flag(ItemFlag::LiquidContainer)
+        {
+            let (x, y) = fluid_cell(self.amount as u8, sprite.pattern_x, sprite.pattern_y);
+            return (x, y, 0);
+        }
+
         let x = pos.x as u32 % sprite.pattern_x;
         let y = pos.y as u32 % sprite.pattern_y;
         let z = pos.z as u32 % sprite.pattern_z;
@@ -180,6 +196,68 @@ impl Item {
 mod tests {
     use super::*;
     use crate::conf::map::{CONTAINER_COORD_FLAG, INVENTORY_COORD_FLAG};
+    use crate::core::SpriteAnimation;
+    use crate::items::fluid::FluidType;
+    use bevy::prelude::Vec2;
+
+    fn config_with(flags: Vec<ItemFlag>) -> Arc<ItemConfig> {
+        Arc::new(ItemConfig {
+            id: 2886,
+            flags,
+            friction: None,
+            slot: None,
+            minimap_color: None,
+            elevation: None,
+        })
+    }
+
+    /// A pool's appearance: a 4x3 colour grid, one layer, no animation.
+    fn pool_sprite() -> SpriteConfig {
+        SpriteConfig {
+            id: 2886,
+            group: "item-32-32-3".to_string(),
+            pattern_x: 4,
+            pattern_y: 3,
+            pattern_z: 1,
+            layers: 1,
+            sprite_ids: vec![0; 12],
+            animation: SpriteAnimation::Static,
+            boxes: Vec::new(),
+            shift: Vec2::ZERO,
+        }
+    }
+
+    /// A pool's 4x3 grid is a colour grid. Blood is fluid 5, red is colour 2,
+    /// and the cell is (2, 0).
+    #[test]
+    fn a_pool_draws_the_cell_for_its_fluid() {
+        let pool = Item::new(
+            config_with(vec![ItemFlag::LiquidPool]),
+            FluidType::Blood as u32,
+        );
+
+        assert_eq!(
+            pool.get_patterns(&Position::new(100, 200, 7), &pool_sprite()),
+            (2, 0, 0)
+        );
+    }
+
+    /// The branch has to actually be entered. Without it a pool falls through to
+    /// the position rule and its colour is chosen by its tile -- blood here,
+    /// something else one step east. Two positions, one fluid, one answer.
+    #[test]
+    fn a_pools_colour_does_not_depend_on_where_it_lies() {
+        let pool = Item::new(
+            config_with(vec![ItemFlag::LiquidPool]),
+            FluidType::Blood as u32,
+        );
+        let sprite = pool_sprite();
+
+        let here = pool.get_patterns(&Position::new(100, 200, 7), &sprite);
+        let one_step_east = pool.get_patterns(&Position::new(101, 200, 7), &sprite);
+
+        assert_eq!(here, one_step_east);
+    }
 
     #[test]
     fn map_placement_encodes_as_its_position() {

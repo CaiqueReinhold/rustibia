@@ -7,6 +7,7 @@ use crate::{
 
 mod container;
 mod events;
+mod fluid;
 mod instancing;
 pub mod inventory;
 mod item;
@@ -16,6 +17,7 @@ mod ui_item;
 
 pub use container::{ContainerId, LootContainerUI};
 pub use events::*;
+pub use fluid::fluid_cell;
 pub use instancing::ChangedTileQueue;
 pub use item::{InventorySlot, Item, ItemConfig, ItemFlag, ItemId, ItemPlacement};
 
