@@ -71,8 +71,8 @@ impl Material2d for EffectMaterial {
 /// sheet group, built on first use. There are seven groups.
 #[derive(Resource, Debug, Default)]
 pub struct EffectMaterials {
-    by_group: HashMap<String, (Handle<Mesh>, Handle<EffectMaterial>)>,
-    buffer: Handle<ShaderStorageBuffer>,
+    pub(super) by_group: HashMap<String, (Handle<Mesh>, Handle<EffectMaterial>)>,
+    pub(super) buffer: Handle<ShaderStorageBuffer>,
 }
 
 pub fn setup_resources(mut commands: Commands, mut buffers: ResMut<Assets<ShaderStorageBuffer>>) {
@@ -92,7 +92,7 @@ pub struct Effect {
     ttl: Option<Timer>,
 }
 
-fn init_material(
+pub(super) fn init_material(
     group: &str,
     sheet: &SpriteSheet,
     materials: &mut Assets<EffectMaterial>,
@@ -120,7 +120,7 @@ fn init_material(
 ///
 /// `boxes` is indexed by `pattern_x` alone: effect 41 is 2x2 with 2 boxes,
 /// effect 1 has 6 phases and 1 box.
-fn init_instance(
+pub(super) fn init_instance(
     instance: &mut EffectInstance,
     sprite: &SpriteConfig,
     sprite_size: Vec2,
@@ -204,7 +204,7 @@ pub fn on_show_effect(
                 Mesh2d(mesh.clone()),
                 MeshMaterial2d(material.clone()),
                 MeshTag(index),
-                Transform::from_translation(anchor(tile.to_world(), sprite_size)),
+                Transform::from_translation(anchor(tile.to_world(), sprite_size, EFFECT_Z_OFFSET)),
                 Visibility::Inherited,
                 animator,
             ))
@@ -250,13 +250,16 @@ fn pattern_for(position: &Position, sprite: &SpriteConfig) -> (u32, u32) {
 /// on that corner correctly — large Tibia sprites extend up and to the left of
 /// their tile — and a 32 px one has to be nudged half a tile down and right. The
 /// rule is per axis because two effect sheet groups are 32x64 and 64x32.
-fn anchor(world: Vec3, sprite_size: Vec2) -> Vec3 {
+///
+/// The z offset is a parameter because effects and missiles sit on different
+/// planes -- 0.014 and 0.016 -- while sharing this rule exactly.
+pub(super) fn anchor(world: Vec3, sprite_size: Vec2, z_offset: f32) -> Vec3 {
     let half_tile_x = if sprite_size.x <= 32.0 { 16.0 } else { 0.0 };
     let half_tile_y = if sprite_size.y <= 32.0 { -16.0 } else { 0.0 };
     Vec3::new(
         world.x + half_tile_x,
         world.y + half_tile_y,
-        world.z + EFFECT_Z_OFFSET,
+        world.z + z_offset,
     )
 }
 
@@ -501,7 +504,11 @@ mod tests {
     /// the tile it belongs to.
     #[test]
     fn a_32px_sprite_is_nudged_onto_its_tile() {
-        let placed = anchor(Vec3::new(100.0, 200.0, 5.0), Vec2::new(32.0, 32.0));
+        let placed = anchor(
+            Vec3::new(100.0, 200.0, 5.0),
+            Vec2::new(32.0, 32.0),
+            EFFECT_Z_OFFSET,
+        );
 
         assert_eq!(placed.x, 116.0);
         assert_eq!(placed.y, 184.0);
@@ -511,7 +518,11 @@ mod tests {
     /// extend up and to the left of the tile they occupy.
     #[test]
     fn a_64px_sprite_keeps_the_tile_corner() {
-        let placed = anchor(Vec3::new(100.0, 200.0, 5.0), Vec2::new(64.0, 64.0));
+        let placed = anchor(
+            Vec3::new(100.0, 200.0, 5.0),
+            Vec2::new(64.0, 64.0),
+            EFFECT_Z_OFFSET,
+        );
 
         assert_eq!(placed.x, 100.0);
         assert_eq!(placed.y, 200.0);
@@ -522,7 +533,11 @@ mod tests {
     /// out on one axis.
     #[test]
     fn a_mixed_size_sprite_is_corrected_on_one_axis_only() {
-        let placed = anchor(Vec3::new(100.0, 200.0, 5.0), Vec2::new(32.0, 64.0));
+        let placed = anchor(
+            Vec3::new(100.0, 200.0, 5.0),
+            Vec2::new(32.0, 64.0),
+            EFFECT_Z_OFFSET,
+        );
 
         assert_eq!(placed.x, 116.0, "32 px wide, so nudged");
         assert_eq!(placed.y, 200.0, "64 px tall, so not");
@@ -569,7 +584,11 @@ mod tests {
     fn an_effect_sits_between_the_agent_and_the_top_item_planes() {
         use crate::conf::z_order::{AGENT_Z_OFFSET, TOP_Z_OFFSET};
 
-        let placed = anchor(Vec3::new(0.0, 0.0, 5.0), Vec2::new(32.0, 32.0));
+        let placed = anchor(
+            Vec3::new(0.0, 0.0, 5.0),
+            Vec2::new(32.0, 32.0),
+            EFFECT_Z_OFFSET,
+        );
 
         assert!(placed.z > 5.0 + AGENT_Z_OFFSET);
         assert!(placed.z < 5.0 + TOP_Z_OFFSET);

@@ -250,6 +250,11 @@ pub enum ServerMessage {
         agent_id: AgentId,
         life: u8,
     },
+    LaunchMissile {
+        from: Position,
+        to: Position,
+        missile_id: u16,
+    },
 }
 
 impl Display for ServerMessage {
@@ -624,6 +629,16 @@ fn decode_message(buf: &mut Reader) -> Result<ServerMessage, MessageDecodeError>
                 effect_id,
                 position,
                 delta,
+            })
+        }
+        SRV_LAUNCH_MISSILE => {
+            let from = decode_position(buf)?;
+            let to = decode_position(buf)?;
+            let missile_id = buf.read_u16_le()?;
+            Ok(ServerMessage::LaunchMissile {
+                from,
+                to,
+                missile_id,
             })
         }
         _ => Err(MessageDecodeError::WrongSequence),

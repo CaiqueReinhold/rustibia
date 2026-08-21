@@ -37,6 +37,11 @@ pub mod z_order {
     /// OTClient's tile draw order. Sits between `AGENT_Z_OFFSET` (0.013) and
     /// `TOP_Z_OFFSET` (0.015).
     pub const EFFECT_Z_OFFSET: f32 = 0.014;
+
+    /// A missile flies over everything on the tile it is currently crossing, so
+    /// it sits one step above `TOP_Z_OFFSET` (0.015). OTClient reaches the same
+    /// result differently, by drawing missiles in a pass after the tile loop.
+    pub const MISSILE_Z_OFFSET: f32 = 0.016;
 }
 
 pub mod target {
@@ -110,6 +115,17 @@ pub mod effects {
     /// static effect one frame tick (75 ms), which at 60 fps reads as a glitch;
     /// 300 ms is a hair over the shortest animated effect's full pass (270 ms).
     pub const STATIC_DURATION: Duration = Duration::from_millis(300);
+}
+
+pub mod missiles {
+    /// OTClient's `missileTicksPerFrame` (75 ms) doubled, multiplied by the
+    /// SQUARE ROOT of the tile distance.
+    ///
+    /// The root is the surprising part and it is deliberate: a 1-tile shot takes
+    /// 150 ms, a 4-tile shot 300 ms, a 9-tile shot 450 ms -- which is 150, 75 and
+    /// 50 ms per tile. Longer shots fly dramatically faster per tile. That is
+    /// OT's feel choice, copied for parity rather than linearised.
+    pub const FLIGHT_MS_PER_ROOT_TILE: f32 = 150.0;
 }
 
 pub mod ui {

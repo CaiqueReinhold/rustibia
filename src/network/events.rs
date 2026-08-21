@@ -190,6 +190,13 @@ pub struct ShowEffect {
     pub delta: Vec<(i8, i8)>,
 }
 
+#[derive(Event, Debug)]
+pub struct LaunchMissile {
+    pub from: Position,
+    pub to: Position,
+    pub missile_id: u16,
+}
+
 pub fn route_event(msg: ServerMessage, commands: &mut Commands) {
     match msg {
         // Consumed by the IO task, which times the round trip and does not forward
@@ -386,6 +393,17 @@ pub fn route_event(msg: ServerMessage, commands: &mut Commands) {
                 effect_id,
                 position,
                 delta,
+            });
+        }
+        ServerMessage::LaunchMissile {
+            from,
+            to,
+            missile_id,
+        } => {
+            commands.trigger(LaunchMissile {
+                from,
+                to,
+                missile_id,
             });
         }
     }

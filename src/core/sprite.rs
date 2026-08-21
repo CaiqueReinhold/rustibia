@@ -73,7 +73,6 @@ impl Appearances {
         self.effects.get(&id)
     }
 
-    #[allow(dead_code)]
     pub fn get_missile(&self, id: MissileId) -> Option<&Arc<SpriteConfig>> {
         self.missiles.get(&id)
     }

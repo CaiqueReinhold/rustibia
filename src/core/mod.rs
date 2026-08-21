@@ -7,6 +7,7 @@ mod effects;
 mod floating_text;
 mod instances;
 mod items;
+mod missiles;
 mod session;
 mod sprite;
 mod systems;
@@ -94,12 +95,23 @@ impl Plugin for CorePlugin {
             )
             .add_observer(text::on_text_message)
             .add_observer(floating_text::on_floating_text)
+            .add_systems(
+                Update,
+                missiles::fly_missiles.run_if(in_state(GameState::InGame)),
+            )
             .add_observer(effects::on_show_effect)
             .add_observer(effects::on_remove_effect)
+            .add_observer(missiles::on_launch_missile)
+            .add_observer(missiles::on_remove_missile)
             .configure_sets(OnExit(GameState::InGame), SessionCleanup)
             .add_systems(
                 OnExit(GameState::InGame),
-                (session::cleanup_session, effects::cleanup_session).in_set(SessionCleanup),
+                (
+                    session::cleanup_session,
+                    effects::cleanup_session,
+                    missiles::cleanup_session,
+                )
+                    .in_set(SessionCleanup),
             );
 
         #[cfg(feature = "debug")]
