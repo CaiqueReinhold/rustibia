@@ -153,36 +153,54 @@ impl Item {
         Item { config, amount }
     }
 
-    pub fn get_patterns(&self, pos: &Position, sprite: &SpriteConfig) -> (u32, u32, u32) {
+    /// The pattern chosen by the ITEM rather than by where it lies: a stack's
+    /// count tier, or a fluid's colour. `None` when neither applies.
+    ///
+    /// Split out of `get_patterns` because a UI item -- in an inventory slot or
+    /// a backpack -- has an amount but no position, so it cannot call that at
+    /// all. Both branches here were already position-independent; only the
+    /// signature made them unreachable, which is why a stack of 50 gold drew
+    /// the "1" sprite everywhere except on the ground.
+    pub fn intrinsic_patterns(&self, sprite: &SpriteConfig) -> Option<(u32, u32, u32)> {
         if self.config.has_flag(ItemFlag::Cumulative)
             && sprite.pattern_x == 4
             && sprite.pattern_y == 2
         {
-            if self.amount < 5 {
-                return (self.amount - 1, 0, 0);
+            return Some(if self.amount < 5 {
+                (self.amount.saturating_sub(1), 0, 0)
             } else if self.amount < 10 {
-                return (0, 1, 0);
+                (0, 1, 0)
             } else if self.amount < 25 {
-                return (1, 1, 0);
+                (1, 1, 0)
             } else if self.amount < 50 {
-                return (2, 1, 0);
+                (2, 1, 0)
             } else {
-                return (3, 1, 0);
-            }
+                (3, 1, 0)
+            });
         }
 
         // A splash or fluid container indexes a COLOUR grid, so its pattern
         // comes from what it holds rather than from where it lies. The subtype
         // byte is the fluid; `amount` is that same byte, named for its other
         // meaning.
-        //
-        // This must precede the position rule below, which would otherwise
-        // answer and pick a colour from the tile's coordinates.
         if self.config.has_flag(ItemFlag::LiquidPool)
             || self.config.has_flag(ItemFlag::LiquidContainer)
         {
             let (x, y) = fluid_cell(self.amount as u8, sprite.pattern_x, sprite.pattern_y);
-            return (x, y, 0);
+            return Some((x, y, 0));
+        }
+
+        None
+    }
+
+    /// The pattern for an item on the map, where a position is available.
+    ///
+    /// Intrinsic patterns win: they must precede the position rule below, which
+    /// would otherwise answer and pick a count tier or a colour from the tile's
+    /// coordinates.
+    pub fn get_patterns(&self, pos: &Position, sprite: &SpriteConfig) -> (u32, u32, u32) {
+        if let Some(patterns) = self.intrinsic_patterns(sprite) {
+            return patterns;
         }
 
         let x = pos.x as u32 % sprite.pattern_x;
@@ -225,6 +243,37 @@ mod tests {
             boxes: Vec::new(),
             shift: Vec2::ZERO,
         }
+    }
+
+    /// A stack in a backpack has an amount but no position, so the UI cannot
+    /// call `get_patterns`. It must still get the count tier -- this is the bug
+    /// where 50 gold on the ground showed the "50" sprite and the same 50 gold
+    /// in the inventory showed the "1" sprite.
+    #[test]
+    fn a_stacks_pattern_comes_from_its_amount_alone() {
+        let sprite = SpriteConfig {
+            pattern_x: 4,
+            pattern_y: 2,
+            ..pool_sprite()
+        };
+        let stack = |amount: u32| {
+            Item::new(config_with(vec![ItemFlag::Cumulative]), amount).intrinsic_patterns(&sprite)
+        };
+
+        // Below 5 each count has its own sprite; above it they are tiers.
+        assert_eq!(stack(1), Some((0, 0, 0)));
+        assert_eq!(stack(4), Some((3, 0, 0)));
+        assert_eq!(stack(5), Some((0, 1, 0)));
+        assert_eq!(stack(50), Some((3, 1, 0)));
+    }
+
+    /// An item whose sprite depends on neither its amount nor its contents has
+    /// nothing to say here, and the caller falls back to position.
+    #[test]
+    fn an_ordinary_item_has_no_intrinsic_pattern() {
+        let plain = Item::new(config_with(vec![ItemFlag::Take]), 1);
+
+        assert_eq!(plain.intrinsic_patterns(&pool_sprite()), None);
     }
 
     /// A pool's 4x3 grid is a colour grid. Blood is fluid 5, red is colour 2,

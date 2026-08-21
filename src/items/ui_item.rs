@@ -38,7 +38,13 @@ pub fn spawn_ui_item(
     let texture_atlas_handle = texture_atlases.add(texture_atlas);
     let mut atlas = TextureAtlas::from(texture_atlas_handle);
 
-    let animator = SpriteAnimator::new(Arc::clone(&config), 0, 0, 0);
+    // A UI item has an amount but no position, so it takes the intrinsic
+    // pattern -- a stack's count tier, a fluid's colour -- and falls back to the
+    // first cell for everything else. Hardcoding (0, 0, 0) here is what made a
+    // stack of 50 gold draw the "1" sprite in the inventory while drawing
+    // correctly on the ground.
+    let (pattern_x, pattern_y, pattern_z) = item.intrinsic_patterns(&config).unwrap_or((0, 0, 0));
+    let animator = SpriteAnimator::new(Arc::clone(&config), pattern_x, pattern_y, pattern_z);
     atlas.index = animator.current_sprite_ids[0] as usize;
 
     (
