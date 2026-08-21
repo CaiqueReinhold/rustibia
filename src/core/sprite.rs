@@ -477,6 +477,39 @@ mod tests {
         assert_eq!(missile.boxes.len(), 3);
     }
 
+    /// Two assumptions the effect renderer is built on, both read off the shape
+    /// of the shipped data rather than documented anywhere it generates from.
+    #[test]
+    fn every_effect_is_shaped_the_way_the_renderer_assumes() {
+        let configs = read_sprites_config();
+
+        for effect in configs.effects.values() {
+            // The instance's bbox is `boxes[pattern_x]`. Were they ever indexed
+            // per phase, or by pattern_x * pattern_y, every patterned effect
+            // would draw a wrong crop of its cell.
+            assert_eq!(
+                effect.boxes.len(),
+                effect.pattern_x as usize,
+                "effect {} has {} boxes for {} x-patterns",
+                effect.id,
+                effect.boxes.len(),
+                effect.pattern_x
+            );
+
+            // `settle_on_timed_phase` is bounded by the phase count, which is
+            // only safe because an animation that ticks at all has a phase with
+            // time on it. Effect 221's `[0, 0]` tail is padding; a whole
+            // animation of zeros would be something else.
+            if !matches!(effect.animation, SpriteAnimation::Static) {
+                assert!(
+                    !effect.animation.never_advances(),
+                    "effect {} is animated but no phase has any time on it",
+                    effect.id
+                );
+            }
+        }
+    }
+
     fn animation_json(body: &str) -> SpriteAnimation {
         read_animation(&serde_json::from_str::<Value>(body).unwrap())
     }
