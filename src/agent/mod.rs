@@ -85,7 +85,8 @@ impl Plugin for AgentPlugin {
             .add_observer(events::on_spawn_agent)
             .add_observer(events::on_move_agent)
             .add_observer(events::on_remove_agent)
-            .add_observer(events::on_agent_life_changed);
+            .add_observer(events::on_agent_life_changed)
+            .add_observer(events::on_agent_mana_changed);
 
         #[cfg(feature = "debug")]
         app.add_systems(Update, (instancing::agent_rect,));

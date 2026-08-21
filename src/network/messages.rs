@@ -125,6 +125,7 @@ const SRV_TARGET_CHANGED: u8 = 23;
 const SRV_AGENT_LIFE_UPDATED: u8 = 24;
 const SRV_SHOW_EFFECT: u8 = 25;
 const SRV_LAUNCH_MISSILE: u8 = 26;
+const SRV_AGENT_MANA_CHANGED: u8 = 27;
 
 #[derive(Clone, Debug)]
 pub enum ServerMessage {
@@ -212,7 +213,7 @@ pub enum ServerMessage {
         position: Position,
         facing: FacingDirection,
         name: String,
-        health: u8,
+        health: u32,
         speed: u16,
     },
     TeleportAgent {
@@ -248,7 +249,13 @@ pub enum ServerMessage {
     },
     AgentLifeChanged {
         agent_id: AgentId,
-        life: u8,
+        current: u32,
+        max: u32,
+    },
+    AgentManaChanged {
+        agent_id: AgentId,
+        current: u32,
+        max: u32,
     },
     LaunchMissile {
         from: Position,
@@ -552,7 +559,7 @@ fn decode_message(buf: &mut Reader) -> Result<ServerMessage, MessageDecodeError>
             let facing = decode_facing(buf)?;
             let name_len = buf.read_u16_le()? as usize;
             let name = buf.read_string(name_len)?;
-            let health = buf.read_u8()?;
+            let health = buf.read_u32_le()?;
             let outfit_id = buf.read_u16_le()?;
             let color1 = buf.read_u8()?;
             let color2 = buf.read_u8()?;
@@ -618,8 +625,23 @@ fn decode_message(buf: &mut Reader) -> Result<ServerMessage, MessageDecodeError>
         }
         SRV_AGENT_LIFE_UPDATED => {
             let agent_id = buf.read_u16_le()?;
-            let life = buf.read_u8()?;
-            Ok(ServerMessage::AgentLifeChanged { agent_id, life })
+            let current = buf.read_u32_le()?;
+            let max = buf.read_u32_le()?;
+            Ok(ServerMessage::AgentLifeChanged {
+                agent_id,
+                current,
+                max,
+            })
+        }
+        SRV_AGENT_MANA_CHANGED => {
+            let agent_id = buf.read_u16_le()?;
+            let current = buf.read_u32_le()?;
+            let max = buf.read_u32_le()?;
+            Ok(ServerMessage::AgentManaChanged {
+                agent_id,
+                current,
+                max,
+            })
         }
         SRV_SHOW_EFFECT => {
             let effect_id = buf.read_u16_le()?;

@@ -154,7 +154,7 @@ pub struct SpawnAgent {
     pub position: Position,
     pub facing: FacingDirection,
     pub name: String,
-    pub health: u8,
+    pub health: u32,
     pub speed: u16,
 }
 
@@ -180,7 +180,25 @@ pub struct PlayerIntroduced {
 #[derive(Event, Debug)]
 pub struct AgentLifeChanged {
     pub agent_id: u16,
-    pub life: u8,
+    /// Absolute for the local player, a PERCENTAGE for every other agent.
+    ///
+    /// The player is sent their real `current`/`maximum`; anyone else is sent
+    /// `Pool::to_wire()` -- `current / maximum * 100` -- against a `max` of 100,
+    /// because you do not get to know a creature's hit points.
+    ///
+    /// Writing both fields is what lets one handler serve both: the ratio comes
+    /// out right either way, and the player's real numbers survive.
+    pub current: u32,
+    pub max: u32,
+}
+
+#[derive(Event, Debug)]
+pub struct AgentManaChanged {
+    pub agent_id: u16,
+    /// Absolute, unlike life above -- the server only sends this for the local
+    /// player, who does know their own numbers.
+    pub current: u32,
+    pub max: u32,
 }
 
 #[derive(Event, Debug)]
@@ -381,8 +399,27 @@ pub fn route_event(msg: ServerMessage, commands: &mut Commands) {
                 color,
             });
         }
-        ServerMessage::AgentLifeChanged { agent_id, life } => {
-            commands.trigger(AgentLifeChanged { agent_id, life });
+        ServerMessage::AgentLifeChanged {
+            agent_id,
+            current,
+            max,
+        } => {
+            commands.trigger(AgentLifeChanged {
+                agent_id,
+                current,
+                max,
+            });
+        }
+        ServerMessage::AgentManaChanged {
+            agent_id,
+            current,
+            max,
+        } => {
+            commands.trigger(AgentManaChanged {
+                agent_id,
+                current,
+                max,
+            });
         }
         ServerMessage::ShowEffect {
             effect_id,

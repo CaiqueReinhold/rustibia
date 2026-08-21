@@ -2,14 +2,16 @@ use bevy::{mesh::MeshTag, prelude::*, render::storage::ShaderStorageBuffer};
 
 use crate::{
     agent::{
-        Agent, AgentHud, AgentInstance, AgentMaterial, Health, LoadedMaterials, MoveQueue, Moving,
-        StartAgentMove, spawn_agent,
+        Agent, AgentHud, AgentInstance, AgentMaterial, Health, LoadedMaterials, Mana, MoveQueue,
+        Moving, StartAgentMove, spawn_agent,
     },
     conf::agent::{ADDON_1_FLAG, ADDON_2_FLAG},
     core::{Appearances, InstanceManager},
     game_ui::GameUiAssets,
     map::{FloorEntities, Map, Position},
-    network::events::{AgentLifeChanged, ClientOutdated, MoveAgent, RemoveAgent, SpawnAgent},
+    network::events::{
+        AgentLifeChanged, AgentManaChanged, ClientOutdated, MoveAgent, RemoveAgent, SpawnAgent,
+    },
 };
 
 pub fn on_spawn_agent(
@@ -56,7 +58,7 @@ pub fn on_spawn_agent(
         event.position.clone(),
         event.name.clone(),
         Some(Health {
-            current: event.health as u32,
+            current: event.health,
             max: 100,
         }),
         None,
@@ -142,5 +144,27 @@ pub fn on_agent_life_changed(
     let Ok(mut health) = agent_q.get_mut(agent_entity) else {
         return;
     };
-    health.current = event.life as u32;
+    // Both fields, not just current. The same message means different things
+    // depending on who it is about -- absolute for the player, a percentage
+    // against a max of 100 for anyone else -- and writing the pair is what makes
+    // one handler correct for both.
+    health.current = event.current;
+    health.max = event.max;
+}
+
+pub fn on_agent_mana_changed(
+    event: On<AgentManaChanged>,
+    mut agent_q: Query<&mut Mana>,
+    map: Res<Map>,
+) {
+    let Some(agent_entity) = map.get_agent(event.agent_id) else {
+        return;
+    };
+    // Only the local player carries a `Mana` component -- the server sends this
+    // for nobody else -- so a miss here is the ordinary case, not an error.
+    let Ok(mut mana) = agent_q.get_mut(agent_entity) else {
+        return;
+    };
+    mana.current = event.current;
+    mana.max = event.max;
 }
