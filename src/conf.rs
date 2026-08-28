@@ -138,6 +138,7 @@ pub mod ui {
     /// sprite without covering it.
     pub const ITEM_COUNT_FONT_SIZE: f32 = 9.0;
     pub const LOOT_CONTAINER_DEFAULT_HEIGHT: usize = 40;
+    pub const SKILLS_WINDOW_HEIGHT: usize = 150;
     pub const INVENTORY_HEIGHT: f32 = 170.0;
     pub const ITEM_SLOT_SIZE: f32 = 36.0;
     pub const UI_BAR_HEIGHT: f32 = 20.0;
@@ -192,6 +193,13 @@ pub mod ui {
         /// One row of buttons plus the window's 2px borders.
         pub const HEIGHT: f32 = 30.0;
         pub const PADDING: f32 = 4.0;
+    }
+
+    pub mod skills {
+        pub const PADDING: f32 = 4.0;
+        pub const ROW_GAP: f32 = 2.0;
+        pub const BAR_HEIGHT: f32 = 5.0;
+        pub const FONT_SIZE: f32 = 11.0;
     }
 
     pub mod dialog {
