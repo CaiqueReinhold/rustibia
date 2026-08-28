@@ -3,6 +3,7 @@ use bevy::prelude::*;
 use crate::core::SessionEnding;
 use crate::game_ui::chat::{ChatMode, ChatState};
 use crate::game_ui::modal::ModalOrder;
+use crate::game_ui::skills::SkillsState;
 use crate::game_ui::toppanel::BarEntities;
 use crate::game_ui::window::CurrentDockHover;
 
@@ -17,6 +18,7 @@ pub(super) fn cleanup_session(mut commands: Commands) {
     commands.insert_resource(ChatMode::default());
     commands.insert_resource(ModalOrder::default());
     commands.insert_resource(CurrentDockHover::default());
+    commands.insert_resource(SkillsState::default());
     commands.remove_resource::<BarEntities>();
     commands.remove_resource::<SessionEnding>();
 }
@@ -32,6 +34,7 @@ mod tests {
         world.init_resource::<ChatMode>();
         world.init_resource::<ModalOrder>();
         world.init_resource::<CurrentDockHover>();
+        world.init_resource::<SkillsState>();
         world
     }
 
@@ -79,5 +82,29 @@ mod tests {
         world.run_system_once(cleanup_session).unwrap();
 
         assert!(world.get_resource::<BarEntities>().is_none());
+    }
+
+    /// Skills are per character. Leaving them behind would show the previous
+    /// character's bars until the next login's snapshot arrived.
+    #[test]
+    fn cleanup_empties_the_skills_state() {
+        let mut world = seeded_world();
+        {
+            let mut state = world.resource_mut::<SkillsState>();
+            state.experience = 4231;
+            state.skills.insert(
+                crate::game_ui::skills::SkillType::Sword,
+                crate::game_ui::skills::SkillProgress {
+                    level: 12,
+                    percent_bp: 4909,
+                },
+            );
+        }
+
+        world.run_system_once(cleanup_session).unwrap();
+
+        let state = world.resource::<SkillsState>();
+        assert_eq!(state.experience, 0);
+        assert!(state.skills.is_empty());
     }
 }

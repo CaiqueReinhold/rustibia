@@ -1,6 +1,8 @@
 use bevy::platform::collections::HashMap;
 use bevy::prelude::*;
 
+use crate::network::events::{ExperienceChanged, PlayerSkills, SkillChanged};
+
 /// Ids assigned by the server, which stores them in `player_skills.skill_type`
 /// as well as sending them. Explicit, so reordering the variants cannot change
 /// one; the matching assertion is in the server's `entities/skills.rs`.
@@ -73,9 +75,108 @@ pub struct SkillsState {
     pub skills: HashMap<SkillType, SkillProgress>,
 }
 
+pub fn on_player_skills(event: On<PlayerSkills>, mut state: ResMut<SkillsState>) {
+    state.experience = event.experience;
+    state.skills = event.skills.iter().copied().collect();
+}
+
+pub fn on_skill_changed(event: On<SkillChanged>, mut state: ResMut<SkillsState>) {
+    state.skills.insert(event.skill, event.progress);
+}
+
+pub fn on_experience_changed(event: On<ExperienceChanged>, mut state: ResMut<SkillsState>) {
+    state.experience = event.experience;
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn world_with_state() -> World {
+        let mut world = World::new();
+        world.init_resource::<SkillsState>();
+        world.add_observer(on_player_skills);
+        world.add_observer(on_skill_changed);
+        world.add_observer(on_experience_changed);
+        world
+    }
+
+    #[test]
+    fn a_snapshot_replaces_everything() {
+        let mut world = world_with_state();
+        world.resource_mut::<SkillsState>().skills.insert(
+            SkillType::Axe,
+            SkillProgress {
+                level: 99,
+                percent_bp: 1,
+            },
+        );
+
+        world.trigger(PlayerSkills {
+            experience: 4231,
+            skills: vec![(
+                SkillType::Sword,
+                SkillProgress {
+                    level: 12,
+                    percent_bp: 4909,
+                },
+            )],
+        });
+
+        let state = world.resource::<SkillsState>();
+        assert_eq!(state.experience, 4231);
+        assert_eq!(state.skills.len(), 1);
+        assert_eq!(state.skills[&SkillType::Sword].level, 12);
+    }
+
+    #[test]
+    fn a_delta_patches_one_skill_and_leaves_the_others() {
+        let mut world = world_with_state();
+        world.trigger(PlayerSkills {
+            experience: 4231,
+            skills: vec![
+                (
+                    SkillType::Sword,
+                    SkillProgress {
+                        level: 12,
+                        percent_bp: 4909,
+                    },
+                ),
+                (
+                    SkillType::Axe,
+                    SkillProgress {
+                        level: 10,
+                        percent_bp: 0,
+                    },
+                ),
+            ],
+        });
+
+        world.trigger(SkillChanged {
+            skill: SkillType::Sword,
+            progress: SkillProgress {
+                level: 13,
+                percent_bp: 0,
+            },
+        });
+
+        let state = world.resource::<SkillsState>();
+        assert_eq!(state.skills[&SkillType::Sword].level, 13);
+        assert_eq!(state.skills[&SkillType::Axe].level, 10);
+        assert_eq!(
+            state.experience, 4231,
+            "a skill delta carries no experience"
+        );
+    }
+
+    #[test]
+    fn experience_arrives_on_its_own_message() {
+        let mut world = world_with_state();
+
+        world.trigger(ExperienceChanged { experience: 4255 });
+
+        assert_eq!(world.resource::<SkillsState>().experience, 4255);
+    }
 
     /// The server repeats these ids and nothing links the two — separate
     /// repositories, no shared crate. The matching assertion lives in the

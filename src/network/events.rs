@@ -4,6 +4,7 @@ use crate::{
     agent::{AgentId, FacingDirection, Health, Mana, WalkingDirection},
     conf::map::{TILES_X, TILES_Y},
     core::{ChatMessageType, FloatingTextType, OutfitColors, OutfitId, TextMessageType},
+    game_ui::{SkillProgress, SkillType},
     items::{ContainerId, InventorySlot, ItemId},
     map::Position,
     network::{ServerMessage, messages::ItemStack},
@@ -213,6 +214,23 @@ pub struct LaunchMissile {
     pub from: Position,
     pub to: Position,
     pub missile_id: u16,
+}
+
+#[derive(Event, Debug)]
+pub struct PlayerSkills {
+    pub experience: u64,
+    pub skills: Vec<(SkillType, SkillProgress)>,
+}
+
+#[derive(Event, Debug)]
+pub struct SkillChanged {
+    pub skill: SkillType,
+    pub progress: SkillProgress,
+}
+
+#[derive(Event, Debug)]
+pub struct ExperienceChanged {
+    pub experience: u64,
 }
 
 pub fn route_event(msg: ServerMessage, commands: &mut Commands) {
@@ -442,6 +460,15 @@ pub fn route_event(msg: ServerMessage, commands: &mut Commands) {
                 to,
                 missile_id,
             });
+        }
+        ServerMessage::PlayerSkills { experience, skills } => {
+            commands.trigger(PlayerSkills { experience, skills });
+        }
+        ServerMessage::SkillChanged { skill, progress } => {
+            commands.trigger(SkillChanged { skill, progress });
+        }
+        ServerMessage::ExperienceChanged { experience } => {
+            commands.trigger(ExperienceChanged { experience });
         }
     }
 }
