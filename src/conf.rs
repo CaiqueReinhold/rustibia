@@ -133,6 +133,10 @@ pub mod ui {
     pub const SIDE_PANEL_WIDTH: f32 = 180.0;
     pub const CHAT_BOX_HEIGHT: f32 = 170.0;
     pub const UI_ITEM_SIZE: f32 = 32.0;
+    /// The stack count drawn over a cumulative item. Smaller than the 11.0 the
+    /// rest of the UI uses, because three digits have to fit inside a 32 px
+    /// sprite without covering it.
+    pub const ITEM_COUNT_FONT_SIZE: f32 = 9.0;
     pub const LOOT_CONTAINER_DEFAULT_HEIGHT: usize = 40;
     pub const INVENTORY_HEIGHT: f32 = 170.0;
     pub const ITEM_SLOT_SIZE: f32 = 36.0;

@@ -72,6 +72,11 @@ impl Plugin for AgentPlugin {
                 PostUpdate,
                 (hud::attach_huds_to_viewport, hud::update_hud_positions)
                     .chain()
+                    // Before layout, so the `UiTransform` lands this frame rather
+                    // than the next; after the camera moves, so the label and the
+                    // sprite are placed from the same frame's positions.
+                    .before(bevy::ui::UiSystems::Layout)
+                    .after(crate::player::movement::center_on_player)
                     .run_if(in_state(GameState::InGame)),
             )
             .add_systems(

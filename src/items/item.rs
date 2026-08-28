@@ -153,6 +153,21 @@ impl Item {
         Item { config, amount }
     }
 
+    /// Whether `amount` is a countable number of items greater than one.
+    ///
+    /// The `Cumulative` gate is the load-bearing half: on a `LiquidPool` or
+    /// `LiquidContainer` the same byte is the FLUID TYPE, so reading it as a
+    /// count would label a vial of blood "5" and offer to split it into five.
+    /// This is the same fork `intrinsic_patterns` makes below, and the two must
+    /// stay in step -- whatever picks the count *tier* is what has a count at
+    /// all.
+    ///
+    /// A stack of one is excluded: it has no number to show and nothing to
+    /// divide.
+    pub fn is_countable_stack(&self) -> bool {
+        self.config.has_flag(ItemFlag::Cumulative) && self.amount > 1
+    }
+
     /// The pattern chosen by the ITEM rather than by where it lies: a stack's
     /// count tier, or a fluid's colour. `None` when neither applies.
     ///
@@ -265,6 +280,20 @@ mod tests {
         assert_eq!(stack(4), Some((3, 0, 0)));
         assert_eq!(stack(5), Some((0, 1, 0)));
         assert_eq!(stack(50), Some((3, 1, 0)));
+    }
+
+    /// The two gates on a count. The vial of blood is the case that matters:
+    /// its `amount` is a fluid type, so reading it as a count would label it
+    /// "5" and offer to divide it into five.
+    #[test]
+    fn only_a_cumulative_item_of_more_than_one_has_a_count() {
+        let stack = |flags, amount| Item::new(config_with(flags), amount).is_countable_stack();
+
+        assert!(stack(vec![ItemFlag::Cumulative], 50));
+        assert!(!stack(vec![ItemFlag::Cumulative], 1));
+        assert!(!stack(vec![ItemFlag::LiquidContainer], 5));
+        assert!(!stack(vec![ItemFlag::LiquidPool], 5));
+        assert!(!stack(vec![ItemFlag::Take], 1));
     }
 
     /// An item whose sprite depends on neither its amount nor its contents has

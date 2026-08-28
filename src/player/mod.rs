@@ -4,11 +4,11 @@ pub mod components;
 mod events;
 mod interaction;
 mod keyboard;
-mod movement;
+pub mod movement;
 pub mod pathfinding;
 mod session;
 pub mod target;
-pub use interaction::{ContainerNavTarget, InteractionMode, MouseHoverState};
+pub use interaction::{ContainerNavTarget, InteractionIntent, InteractionMode, MouseHoverState};
 
 use crate::core::{GameState, SessionCleanup, SessionEnding};
 
@@ -55,7 +55,11 @@ impl Plugin for PlayerPlugin {
             .add_systems(
                 PostUpdate,
                 (
-                    movement::center_on_player.run_if(in_state(GameState::InGame)),
+                    // Before layout — and so before `TransformSystems::Propagate` —
+                    // so the camera the HUD reads is the one this frame renders with.
+                    movement::center_on_player
+                        .before(bevy::ui::UiSystems::Layout)
+                        .run_if(in_state(GameState::InGame)),
                     interaction::sync_targeting_cursor.run_if(in_state(GameState::InGame)),
                 ),
             )

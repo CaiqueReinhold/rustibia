@@ -374,6 +374,7 @@ pub fn container_content_changed(
                             item,
                             &appearances,
                             &mut texture_atlases,
+                            &ui_assets,
                             &Vec2::ZERO,
                         ));
                 });

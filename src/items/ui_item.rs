@@ -1,10 +1,12 @@
 use std::sync::Arc;
 
-use bevy::{camera::visibility::RenderLayers, prelude::*};
+use bevy::{camera::visibility::RenderLayers, prelude::*, text::FontSmoothing};
+use bevy_text_outline::TextOutline;
 
 use crate::{
-    conf::ui::{UI_ITEM_SIZE, z_index::DRAGGED_ITEM_UI_Z},
+    conf::ui::{ITEM_COUNT_FONT_SIZE, UI_ITEM_SIZE, z_index::DRAGGED_ITEM_UI_Z},
     core::{Appearances, SpriteAnimator},
+    game_ui::GameUiAssets,
     items::{Item, ItemDragEnded, ItemDragStarted, ItemPlacement, instancing::ItemState},
     player::MouseHoverState,
 };
@@ -20,10 +22,48 @@ pub struct UiItemDragging {
     origin: ItemPlacement,
 }
 
+/// The number drawn over a stack, or `None` when the item has no count to show.
+/// See [`Item::is_countable_stack`] for why a fluid container has none.
+pub fn stack_count_text(item: &Item) -> Option<String> {
+    item.is_countable_stack().then(|| item.amount.to_string())
+}
+
+/// The count label itself: bottom right of the ITEM node (32 px), not of the
+/// slot around it (36 px).
+///
+/// `Pickable::IGNORE` is load-bearing -- without it the label sits over the
+/// sprite and can take a `DragStart`, or a slot's `Over`/`Out`, away from the
+/// node beneath it.
+fn stack_count_label(item: &Item, ui_assets: &GameUiAssets) -> Option<impl Bundle> {
+    let count = stack_count_text(item)?;
+    Some((
+        Node {
+            position_type: PositionType::Absolute,
+            right: Val::Px(0.0),
+            bottom: Val::Px(0.0),
+            ..default()
+        },
+        Text::new(count),
+        TextFont {
+            font: ui_assets.font.clone(),
+            font_size: ITEM_COUNT_FONT_SIZE,
+            ..default()
+        }
+        .with_font_smoothing(FontSmoothing::None),
+        TextColor(Color::WHITE),
+        TextOutline {
+            width: 1.0,
+            ..default()
+        },
+        Pickable::IGNORE,
+    ))
+}
+
 pub fn spawn_ui_item(
     item: &Arc<Item>,
     appearances: &Appearances,
     texture_atlases: &mut Assets<TextureAtlasLayout>,
+    ui_assets: &GameUiAssets,
     position: &Vec2,
 ) -> impl Bundle {
     let config = appearances.get_item(item.config.id);
@@ -58,6 +98,9 @@ pub fn spawn_ui_item(
         ImageNode::from_atlas_image(sheet.texture().clone(), atlas),
         Transform::from_xyz(position.x, position.y, 0.0),
         RenderLayers::layer(1),
+        // An item with no count spawns no child at all; the `Option` is the
+        // whole conditional.
+        Children::spawn(SpawnIter(stack_count_label(item, ui_assets).into_iter())),
     )
 }
 
@@ -76,6 +119,7 @@ pub fn item_drag_started(
     mut commands: Commands,
     appearances: Res<Appearances>,
     mut texture_atlases: ResMut<Assets<TextureAtlasLayout>>,
+    ui_assets: Res<GameUiAssets>,
     hover_state: Res<MouseHoverState>,
     state: Res<ItemState>,
     stack_item_q: Query<&Children>,
@@ -104,6 +148,7 @@ pub fn item_drag_started(
             &event.item,
             &appearances,
             &mut texture_atlases,
+            &ui_assets,
             &hover_state.screen_position,
         ))
         .insert((
@@ -147,6 +192,53 @@ pub fn move_dragged_item(
         item_transform.translation = Val2::new(
             Val::Px(hover_state.screen_position.x),
             Val::Px(hover_state.screen_position.y),
+        );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::items::{ItemConfig, ItemFlag};
+
+    fn item(flags: Vec<ItemFlag>, amount: u32) -> Item {
+        Item::new(
+            Arc::new(ItemConfig {
+                id: 2148,
+                flags,
+                friction: None,
+                slot: None,
+                minimap_color: None,
+                elevation: None,
+            }),
+            amount,
+        )
+    }
+
+    /// The label renders the amount, not the count *tier* the sprite shows: a
+    /// stack of 50 and a stack of 99 draw the same sprite and must not draw the
+    /// same number.
+    #[test]
+    fn a_stack_is_labelled_with_its_amount() {
+        assert_eq!(
+            stack_count_text(&item(vec![ItemFlag::Cumulative], 50)),
+            Some("50".to_string())
+        );
+        assert_eq!(
+            stack_count_text(&item(vec![ItemFlag::Cumulative], 99)),
+            Some("99".to_string())
+        );
+    }
+
+    /// Delegated to `Item::is_countable_stack`, which is tested against every
+    /// flag in `item.rs`. Pinned here too because this is the caller that turns
+    /// a `false` into "draw nothing".
+    #[test]
+    fn a_single_item_and_a_fluid_carry_no_label() {
+        assert_eq!(stack_count_text(&item(vec![ItemFlag::Cumulative], 1)), None);
+        assert_eq!(
+            stack_count_text(&item(vec![ItemFlag::LiquidContainer], 5)),
+            None
         );
     }
 }

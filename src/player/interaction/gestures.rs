@@ -4,7 +4,9 @@ use crate::{
     agent::AgentId,
     conf::ui::MIN_DRAG_THRESHOLD,
     game_ui::{MainUI, UiWindowRef},
-    items::{ItemDragEnded, ItemDragStarted, ItemFlag, ItemPlacement, LootContainerUI},
+    items::{
+        ItemDragEnded, ItemDragStarted, ItemFlag, ItemPlacement, LootContainerUI, OpenSplitDialog,
+    },
     map::{Map, Position},
     player::components::{Player, PlayerInventory},
     player::target::{CombatTarget, TargetSquare, refresh_target_square},
@@ -83,6 +85,7 @@ fn on_drag_end(
     mut mode: ResMut<InteractionMode>,
     map: Res<Map>,
     container_q: Query<(&LootContainerUI, &UiWindowRef)>,
+    keyboard: Res<ButtonInput<KeyCode>>,
 ) {
     let InteractionMode::Dragging {
         item,
@@ -107,6 +110,16 @@ fn on_drag_end(
     };
 
     if to.to_wire_position() == origin.to_wire_position() {
+        return;
+    }
+
+    // Ctrl on a divisible stack asks how many; everything else moves whole. The
+    // fork sits here, after the destination is validated, so the dialog never
+    // opens on a drop that was going nowhere.
+    if keyboard.any_pressed([KeyCode::ControlLeft, KeyCode::ControlRight])
+        && item.is_countable_stack()
+    {
+        commands.trigger(OpenSplitDialog { item, origin, to });
         return;
     }
 

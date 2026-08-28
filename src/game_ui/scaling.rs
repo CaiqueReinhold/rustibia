@@ -25,6 +25,19 @@ pub fn logical_size(node: &ComputedNode) -> Vec2 {
     to_logical(node, node.size())
 }
 
+/// Snaps a logical-pixel position to the **physical** pixel grid, returned in
+/// logical pixels so it can go straight back into a `Val::Px`.
+///
+/// Rounding a `Val::Px` directly snaps to the *logical* grid, which is a step of
+/// one physical pixel only at 100% display scale — at 125% it snaps in 1.25px
+/// steps, and at 150% in 1.5px steps. Glyphs land on the physical grid (the font
+/// atlas is nearest-sampled at 1:1), so rounding logically quantises the label
+/// more coarsely than the thing it is trying to keep crisp.
+pub fn snap_to_physical(node: &ComputedNode, logical: Vec2) -> Vec2 {
+    let inverse_scale_factor = node.inverse_scale_factor();
+    (logical / inverse_scale_factor).round() * inverse_scale_factor
+}
+
 /// The node's rect in logical pixels, with the origin at the window's top-left —
 /// the same space a cursor or pointer position arrives in.
 pub fn logical_rect(node: &ComputedNode, transform: &UiGlobalTransform) -> Rect {
@@ -78,6 +91,31 @@ mod tests {
                 logical_center(&node, &transform),
                 center,
                 "centre at {scale_factor}×"
+            );
+        }
+    }
+
+    /// A HUD label snaps to whole *physical* pixels at every display scale. The
+    /// logical result is only whole-numbered at 100%: at 125% a label sitting a
+    /// quarter of a logical pixel off is already on the physical grid, and
+    /// rounding it to 100.0 would move it a full physical pixel away.
+    #[test]
+    fn snapping_lands_on_the_physical_grid_at_every_scale_factor() {
+        for scale_factor in [1.0, 1.25, 1.5, 2.0] {
+            let (node, _) = node_at(Vec2::ZERO, Vec2::splat(480.0), scale_factor);
+            let snapped = snap_to_physical(&node, Vec2::new(100.3, 40.9));
+
+            let physical = snapped * scale_factor;
+            assert_eq!(
+                physical,
+                physical.round(),
+                "physical {physical} at {scale_factor}x"
+            );
+            // Never moves further than half a physical pixel.
+            let moved = (snapped - Vec2::new(100.3, 40.9)) * scale_factor;
+            assert!(
+                moved.abs().max_element() <= 0.5,
+                "moved {moved} at {scale_factor}x"
             );
         }
     }

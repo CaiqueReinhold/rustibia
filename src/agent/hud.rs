@@ -4,7 +4,10 @@ use crate::agent::components::{Agent, AgentHud, HealthState, Hud};
 use crate::agent::{DisplayName, Health, HudBar, Mana};
 use crate::camera::GameCamera;
 use crate::conf::viewport::{GAME_VIEW_HEIGHT, GAME_VIEW_WIDTH};
-use crate::game_ui::{GameViewport, scaling::logical_size};
+use crate::game_ui::{
+    GameViewport,
+    scaling::{logical_size, snap_to_physical},
+};
 use crate::map::Position;
 use crate::player::components::Player;
 
@@ -21,15 +24,27 @@ pub fn attach_huds_to_viewport(
     }
 }
 
+/// Places every agent's HUD over its sprite, in viewport-local pixels.
+///
+/// Reads `Transform`, **not** `GlobalTransform`. This runs in `PostUpdate` before
+/// `UiSystems::Layout` — which is where it has to be, because that is the system
+/// that consumes the `UiTransform` written below, and `bevy_ui` orders layout
+/// *before* `TransformSystems::Propagate`. So at this point `GlobalTransform`
+/// still holds last frame's values, while the sprites render from this frame's.
+/// Reading it put every label one frame behind the creature it names — invisible
+/// on the player, whose offset from the camera never changes, and a visible
+/// shimmy on everything else. Agents are children of a floor entity whose
+/// transform is only ever identity (`map::floors`), so the two are equal in
+/// value; only the freshness differs.
 pub fn update_hud_positions(
     mut commands: Commands,
-    game_cam_q: Query<&GlobalTransform, With<GameCamera>>,
+    game_cam_q: Query<&Transform, With<GameCamera>>,
     player_pos_q: Query<&Position, With<Player>>,
-    agents_q: Query<(&GlobalTransform, &AgentHud, &Position), With<Agent>>,
+    agents_q: Query<(&Transform, &AgentHud, &Position), With<Agent>>,
     mut hud_q: Query<&mut UiTransform, With<Hud>>,
     viewport_q: Query<&ComputedNode, With<GameViewport>>,
 ) {
-    let Ok(game_cam_gt) = game_cam_q.single() else {
+    let Ok(game_cam_tf) = game_cam_q.single() else {
         return;
     };
     let Ok(computed) = viewport_q.single() else {
@@ -39,10 +54,10 @@ pub fn update_hud_positions(
         return;
     };
 
-    let cam_pos = game_cam_gt.translation().truncate();
+    let cam_pos = game_cam_tf.translation.truncate();
     let size = logical_size(computed);
 
-    for (agent_gt, display_name, position) in agents_q.iter() {
+    for (agent_tf, display_name, position) in agents_q.iter() {
         if position.z != player_pos.z {
             commands
                 .entity(display_name.main_entity)
@@ -54,7 +69,7 @@ pub fn update_hud_positions(
             .entity(display_name.main_entity)
             .insert(Visibility::Visible);
 
-        let world_pos = agent_gt.translation().truncate();
+        let world_pos = agent_tf.translation.truncate();
 
         // Normalize to [0, 1] UV within the game view (mirrors update_hover_state in reverse).
         let uv = Vec2::new(
@@ -68,8 +83,13 @@ pub fn update_hud_positions(
         // the HUD at the view edge as the agent walks out of frame.
         let local_px = uv * size;
 
+        // Snapped on the physical grid, not the logical one: `Val::Px` is logical,
+        // so `.round()` here snapped in steps of the display scale factor and put
+        // the label off the grid its own glyphs land on at anything but 100%.
+        let snapped = snap_to_physical(computed, local_px);
+
         if let Ok(mut tranf) = hud_q.get_mut(display_name.main_entity) {
-            tranf.translation = Val2::new(Val::Px(local_px.x.round()), Val::Px(local_px.y.round()));
+            tranf.translation = Val2::new(Val::Px(snapped.x), Val::Px(snapped.y));
         }
     }
 }

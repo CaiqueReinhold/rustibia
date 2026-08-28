@@ -167,6 +167,7 @@ pub fn spawn_inventory_ui(
                     item,
                     &appearances,
                     &mut texture_atlases,
+                    &ui_assets,
                     &Vec2::ZERO,
                 ))
                 .id()
@@ -424,6 +425,7 @@ pub fn update_inventory_ui(
                     item,
                     &appearances,
                     &mut texture_atlases,
+                    &ui_assets,
                     &Vec2::ZERO,
                 ))
                 .id();
