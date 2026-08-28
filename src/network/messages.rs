@@ -1,6 +1,7 @@
 use std::fmt::Display;
 
 use asynchronous_codec::{Decoder, Encoder};
+use bevy::log::warn;
 use bytes::{Buf, BufMut, BytesMut};
 use thiserror::Error;
 
@@ -8,6 +9,7 @@ use crate::{
     agent::{AgentId, FacingDirection, Health, Mana, WalkingDirection},
     conf::map::{STACK_MAX_VISIBLE_ITEMS, TILES_X, TILES_Y},
     core::{ChatMessageType, FloatingTextType, OutfitColors, OutfitId, TextMessageType},
+    game_ui::{SkillProgress, SkillType},
     items::{ContainerId, InventorySlot, ItemId},
     map::Position,
 };
@@ -126,6 +128,9 @@ const SRV_AGENT_LIFE_UPDATED: u8 = 24;
 const SRV_SHOW_EFFECT: u8 = 25;
 const SRV_LAUNCH_MISSILE: u8 = 26;
 const SRV_AGENT_MANA_CHANGED: u8 = 27;
+const SRV_PLAYER_SKILLS: u8 = 28;
+const SRV_SKILL_CHANGED: u8 = 29;
+const SRV_EXPERIENCE_CHANGED: u8 = 30;
 
 #[derive(Clone, Debug)]
 pub enum ServerMessage {
@@ -257,6 +262,17 @@ pub enum ServerMessage {
         current: u32,
         max: u32,
     },
+    PlayerSkills {
+        experience: u64,
+        skills: Vec<(SkillType, SkillProgress)>,
+    },
+    SkillChanged {
+        skill: SkillType,
+        progress: SkillProgress,
+    },
+    ExperienceChanged {
+        experience: u64,
+    },
     LaunchMissile {
         from: Position,
         to: Position,
@@ -349,6 +365,13 @@ impl<'a> Reader<'a> {
     fn read_u32_le(&mut self) -> Result<u32, MessageDecodeError> {
         let b = self.read_bytes(4)?;
         Ok(u32::from_le_bytes([b[0], b[1], b[2], b[3]]))
+    }
+
+    fn read_u64_le(&mut self) -> Result<u64, MessageDecodeError> {
+        let b = self.read_bytes(8)?;
+        Ok(u64::from_le_bytes([
+            b[0], b[1], b[2], b[3], b[4], b[5], b[6], b[7],
+        ]))
     }
 
     /// Reads a `len`-byte string. Invalid UTF-8 is replaced rather than
@@ -643,6 +666,36 @@ fn decode_message(buf: &mut Reader) -> Result<ServerMessage, MessageDecodeError>
                 max,
             })
         }
+        SRV_PLAYER_SKILLS => {
+            let experience = buf.read_u64_le()?;
+            let count = buf.read_u8()?;
+            let mut skills = Vec::with_capacity(count as usize);
+            for _ in 0..count {
+                let id = buf.read_u8()?;
+                let level = buf.read_u16_le()?;
+                let percent_bp = buf.read_u16_le()?;
+                match SkillType::from_id(id) {
+                    Some(skill) => skills.push((skill, SkillProgress { level, percent_bp })),
+                    None => warn!("ignoring a skill id this build does not know: {id}"),
+                }
+            }
+            Ok(ServerMessage::PlayerSkills { experience, skills })
+        }
+        SRV_SKILL_CHANGED => {
+            let id = buf.read_u8()?;
+            let level = buf.read_u16_le()?;
+            let percent_bp = buf.read_u16_le()?;
+            let Some(skill) = SkillType::from_id(id) else {
+                return Err(MessageDecodeError::WrongSequence);
+            };
+            Ok(ServerMessage::SkillChanged {
+                skill,
+                progress: SkillProgress { level, percent_bp },
+            })
+        }
+        SRV_EXPERIENCE_CHANGED => Ok(ServerMessage::ExperienceChanged {
+            experience: buf.read_u64_le()?,
+        }),
         SRV_SHOW_EFFECT => {
             let effect_id = buf.read_u16_le()?;
             let position = decode_position(buf)?;
@@ -1412,5 +1465,109 @@ mod tests {
             ),
             "a half-delta must be an error, not a dropped byte"
         );
+    }
+
+    /// These are the exact frames the server's `messages.rs` asserts it emits.
+    /// The codec is asymmetric — the server only encodes, the client only
+    /// decodes — so this pair of literals is the only thing that catches a
+    /// field-order or width divergence between the repositories.
+    #[test]
+    fn player_skills_decodes_the_servers_frame() {
+        let mut buf = BytesMut::new();
+        buf.extend_from_slice(&[
+            15,
+            0,
+            SRV_PLAYER_SKILLS,
+            0x87,
+            0x10,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            1,
+            0,
+            8,
+            0,
+            0xE1,
+            0x10,
+        ]);
+
+        match (GameMessageCodec {}).decode(&mut buf).unwrap().unwrap() {
+            ServerMessage::PlayerSkills { experience, skills } => {
+                assert_eq!(experience, 4231);
+                assert_eq!(skills.len(), 1);
+                assert_eq!(skills[0].0, SkillType::Level);
+                assert_eq!(skills[0].1.level, 8);
+                assert_eq!(skills[0].1.percent_bp, 4321);
+            }
+            other => panic!("expected PlayerSkills, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn skill_changed_decodes_the_servers_frame() {
+        let mut buf = BytesMut::new();
+        buf.extend_from_slice(&[6, 0, SRV_SKILL_CHANGED, 3, 12, 0, 0x2D, 0x13]);
+
+        match (GameMessageCodec {}).decode(&mut buf).unwrap().unwrap() {
+            ServerMessage::SkillChanged { skill, progress } => {
+                assert_eq!(skill, SkillType::Sword);
+                assert_eq!(progress.level, 12);
+                assert_eq!(progress.percent_bp, 4909);
+            }
+            other => panic!("expected SkillChanged, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn experience_changed_decodes_the_servers_frame() {
+        let mut buf = BytesMut::new();
+        buf.extend_from_slice(&[9, 0, SRV_EXPERIENCE_CHANGED, 0x87, 0x10, 0, 0, 0, 0, 0, 0]);
+
+        match (GameMessageCodec {}).decode(&mut buf).unwrap().unwrap() {
+            ServerMessage::ExperienceChanged { experience } => assert_eq!(experience, 4231),
+            other => panic!("expected ExperienceChanged, got {other:?}"),
+        }
+    }
+
+    /// A skill id this build does not know costs one row, not the connection:
+    /// a decode error breaks the IO loop and drops the player out of the game.
+    #[test]
+    fn an_unknown_skill_id_is_skipped_not_fatal() {
+        let mut buf = BytesMut::new();
+        buf.extend_from_slice(&[
+            20,
+            0,
+            SRV_PLAYER_SKILLS,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            2,
+            99,
+            1,
+            0,
+            1,
+            0,
+            3,
+            12,
+            0,
+            0x2D,
+            0x13,
+        ]);
+
+        match (GameMessageCodec {}).decode(&mut buf).unwrap().unwrap() {
+            ServerMessage::PlayerSkills { skills, .. } => {
+                assert_eq!(skills.len(), 1);
+                assert_eq!(skills[0].0, SkillType::Sword);
+            }
+            other => panic!("expected PlayerSkills, got {other:?}"),
+        }
     }
 }
