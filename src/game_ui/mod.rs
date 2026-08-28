@@ -46,7 +46,12 @@ pub struct GameUiPlugin;
 impl Plugin for GameUiPlugin {
     fn build(&self, app: &mut App) {
         app.add_plugins(bevy_ui_text_input::TextInputPlugin)
-            .add_plugins((window::UIWindowPlugin, chat::ChatPlugin, login::LoginPlugin))
+            .add_plugins((
+                window::UIWindowPlugin,
+                chat::ChatPlugin,
+                login::LoginPlugin,
+                skills::SkillsPlugin,
+            ))
             .add_systems(OnEnter(GameState::InGame), spawn_main_ui)
             .add_systems(
                 OnEnter(GameState::InGame),

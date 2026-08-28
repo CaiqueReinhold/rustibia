@@ -2,6 +2,7 @@ use bevy::prelude::*;
 
 use crate::conf::ui::{SIDE_PANEL_WIDTH, button_row as conf, ui_colors, z_index::Z_WINDOW};
 use crate::game_ui::button::spawn_panel_button;
+use crate::game_ui::skills::ToggleSkillsWindow;
 use crate::game_ui::{
     GameUiAssets, Index, RightPanelDock, UIWindow, UIWindowDock, UiWindowRef, WindowId,
 };
@@ -31,6 +32,14 @@ pub(super) fn spawn_button_row(
             commands.trigger(RequestLogout);
         });
 
+    let skills = spawn_panel_button(&mut commands, "Skills", &ui_assets);
+    commands
+        .entity(skills)
+        .observe(|mut event: On<Pointer<Click>>, mut commands: Commands| {
+            event.propagate(false);
+            commands.trigger(ToggleSkillsWindow);
+        });
+
     let content = commands
         .spawn(Node {
             width: Val::Percent(100.0),
@@ -42,6 +51,7 @@ pub(super) fn spawn_button_row(
             padding: UiRect::all(Val::Px(conf::PADDING)),
             ..default()
         })
+        .add_child(skills)
         .add_child(logout)
         .id();
 
