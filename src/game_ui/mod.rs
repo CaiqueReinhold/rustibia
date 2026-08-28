@@ -16,6 +16,7 @@ mod outdated;
 mod rightpanel;
 pub mod scaling;
 mod session;
+mod skills;
 mod toppanel;
 mod window;
 
@@ -25,6 +26,7 @@ pub use game_overlay::GameViewport;
 pub use login::{LoginPhase, PendingLoginError};
 pub use modal::{DialogButton, DialogButtonId, DialogButtonPressed, ModalDialog, ModalOrder};
 pub use rightpanel::RightPanelDock;
+pub use skills::{SkillProgress, SkillType};
 pub use window::{
     AddUIWindow, CloseUIWindow, Index, ReplaceUIWindowContent, UIWindow, UIWindowDock, UiWindowRef,
     WindowId,
