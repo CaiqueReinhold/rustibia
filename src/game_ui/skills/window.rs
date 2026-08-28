@@ -127,7 +127,6 @@ fn spawn_skill_row(
                 ratio: progress.ratio(),
             },
             Node {
-                width: Val::Percent(progress.ratio() * 100.0),
                 height: Val::Percent(100.0),
                 ..default()
             },
@@ -250,8 +249,8 @@ mod tests {
         world
     }
 
-    /// A skill the server did not send is one this character has no row for in
-    /// the database. Drawing an invented one would show a level nobody has.
+    /// Rows follow `DISPLAY_ORDER`, not the map's iteration order, and a skill
+    /// the snapshot omitted is skipped rather than drawn at a default level.
     #[test]
     fn only_the_skills_the_server_sent_get_a_row() {
         let mut state = SkillsState::default();
@@ -284,8 +283,7 @@ mod tests {
         );
     }
 
-    /// The window is built once and then patched, so the update has to reach a
-    /// row that was drawn before the value it now shows arrived.
+    /// The window is built once and then patched in place.
     #[test]
     fn the_update_writes_the_level_and_the_ratio() {
         let mut state = SkillsState::default();
