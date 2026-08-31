@@ -72,35 +72,22 @@ pub mod viewport {
 }
 
 pub mod floating_text {
-    /// Matches the agent name labels, so world text is one visual family.
     pub const FONT_SIZE: f32 = 11.0;
     pub const OUTLINE_WIDTH: f32 = 1.0;
     /// Above the agent HUD siblings that share the game viewport.
     pub const Z_INDEX: i32 = 1;
 
-    // --- HitPoints ---
     pub const HP_DURATION_MS: u64 = 1000;
-    /// Logical px the number rises over its life. OTClient's value, built for the
-    /// same 32 px tile.
     pub const HP_RISE_PX: f32 = 48.0;
-    /// Fraction of the life after which alpha ramps to zero.
     pub const HP_FADE_START: f32 = 0.83;
-    /// A text past this fraction of its life is too far along to absorb a new hit.
     pub const HP_MERGE_WINDOW: f32 = 0.4;
-    /// Vertical gap held between two numbers that could not merge.
     pub const HP_CLEARANCE_PX: f32 = 12.0;
-    /// Past this the stagger column recycles to the bottom instead of marching off
-    /// the top of the view.
     pub const HP_MAX_STAGGER_PX: f32 = 36.0;
 
     // --- PlayerMessage ---
-    /// World px above the tile, so speech sits over the sprite's head. World-space
-    /// because it must scale with the viewport to stay glued to the sprite.
     pub const SPEECH_HEAD_OFFSET_WORLD: f32 = 24.0;
     pub const SPEECH_MS_PER_CHAR: u64 = 60;
     pub const SPEECH_MIN_MS: u64 = 3000;
-    /// The server's `max_message_length` is 255, which at 60 ms/char would pin one
-    /// line on screen for 15 s.
     pub const SPEECH_MAX_MS: u64 = 8000;
     pub const SPEECH_MAX_LINES: usize = 5;
     pub const SPEECH_MAX_WIDTH_PX: f32 = 180.0;
@@ -118,13 +105,6 @@ pub mod effects {
 }
 
 pub mod missiles {
-    /// OTClient's `missileTicksPerFrame` (75 ms) doubled, multiplied by the
-    /// SQUARE ROOT of the tile distance.
-    ///
-    /// The root is the surprising part and it is deliberate: a 1-tile shot takes
-    /// 150 ms, a 4-tile shot 300 ms, a 9-tile shot 450 ms -- which is 150, 75 and
-    /// 50 ms per tile. Longer shots fly dramatically faster per tile. That is
-    /// OT's feel choice, copied for parity rather than linearised.
     pub const FLIGHT_MS_PER_ROOT_TILE: f32 = 150.0;
 }
 
@@ -133,10 +113,7 @@ pub mod ui {
     pub const SIDE_PANEL_WIDTH: f32 = 180.0;
     pub const CHAT_BOX_HEIGHT: f32 = 170.0;
     pub const UI_ITEM_SIZE: f32 = 32.0;
-    /// The stack count drawn over a cumulative item. Smaller than the 11.0 the
-    /// rest of the UI uses, because three digits have to fit inside a 32 px
-    /// sprite without covering it.
-    pub const ITEM_COUNT_FONT_SIZE: f32 = 9.0;
+    pub const ITEM_COUNT_FONT_SIZE: f32 = 10.0;
     pub const LOOT_CONTAINER_DEFAULT_HEIGHT: usize = 40;
     pub const SKILLS_WINDOW_HEIGHT: usize = 150;
     pub const INVENTORY_HEIGHT: f32 = 170.0;

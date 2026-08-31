@@ -394,18 +394,6 @@ pub fn on_floating_text(
     }
 }
 
-/// World tile → viewport-local logical px, y-down, top-left origin.
-///
-/// The world-space head offset for speech is folded into the UV *before* the
-/// multiply by viewport size, so it scales with the view and stays over the
-/// sprite's head at any window size.
-/// The centre of a tile in world space.
-///
-/// `Position::to_world` returns the tile's **top-left corner**, not its centre.
-/// Its own inverse proves it: `Position::from_world` floors, so a tile spans
-/// `[to_world().x, +TILE_SIZE)` horizontally and `(to_world().y - TILE_SIZE,
-/// to_world().y]` vertically. Anchoring text to `to_world()` directly puts every
-/// floating text half a tile up and to the left of the tile it belongs to.
 fn tile_centre(anchor: &Position) -> Vec2 {
     let world = anchor.to_world();
     Vec2::new(world.x + TILE_SIZE / 2.0, world.y - TILE_SIZE / 2.0)

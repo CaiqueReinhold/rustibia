@@ -33,7 +33,7 @@ fn main() {
                     primary_window: Some(Window {
                         title: "Rustibia".into(),
                         name: Some("bevy.app".into()),
-                        present_mode: PresentMode::Immediate,
+                        present_mode: PresentMode::AutoNoVsync,
                         ..default()
                     }),
                     ..default()
