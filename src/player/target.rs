@@ -5,30 +5,29 @@ use crate::conf::map::TILE_SIZE;
 use crate::conf::target::{SQUARE_COLOR, SQUARE_THICKNESS};
 use crate::conf::z_order::TARGET_SQUARE_LOCAL_Z;
 use crate::map::Map;
-use crate::network::events::TargetChanged;
+use crate::network::events::TargetLost;
 
 /// The agent this player is attacking, as a session-local `AgentId`.
 ///
-/// Applied **optimistically**: the click writes it before the server answers, and
-/// `TargetChanged` overwrites it unconditionally afterwards. This is a correctness
-/// requirement, not a responsiveness preference — because the click toggles, an
-/// ack-gated resource lets a lagging player clear the target by clicking twice.
-/// Divergence is nearly unreachable (the only rejections are an agent the client
-/// already removed, and self-targeting, which the gesture never sends), so no
-/// rollback machinery is needed.
+/// Applied **optimistically**: the click writes it before the server answers.
+/// This is a correctness requirement, not a responsiveness preference — because
+/// the click toggles, an ack-gated resource lets a lagging player clear the
+/// target by clicking twice.
+///
+/// `seq` numbers each `SetTarget` the client sends. The server stores it beside
+/// the target and echoes it on `TargetLost`, so a loss that crossed a newer click
+/// on the wire arrives with an older seq and is ignored.
 #[derive(Resource, Debug, Default, PartialEq, Eq)]
-pub struct CombatTarget(pub Option<AgentId>);
+pub struct CombatTarget {
+    pub target: Option<AgentId>,
+    seq: u32,
+}
 
 impl CombatTarget {
-    /// Applies a locally-predicted value.
-    pub fn set_locally(&mut self, agent_id: Option<AgentId>) {
-        self.0 = agent_id;
-    }
-
     /// What clicking `agent_id` should produce: clicking the current target
     /// clears it, clicking anything else selects it.
     pub fn next_for_click(&self, agent_id: AgentId) -> Option<AgentId> {
-        if self.0 == Some(agent_id) {
+        if self.target == Some(agent_id) {
             None
         } else {
             Some(agent_id)
@@ -41,22 +40,33 @@ impl CombatTarget {
     /// a value to send without having already applied it, so "optimistic before
     /// send" is a property of this function rather than of statement order in the
     /// gesture handler.
-    pub fn apply_click(&mut self, agent_id: AgentId) -> Option<AgentId> {
+    pub fn apply_click(&mut self, agent_id: AgentId) -> (Option<AgentId>, u32) {
         let next = self.next_for_click(agent_id);
-        self.set_locally(next);
-        next
+        self.target = next;
+        self.seq += 1;
+        (next, self.seq)
+    }
+
+    /// Drops the target locally and returns the seq to send with the clear.
+    pub fn clear_locally(&mut self) -> u32 {
+        self.target = None;
+        self.seq += 1;
+        self.seq
     }
 }
 
-/// The server's answer always wins.
-pub fn on_target_changed(
-    event: On<TargetChanged>,
+/// A loss the player has already moved past is not a loss.
+pub fn on_target_lost(
+    event: On<TargetLost>,
     mut commands: Commands,
     mut target: ResMut<CombatTarget>,
     map: Res<Map>,
     square_q: Query<Entity, With<TargetSquare>>,
 ) {
-    target.0 = event.agent_id;
+    if event.seq != target.seq {
+        return;
+    }
+    target.target = None;
     refresh_target_square(&mut commands, &target, &map, &square_q);
 }
 
@@ -106,7 +116,7 @@ pub fn refresh_target_square(
         commands.entity(existing).despawn();
     }
 
-    let Some(agent_id) = target.0 else {
+    let Some(agent_id) = target.target else {
         return;
     };
     let Some(agent_entity) = map.get_agent(agent_id) else {
@@ -138,17 +148,11 @@ pub fn refresh_target_square(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use bevy::ecs::system::RunSystemOnce;
 
     #[test]
     fn combat_target_starts_empty() {
-        assert_eq!(CombatTarget::default().0, None);
-    }
-
-    #[test]
-    fn set_locally_applies_immediately() {
-        let mut target = CombatTarget::default();
-        target.set_locally(Some(7));
-        assert_eq!(target.0, Some(7));
+        assert_eq!(CombatTarget::default().target, None);
     }
 
     /// The toggle is what makes optimistic application necessary: with ack-gating,
@@ -157,14 +161,14 @@ mod tests {
     #[test]
     fn next_for_click_toggles_the_current_target_off() {
         let mut target = CombatTarget::default();
-        target.set_locally(Some(7));
+        target.apply_click(7);
         assert_eq!(target.next_for_click(7), None);
     }
 
     #[test]
     fn next_for_click_switches_to_a_different_agent() {
         let mut target = CombatTarget::default();
-        target.set_locally(Some(7));
+        target.apply_click(7);
         assert_eq!(target.next_for_click(9), Some(9));
     }
 
@@ -176,49 +180,71 @@ mod tests {
 
     /// The optimistic apply is the point: `apply_click` cannot hand you something
     /// to send without having already applied it, so the ordering cannot be got
-    /// wrong at the call site.
+    /// wrong at the call site. The counter starts at 1, so 0 can never name a
+    /// target a client set.
     #[test]
     fn apply_click_applies_before_returning_what_to_send() {
         let mut target = CombatTarget::default();
-        let to_send = target.apply_click(7);
+        let (to_send, seq) = target.apply_click(7);
         assert_eq!(to_send, Some(7));
-        assert_eq!(target.0, Some(7), "applied before the caller can send");
+        assert_eq!(seq, 1);
+        assert_eq!(target.target, Some(7), "applied before the caller can send");
 
-        let to_send = target.apply_click(7);
+        let (to_send, seq) = target.apply_click(7);
         assert_eq!(to_send, None);
-        assert_eq!(target.0, None);
+        assert_eq!(seq, 2);
+        assert_eq!(target.target, None);
+    }
+
+    fn refresh_square_system(
+        mut commands: Commands,
+        target: Res<CombatTarget>,
+        map: Res<Map>,
+        square_q: Query<Entity, With<TargetSquare>>,
+    ) {
+        refresh_target_square(&mut commands, &target, &map, &square_q);
     }
 
     fn world_with_observer() -> World {
         let mut world = World::new();
         world.init_resource::<CombatTarget>();
         world.insert_resource(Map::default());
-        world.add_observer(on_target_changed);
+        world.add_observer(on_target_lost);
         world
     }
 
-    /// The server is authoritative: its reply overwrites whatever the click guessed.
     #[test]
-    fn a_server_reply_overwrites_an_optimistic_value() {
-        let mut world = world_with_observer();
-        world.resource_mut::<CombatTarget>().set_locally(Some(7));
+    fn clear_locally_mints_a_seq_too() {
+        let mut target = CombatTarget::default();
+        target.apply_click(7);
 
-        world.trigger(TargetChanged { agent_id: Some(9) });
-        world.flush();
-
-        assert_eq!(world.resource::<CombatTarget>().0, Some(9));
+        assert_eq!(target.clear_locally(), 2);
+        assert_eq!(target.target, None);
     }
 
-    /// Including when the server's answer is a rejection or a viewport-exit clear.
     #[test]
-    fn a_server_clear_overwrites_an_optimistic_value() {
+    fn a_loss_for_the_current_seq_clears_the_target() {
         let mut world = world_with_observer();
-        world.resource_mut::<CombatTarget>().set_locally(Some(7));
+        let seq = world.resource_mut::<CombatTarget>().apply_click(7).1;
 
-        world.trigger(TargetChanged { agent_id: None });
+        world.trigger(TargetLost { seq });
         world.flush();
 
-        assert_eq!(world.resource::<CombatTarget>().0, None);
+        assert_eq!(world.resource::<CombatTarget>().target, None);
+    }
+
+    /// The whole point of the seq: a loss that crossed a newer click on the wire
+    /// must not clear the target that click set.
+    #[test]
+    fn a_loss_for_a_stale_seq_is_ignored() {
+        let mut world = world_with_observer();
+        let stale = world.resource_mut::<CombatTarget>().apply_click(7).1;
+        world.resource_mut::<CombatTarget>().apply_click(9);
+
+        world.trigger(TargetLost { seq: stale });
+        world.flush();
+
+        assert_eq!(world.resource::<CombatTarget>().target, Some(9));
     }
 
     #[test]
@@ -259,12 +285,11 @@ mod tests {
     /// creature and above TOP_Z_OFFSET — which is the opposite of what OTClient
     /// does and what the constant's name promises.
     ///
-    /// This drives the real call site (`on_target_changed` ->
-    /// `refresh_target_square`) rather than just re-deriving the constants: it
-    /// spawns a stand-in agent entity with the transform real agents carry
-    /// (`AGENT_Z_OFFSET` baked into local z, per `agent/movement.rs`), triggers
-    /// `TargetChanged`, and reads back the *actual* local z the square was
-    /// spawned with. A version of this test that only checked
+    /// This drives the real `refresh_target_square` rather than just re-deriving
+    /// the constants: it spawns a stand-in agent entity with the transform real
+    /// agents carry (`AGENT_Z_OFFSET` baked into local z, per
+    /// `agent/movement.rs`), applies a click, and reads back the *actual* local z
+    /// the square was spawned with. A version of this test that only checked
     /// `AGENT_Z_OFFSET + TARGET_SQUARE_LOCAL_Z == TARGET_SQUARE_Z_OFFSET` would
     /// be a tautology — true by construction of the constants, regardless of
     /// which constant the call site actually uses — so it would not have caught
@@ -283,9 +308,9 @@ mod tests {
             .id();
         map.add_agent(7, agent_entity);
         world.insert_resource(map);
-        world.add_observer(on_target_changed);
 
-        world.trigger(TargetChanged { agent_id: Some(7) });
+        world.resource_mut::<CombatTarget>().apply_click(7);
+        world.run_system_once(refresh_square_system).unwrap();
         world.flush();
 
         let square_entity = world
@@ -309,8 +334,8 @@ mod tests {
     /// `refresh_target_square` despawns any existing square before spawning a new
     /// one. Without that despawn, switching targets leaves the old square behind
     /// as an orphaned child of the previous target — this drives the real
-    /// observer across two targets in a row and pins that only the newest
-    /// square survives, parented under the newest target.
+    /// refresh across two targets in a row and pins that only the newest square
+    /// survives, parented under the newest target.
     #[test]
     fn switching_targets_leaves_exactly_one_square() {
         use crate::conf::z_order::AGENT_Z_OFFSET;
@@ -327,11 +352,12 @@ mod tests {
         map.add_agent(7, first_agent);
         map.add_agent(9, second_agent);
         world.insert_resource(map);
-        world.add_observer(on_target_changed);
 
-        world.trigger(TargetChanged { agent_id: Some(7) });
+        world.resource_mut::<CombatTarget>().apply_click(7);
+        world.run_system_once(refresh_square_system).unwrap();
         world.flush();
-        world.trigger(TargetChanged { agent_id: Some(9) });
+        world.resource_mut::<CombatTarget>().apply_click(9);
+        world.run_system_once(refresh_square_system).unwrap();
         world.flush();
 
         let squares: Vec<Entity> = world

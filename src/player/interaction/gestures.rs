@@ -231,9 +231,9 @@ fn on_click(
             && let Some(agent_id) = targetable_agent_on(&map, tile, player_agent_id)
         {
             // Applies optimistically and yields what to send, in one step.
-            let next = combat_target.apply_click(agent_id);
+            let (next, seq) = combat_target.apply_click(agent_id);
             refresh_target_square(&mut commands, &combat_target, &map, &square_q);
-            commands.trigger(InteractionIntent::SetTarget(next));
+            commands.trigger(InteractionIntent::SetTarget(next, seq));
             return;
         }
 

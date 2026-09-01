@@ -137,8 +137,8 @@ pub struct RemoveAgent {
 }
 
 #[derive(Event, Debug)]
-pub struct TargetChanged {
-    pub agent_id: Option<AgentId>,
+pub struct TargetLost {
+    pub seq: u32,
 }
 
 #[derive(Event, Debug)]
@@ -349,8 +349,8 @@ pub fn route_event(msg: ServerMessage, commands: &mut Commands) {
         ServerMessage::RemoveAgent { agent_id } => {
             commands.trigger(RemoveAgent { agent_id });
         }
-        ServerMessage::TargetChanged { agent_id } => {
-            commands.trigger(TargetChanged { agent_id });
+        ServerMessage::TargetLost { seq } => {
+            commands.trigger(TargetLost { seq });
         }
         ServerMessage::MoveAgent {
             agent_id,

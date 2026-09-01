@@ -83,6 +83,6 @@ impl Plugin for PlayerPlugin {
             .add_observer(interaction::on_targeting_container_updated)
             .add_observer(interaction::on_targeting_container_closed)
             .add_observer(interaction::on_targeting_inventory_updated)
-            .add_observer(target::on_target_changed);
+            .add_observer(target::on_target_lost);
     }
 }

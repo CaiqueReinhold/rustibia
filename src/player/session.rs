@@ -89,10 +89,12 @@ mod tests {
     #[test]
     fn cleanup_clears_the_combat_target() {
         let mut world = seeded_world();
-        world.insert_resource(CombatTarget(Some(7)));
+        let mut target = CombatTarget::default();
+        target.apply_click(7);
+        world.insert_resource(target);
 
         world.run_system_once(cleanup_session).unwrap();
 
-        assert_eq!(*world.resource::<CombatTarget>(), CombatTarget(None));
+        assert_eq!(world.resource::<CombatTarget>().target, None);
     }
 }

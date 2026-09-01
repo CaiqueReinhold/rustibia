@@ -49,7 +49,7 @@ pub enum InteractionIntent {
     /// the caller (gesture or Escape handler); this only carries what to tell
     /// the server. No reach requirement — like `Look`, targeting works at any
     /// distance.
-    SetTarget(Option<AgentId>),
+    SetTarget(Option<AgentId>, u32),
 }
 
 impl InteractionIntent {
@@ -91,8 +91,9 @@ impl InteractionIntent {
                 target_item_id: *target_item_id,
                 target_index: target.wire_stack_index(),
             }),
-            InteractionIntent::SetTarget(agent_id) => Some(ClientMessage::SetTarget {
+            InteractionIntent::SetTarget(agent_id, seq) => Some(ClientMessage::SetTarget {
                 agent_id: *agent_id,
+                seq: *seq,
             }),
         }
     }
@@ -109,7 +110,7 @@ impl InteractionIntent {
         match self {
             InteractionIntent::WalkTo(_)
             | InteractionIntent::Look(_)
-            | InteractionIntent::SetTarget(_) => {}
+            | InteractionIntent::SetTarget(..) => {}
             InteractionIntent::MoveItem { origin, .. } => push_if_map(origin),
             InteractionIntent::UseItem { target, .. } => push_if_map(target),
             InteractionIntent::UseItemWith { source, target, .. } => {
@@ -142,7 +143,7 @@ pub fn send_intent(commands: &mut Commands, intent: &InteractionIntent) {
         InteractionIntent::WalkTo(_)
         | InteractionIntent::Look(_)
         | InteractionIntent::UseItemWith { .. }
-        | InteractionIntent::SetTarget(_) => {}
+        | InteractionIntent::SetTarget(..) => {}
         InteractionIntent::MoveItem { .. } => {
             commands.trigger(ItemDragEnded);
         }

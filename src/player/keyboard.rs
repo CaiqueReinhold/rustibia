@@ -222,10 +222,10 @@ pub fn cancel_targeting_on_escape(
         return;
     }
 
-    if combat_target.0.is_some() {
-        combat_target.set_locally(None);
+    if combat_target.target.is_some() {
+        let seq = combat_target.clear_locally();
         refresh_target_square(&mut commands, &combat_target, &map, &square_q);
-        commands.trigger(InteractionIntent::SetTarget(None));
+        commands.trigger(InteractionIntent::SetTarget(None, seq));
     }
 }
 
@@ -255,7 +255,9 @@ mod tests {
     #[test]
     fn escape_cancels_the_crosshair_before_the_target() {
         let mut world = seeded_world();
-        world.insert_resource(CombatTarget(Some(7)));
+        let mut target = CombatTarget::default();
+        target.apply_click(7);
+        world.insert_resource(target);
         *world.resource_mut::<InteractionMode>() = InteractionMode::Targeting {
             source: ItemPlacement::Inventory {
                 slot: InventorySlot::Head,
@@ -270,17 +272,19 @@ mod tests {
             *world.resource::<InteractionMode>(),
             InteractionMode::Idle
         ));
-        assert_eq!(world.resource::<CombatTarget>().0, Some(7));
+        assert_eq!(world.resource::<CombatTarget>().target, Some(7));
     }
 
     #[test]
     fn escape_clears_the_target_when_no_crosshair_is_up() {
         let mut world = seeded_world();
-        world.insert_resource(CombatTarget(Some(7)));
+        let mut target = CombatTarget::default();
+        target.apply_click(7);
+        world.insert_resource(target);
         press_escape(&mut world);
 
         world.run_system_once(cancel_targeting_on_escape).unwrap();
 
-        assert_eq!(world.resource::<CombatTarget>().0, None);
+        assert_eq!(world.resource::<CombatTarget>().target, None);
     }
 }

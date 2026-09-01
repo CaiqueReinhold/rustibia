@@ -96,6 +96,7 @@ pub enum ClientMessage {
     },
     SetTarget {
         agent_id: Option<AgentId>,
+        seq: u32,
     },
 }
 
@@ -123,7 +124,7 @@ const SRV_CHAT_MESSAGE: u8 = 19;
 const SRV_CHANNEL_LIST: u8 = 20;
 const SRV_INTRODUCE_PLAYER: u8 = 21;
 const SRV_FLOATING_TEXT: u8 = 22;
-const SRV_TARGET_CHANGED: u8 = 23;
+const SRV_TARGET_LOST: u8 = 23;
 const SRV_AGENT_LIFE_UPDATED: u8 = 24;
 const SRV_SHOW_EFFECT: u8 = 25;
 const SRV_LAUNCH_MISSILE: u8 = 26;
@@ -244,8 +245,8 @@ pub enum ServerMessage {
         text_type: FloatingTextType,
         color: Option<(u8, u8, u8)>,
     },
-    TargetChanged {
-        agent_id: Option<AgentId>,
+    TargetLost {
+        seq: u32,
     },
     ShowEffect {
         effect_id: u16,
@@ -568,8 +569,8 @@ fn decode_message(buf: &mut Reader) -> Result<ServerMessage, MessageDecodeError>
         SRV_REMOVE_AGENT => Ok(ServerMessage::RemoveAgent {
             agent_id: buf.read_u16_le()?,
         }),
-        SRV_TARGET_CHANGED => Ok(ServerMessage::TargetChanged {
-            agent_id: decode_optional_agent(buf)?,
+        SRV_TARGET_LOST => Ok(ServerMessage::TargetLost {
+            seq: buf.read_u32_le()?,
         }),
         SRV_MOVE_AGENT => Ok(ServerMessage::MoveAgent {
             agent_id: buf.read_u16_le()?,
@@ -815,15 +816,6 @@ fn decode_optional_item(buf: &mut Reader) -> Result<Option<ItemId>, MessageDecod
     }
 }
 
-fn decode_optional_agent(buf: &mut Reader) -> Result<Option<AgentId>, MessageDecodeError> {
-    let agent_id = buf.read_u16_le()?;
-    if agent_id == 0xFFFF {
-        Ok(None)
-    } else {
-        Ok(Some(agent_id))
-    }
-}
-
 fn decode_position_delta(buf: &mut Reader) -> Result<Vec<(i8, i8)>, MessageDecodeError> {
     let rem = buf.remaining();
 
@@ -965,9 +957,10 @@ impl Encoder for GameMessageCodec {
                 dst.put_u8(CLI_CLOSE_CHANNEL);
                 dst.put_u16_le(channel);
             }
-            ClientMessage::SetTarget { agent_id } => {
+            ClientMessage::SetTarget { agent_id, seq } => {
                 dst.put_u8(CLI_SET_TARGET);
                 encode_optional_agent(agent_id, dst);
+                dst.put_u32_le(seq);
             }
             ClientMessage::OpenPmChat { name } => {
                 dst.put_u8(CLI_OPEN_PM_CHAT);
@@ -1104,14 +1097,27 @@ mod tests {
         assert_eq!(&payload[1..], b"Rizael");
     }
 
+    /// The literal frame the server's `set_target_decodes_some_and_none`
+    /// (rustibia-server, crates/server/src/messages.rs) reads. The opcode is a
+    /// number on purpose, so a constant changed on one side fails a test.
     #[test]
     fn set_target_encodes_some_and_none() {
-        let payload = payload_of(ClientMessage::SetTarget { agent_id: Some(7) });
-        assert_eq!(payload[0], CLI_SET_TARGET);
+        let payload = payload_of(ClientMessage::SetTarget {
+            agent_id: Some(7),
+            seq: 5,
+        });
+        assert_eq!(payload[0], 17);
         assert_eq!(u16::from_le_bytes([payload[1], payload[2]]), 7);
+        assert_eq!(
+            u32::from_le_bytes([payload[3], payload[4], payload[5], payload[6]]),
+            5
+        );
 
-        let payload = payload_of(ClientMessage::SetTarget { agent_id: None });
-        assert_eq!(payload[0], CLI_SET_TARGET);
+        let payload = payload_of(ClientMessage::SetTarget {
+            agent_id: None,
+            seq: 6,
+        });
+        assert_eq!(payload[0], 17);
         assert_eq!(u16::from_le_bytes([payload[1], payload[2]]), 0xFFFF);
     }
 
@@ -1262,21 +1268,17 @@ mod tests {
         );
     }
 
+    /// The literal frame the server's `target_lost_encodes_its_seq` builds.
     #[test]
-    fn target_changed_decodes_some_and_none() {
+    fn target_lost_decodes_its_seq() {
         let mut codec = GameMessageCodec {};
 
-        let mut buf = frame(&[SRV_TARGET_CHANGED, 0x09, 0x00]);
+        let mut buf = frame(&[23, 0x4D, 0x00, 0x00, 0x00]);
         assert!(matches!(
             codec.decode(&mut buf).unwrap().unwrap(),
-            ServerMessage::TargetChanged { agent_id: Some(9) }
+            ServerMessage::TargetLost { seq: 77 }
         ));
-
-        let mut buf = frame(&[SRV_TARGET_CHANGED, 0xFF, 0xFF]);
-        assert!(matches!(
-            codec.decode(&mut buf).unwrap().unwrap(),
-            ServerMessage::TargetChanged { agent_id: None }
-        ));
+        assert!(buf.is_empty(), "the frame must be fully consumed");
     }
 
     /// An unknown discriminant must be a decode error, not a silent default — this
