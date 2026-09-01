@@ -147,6 +147,10 @@ pub(super) fn targetable_agent_on(
         .copied()
 }
 
+fn agent_to_use_on(map: &Map, tile: &Position) -> Option<AgentId> {
+    map.agents_on(tile).last().copied()
+}
+
 fn on_click(
     event: On<Pointer<Click>>,
     mut commands: Commands,
@@ -191,6 +195,10 @@ fn on_click(
             source_item_id,
             target: target.placement,
             target_item_id: target.item.config.id,
+            target_agent: hover_state
+                .tile_position
+                .as_ref()
+                .and_then(|tile| agent_to_use_on(&map, tile)),
         });
         return;
     }
@@ -302,5 +310,34 @@ mod tests {
         let tile = Position { x: 10, y: 10, z: 7 };
 
         assert_eq!(targetable_agent_on(&map, &tile, Some(7)), None);
+    }
+
+    /// The counterpart to `resolves_the_topmost_non_self_agent`: this one must not
+    /// skip self, or you could never drink your own potion.
+    #[test]
+    fn the_use_target_includes_the_local_player() {
+        let mut map = Map::default();
+        let tile = Position { x: 10, y: 10, z: 7 };
+        map.index_agent(7, &tile);
+
+        assert_eq!(agent_to_use_on(&map, &tile), Some(7));
+    }
+
+    #[test]
+    fn the_use_target_is_the_topmost_agent() {
+        let mut map = Map::default();
+        let tile = Position { x: 10, y: 10, z: 7 };
+        map.index_agent(1, &tile);
+        map.index_agent(2, &tile);
+
+        assert_eq!(agent_to_use_on(&map, &tile), Some(2));
+    }
+
+    #[test]
+    fn an_empty_tile_has_nothing_to_use_on() {
+        let map = Map::default();
+        let tile = Position { x: 10, y: 10, z: 7 };
+
+        assert_eq!(agent_to_use_on(&map, &tile), None);
     }
 }

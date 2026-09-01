@@ -1,19 +1,5 @@
 //! World-anchored transient text: damage numbers and speech over a tile.
-//!
-//! Distinct from `core::text`, which anchors to the *viewport* (`ActionDenied` at
-//! the bottom, `Look` at the centre). Everything here is pinned to a tile and
-//! outlives whatever caused it — a speaker who walks away leaves their text
-//! behind, which is what the real Tibia client does.
-//!
-//! ## Two coordinate spaces
-//!
-//! This is the part that is invisible at a 1:1 viewport and wrong at every other
-//! size. Anchor offsets (tile centre → head height) are **world px**, folded into
-//! the UV before the multiply by viewport size, so they scale with the view and
-//! stay glued to the sprite — the same thing `AgentHud::world_y_offset` does. Text
-//! offsets (rise, collision push, block gap) are **logical px** applied after that
-//! conversion, because the font is a fixed size and motion measured against glyph
-//! metrics must stay in glyph units.
+//! Distinct from `core::text`, which anchors to the *viewport*.
 //!
 //! ## Why placement runs before `UiSystems::Layout`
 //!
@@ -32,9 +18,11 @@ use bevy::prelude::*;
 use bevy::text::FontSmoothing;
 use bevy_text_outline::TextOutline;
 
+use crate::agent::AgentId;
 use crate::camera::GameCamera;
 use crate::conf::floating_text as ft;
 use crate::conf::map::TILE_SIZE;
+use crate::conf::ui::chat::CREATURE_SAY_COLOR;
 use crate::conf::ui::chat::LOCAL_CHANNEL_COLOR;
 use crate::conf::viewport::{GAME_VIEW_HEIGHT, GAME_VIEW_WIDTH};
 use crate::game_ui::scaling::logical_size;
@@ -47,12 +35,14 @@ use crate::player::components::Player;
 pub enum FloatingTextType {
     HitPoints,
     PlayerMessage,
+    CreatureSay,
 }
 
 /// State shared by both kinds.
 #[derive(Component, Debug)]
 pub struct FloatingText {
     pub kind: FloatingTextType,
+    pub speaker: AgentId,
     /// The tile this text is pinned to, for life.
     pub anchor: Position,
     /// `Time::elapsed` at spawn. The collision sort key.
@@ -91,34 +81,26 @@ impl SpeechBlock {
     }
 }
 
-/// The colour the server asked for, or this kind's default.
 pub fn resolve_color(kind: FloatingTextType, color: Option<(u8, u8, u8)>) -> Color {
     match color {
         Some((r, g, b)) => Color::srgb_u8(r, g, b),
         None => match kind {
             FloatingTextType::HitPoints => Color::WHITE,
             FloatingTextType::PlayerMessage => Color::from(LOCAL_CHANNEL_COLOR),
+            FloatingTextType::CreatureSay => Color::from(CREATURE_SAY_COLOR),
         },
     }
 }
 
-/// How long one line of speech stays up. Longer messages last longer, floored so a
-/// one-word line is still readable and capped so a 255-character line does not sit
-/// there for fifteen seconds.
 pub fn line_duration(chars: usize) -> Duration {
     let ms = (ft::SPEECH_MS_PER_CHAR * chars as u64).clamp(ft::SPEECH_MIN_MS, ft::SPEECH_MAX_MS);
     Duration::from_millis(ms)
 }
 
-/// Logical px a damage number has risen at `fraction` of its life.
 pub fn risen(fraction: f32) -> f32 {
     ft::HP_RISE_PX * fraction
 }
 
-/// Opacity at `fraction` of life: opaque, then a linear ramp over the tail.
-///
-/// The clamp is defensive only — the sole caller passes `Timer::fraction()`,
-/// which Bevy keeps within `[0.0, 1.0]` by construction.
 pub fn alpha(fraction: f32) -> f32 {
     if fraction < ft::HP_FADE_START {
         return 1.0;
@@ -128,15 +110,7 @@ pub fn alpha(fraction: f32) -> f32 {
 
 /// Where to place an arriving damage number, given the current heights above the
 /// tile of every live number already there.
-///
-/// Sits one clearance above the highest of them, so simultaneous arrivals stack
-/// instead of colliding. Two escapes keep the column bounded: if nothing is still
-/// within one clearance of the tile the bottom slot is reused, and past
-/// `HP_MAX_STAGGER_PX` the column recycles to the bottom rather than marching off
-/// the top of the view.
 pub fn stagger_offset(heights: &[f32]) -> f32 {
-    // Vacuously true for an empty slice, which is what makes the no-neighbours
-    // case fall out of this branch rather than needing one of its own.
     if heights.iter().all(|h| *h >= ft::HP_CLEARANCE_PX) {
         return 0.0;
     }
@@ -148,8 +122,6 @@ pub fn stagger_offset(heights: &[f32]) -> f32 {
     candidate
 }
 
-/// A live damage number reduced to what arrival planning needs. Collected from the
-/// world before any mutation, so the planner is a pure function.
 pub struct LiveHitPoints {
     pub entity: Entity,
     pub offset_y: f32,
@@ -198,8 +170,6 @@ pub fn plan_hit_points(live: &[LiveHitPoints], value: Option<i64>, color: Color)
     }
 }
 
-/// A speech block reduced to what collision resolution needs. Viewport-local
-/// logical px, y-down, with `anchor_px` the block's bottom-centre.
 pub struct BlockLayout {
     pub anchor_px: Vec2,
     pub size: Vec2,
@@ -215,15 +185,10 @@ fn block_rect(b: &BlockLayout, offset_y: f32) -> Rect {
     }
 }
 
-/// Strict overlap: blocks whose edges merely touch are left alone.
 fn overlaps(a: &Rect, b: &Rect) -> bool {
     a.min.x < b.max.x && b.min.x < a.max.x && a.min.y < b.max.y && b.min.y < a.max.y
 }
 
-/// One `offset_y` per input block, in input order.
-///
-/// Oldest first, and the oldest holds its position; each newer block is pushed up
-/// until it clears every block already placed. Vertical only, matching Tibia.
 pub fn resolve_offsets(blocks: &[BlockLayout]) -> Vec<f32> {
     let mut order: Vec<usize> = (0..blocks.len()).collect();
     order.sort_by_key(|&i| blocks[i].spawned_at);
@@ -234,9 +199,6 @@ pub fn resolve_offsets(blocks: &[BlockLayout]) -> Vec<f32> {
     for &i in &order {
         let b = &blocks[i];
         let mut offset_y = 0.0f32;
-        // Every push clears one already-placed rect outright, so this cannot need
-        // more iterations than there are rects placed. The bound also makes a
-        // degenerate zero-height block terminate instead of spinning.
         for _ in 0..=placed.len() {
             let rect = block_rect(b, offset_y);
             let Some(blocker) = placed.iter().find(|p| overlaps(&rect, p)) else {
@@ -251,8 +213,6 @@ pub fn resolve_offsets(blocks: &[BlockLayout]) -> Vec<f32> {
     offsets
 }
 
-/// Turns an arriving `ShowFloatingText` into a new entity, a merged number, or an
-/// extra line on an existing speech block.
 pub fn on_floating_text(
     event: On<ShowFloatingText>,
     mut commands: Commands,
@@ -261,8 +221,6 @@ pub fn on_floating_text(
     map: Res<Map>,
     viewport_q: Query<Entity, With<GameViewport>>,
     agent_pos_q: Query<&Position>,
-    // `Without` on both sides is what makes these two `&mut Text` queries provably
-    // disjoint; without it Bevy panics at runtime on conflicting access.
     mut hp_q: Query<(Entity, &FloatingText, &mut HitPointsText, &mut Text), Without<SpeechBlock>>,
     mut speech_q: Query<
         (Entity, &FloatingText, &mut SpeechBlock, &mut Text),
@@ -305,14 +263,13 @@ pub fn on_floating_text(
                     if let Ok((_, _, mut hp, mut text)) = hp_q.get_mut(target) {
                         hp.value = Some(sum);
                         text.0 = sum.to_string();
-                        // The timer is deliberately not restarted: a sustained
-                        // stream of hits must not produce an immortal number.
                     }
                 }
                 HpArrival::Spawn { offset_y } => {
                     commands.spawn((
                         FloatingText {
                             kind: FloatingTextType::HitPoints,
+                            speaker: event.agent_id,
                             anchor: anchor.clone(),
                             spawned_at: now,
                             offset_y,
@@ -342,10 +299,14 @@ pub fn on_floating_text(
                 }
             }
         }
-        FloatingTextType::PlayerMessage => {
+        FloatingTextType::PlayerMessage | FloatingTextType::CreatureSay => {
             let existing = speech_q
                 .iter()
-                .find(|(_, ft, _, _)| ft.anchor == anchor)
+                .find(|(_, ft, _, _)| {
+                    ft.anchor == anchor
+                        && ft.kind == event.text_type
+                        && ft.speaker == event.agent_id
+                })
                 .map(|(entity, _, _, _)| entity);
 
             let line = (
@@ -369,7 +330,8 @@ pub fn on_floating_text(
             let composed = event.text.clone();
             commands.spawn((
                 FloatingText {
-                    kind: FloatingTextType::PlayerMessage,
+                    kind: event.text_type,
+                    speaker: event.agent_id,
                     anchor: anchor.clone(),
                     spawned_at: now,
                     offset_y: 0.0,
@@ -403,7 +365,9 @@ fn anchor_px(anchor: &Position, kind: FloatingTextType, cam_pos: Vec2, size: Vec
     let world = tile_centre(anchor);
     let world_y_offset = match kind {
         FloatingTextType::HitPoints => 0.0,
-        FloatingTextType::PlayerMessage => ft::SPEECH_HEAD_OFFSET_WORLD,
+        FloatingTextType::PlayerMessage | FloatingTextType::CreatureSay => {
+            ft::SPEECH_HEAD_OFFSET_WORLD
+        }
     };
     let uv = Vec2::new(
         (world.x - cam_pos.x) / GAME_VIEW_WIDTH + 0.5,
@@ -454,10 +418,6 @@ pub fn tick_hit_points(
 
 /// Expires speech lines, rebuilds the composed text when the line set changed, and
 /// despawns a block once its last line is gone.
-///
-/// The text is rewritten **only** when a line actually left, because the collision
-/// pass keys its dirty check on `Changed<Text>` — an unconditional write would make
-/// it re-resolve every frame.
 pub fn tick_speech_blocks(
     mut commands: Commands,
     time: Res<Time>,
@@ -491,16 +451,11 @@ pub fn resolve_speech_collisions(
     player_pos_q: Query<&Position, With<Player>>,
     viewport_q: Query<&ComputedNode, With<GameViewport>>,
     mut blocks_q: Query<(Entity, &mut FloatingText, &ComputedNode), With<SpeechBlock>>,
-    // `Changed<Text>` and not `Changed<SpeechBlock>`: ticking the line timers
-    // touches `SpeechBlock` every frame, so it is always "changed" and would gate
-    // nothing. `Text` is written only when a line is added or expires.
     changed_q: Query<(), (Changed<Text>, With<SpeechBlock>)>,
     unplaced_q: Query<(), (With<SpeechBlock>, With<Unplaced>)>,
     viewport_resized_q: Query<(), (Changed<ComputedNode>, With<GameViewport>)>,
     mut removed: RemovedComponents<SpeechBlock>,
 ) {
-    // Drained unconditionally and first: `||` short-circuits, and an undrained
-    // `RemovedComponents` reader accumulates events forever.
     let removed_any = removed.read().count() > 0;
     let dirty = removed_any
         || !changed_q.is_empty()
@@ -522,8 +477,6 @@ pub fn resolve_speech_collisions(
     let cam_pos = cam.translation().truncate();
     let size = logical_size(viewport);
 
-    // Only blocks on the player's floor compete for space, and a block with no
-    // measured size yet cannot be placed at all.
     let mut entities = Vec::new();
     let mut layouts = Vec::new();
     for (entity, text, node) in blocks_q.iter() {
@@ -550,10 +503,6 @@ pub fn resolve_speech_collisions(
 
 /// Writes every floating text's `Node` position, hides off-floor and unmeasured
 /// text, and applies the rise animation.
-///
-/// Placement goes through `Node.left`/`Node.top` rather than `UiTransform` because
-/// the text must be *centred* on its anchor, which needs its measured width — and
-/// `UiTransform` is consumed by the same system that produces that measurement.
 pub fn position_floating_texts(
     mut commands: Commands,
     game_cam_q: Query<&GlobalTransform, With<GameCamera>>,
@@ -612,107 +561,6 @@ pub fn position_floating_texts(
     }
 }
 
-/// Dev-only floating text, driven from the keyboard instead of the server.
-///
-/// - `F9` — a number over the player in a fixed colour: repeated presses
-///   exercise **merging**.
-/// - `F10` — a number over the player in a rotating colour: repeated presses
-///   exercise **staggering**.
-/// - `F11` — speech over the player: repeated presses exercise **queueing**
-///   into one block.
-/// - `F12` — speech over the nearest other agent: exercises **cross-tile push**
-///   against a block on the player's own tile. A no-op with nobody else in
-///   view, since the message names an agent and no longer names a tile.
-#[cfg(feature = "debug")]
-pub fn debug_spawn_floating_text(
-    mut commands: Commands,
-    keys: Res<ButtonInput<KeyCode>>,
-    player_q: Query<(&Player, &Position)>,
-    others_q: Query<(&crate::agent::Agent, &Position), Without<Player>>,
-    mut nonce: Local<u32>,
-) {
-    let Ok((player, player_pos)) = player_q.single() else {
-        return;
-    };
-
-    let merge = keys.just_pressed(KeyCode::F9);
-    let stagger = keys.just_pressed(KeyCode::F10);
-    let speech = keys.just_pressed(KeyCode::F11);
-    let neighbour = keys.just_pressed(KeyCode::F12);
-    if !merge && !stagger && !speech && !neighbour {
-        return;
-    }
-
-    // A one-line LCG, so the trigger needs no `rand` dependency.
-    *nonce = nonce.wrapping_mul(1_664_525).wrapping_add(1_013_904_223);
-    let r = (*nonce >> 16) as usize;
-
-    if merge {
-        commands.trigger(ShowFloatingText {
-            text: format!("-{}", 1 + r % 99),
-            agent_id: player.agent_id,
-            text_type: FloatingTextType::HitPoints,
-            color: Some((255, 64, 64)),
-        });
-    }
-
-    if stagger {
-        const COLORS: [(u8, u8, u8); 4] = [
-            (255, 64, 64),
-            (64, 200, 255),
-            (255, 255, 64),
-            (200, 96, 255),
-        ];
-        commands.trigger(ShowFloatingText {
-            text: format!("-{}", 1 + r % 99),
-            agent_id: player.agent_id,
-            text_type: FloatingTextType::HitPoints,
-            color: Some(COLORS[r % COLORS.len()]),
-        });
-    }
-
-    if speech || neighbour {
-        const LINES: [&str; 4] = [
-            "hi",
-            "hello there",
-            "exura vita",
-            "a deliberately long sentence to exercise the wrap width",
-        ];
-        // One key per speaker, so queueing and cross-tile push can be exercised
-        // separately rather than at random.
-        let speaker = if speech {
-            Some(player.agent_id)
-        } else {
-            nearest_other_agent(player_pos, &others_q)
-        };
-        let Some(agent_id) = speaker else {
-            warn!("F12 needs another agent in view to speak from");
-            return;
-        };
-        commands.trigger(ShowFloatingText {
-            text: LINES[r % LINES.len()].to_owned(),
-            agent_id,
-            text_type: FloatingTextType::PlayerMessage,
-            color: None,
-        });
-    }
-}
-
-/// The agent nearest the player on the player's own floor, if any.
-#[cfg(feature = "debug")]
-fn nearest_other_agent(
-    player_pos: &Position,
-    others_q: &Query<(&crate::agent::Agent, &Position), Without<Player>>,
-) -> Option<crate::agent::AgentId> {
-    others_q
-        .iter()
-        .filter(|(_, pos)| pos.z == player_pos.z)
-        .min_by_key(|(_, pos)| {
-            pos.x.abs_diff(player_pos.x) as u32 + pos.y.abs_diff(player_pos.y) as u32
-        })
-        .map(|(agent, _)| agent.agent_id)
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -739,6 +587,18 @@ mod tests {
         assert_eq!(
             resolve_color(FloatingTextType::PlayerMessage, None),
             Color::from(LOCAL_CHANNEL_COLOR)
+        );
+    }
+
+    #[test]
+    fn creature_say_is_orange_and_player_speech_is_not() {
+        assert_eq!(
+            resolve_color(FloatingTextType::CreatureSay, None),
+            Color::from(CREATURE_SAY_COLOR)
+        );
+        assert_ne!(
+            resolve_color(FloatingTextType::CreatureSay, None),
+            resolve_color(FloatingTextType::PlayerMessage, None)
         );
     }
 
@@ -1196,7 +1056,11 @@ mod tests {
     /// nothing to catch it.
     #[test]
     fn both_kinds_spawn_hidden_and_unplaced() {
-        for kind in [FloatingTextType::HitPoints, FloatingTextType::PlayerMessage] {
+        for kind in [
+            FloatingTextType::HitPoints,
+            FloatingTextType::PlayerMessage,
+            FloatingTextType::CreatureSay,
+        ] {
             let mut world = observer_world();
             world.trigger(ShowFloatingText {
                 text: "-25".to_owned(),
@@ -1271,31 +1135,6 @@ mod tests {
         assert_eq!(world.query::<&SpeechBlock>().iter(&world).count(), 2);
     }
 
-    /// The wire message names an agent, but the text is pinned to a *tile*: two
-    /// agents sharing one tile share one block, exactly as two messages from one
-    /// agent do. Keying the block on the speaker instead would give this two
-    /// blocks stacked on the same spot.
-    #[test]
-    fn two_agents_on_one_tile_share_a_block() {
-        let mut world = observer_world();
-        const NEIGHBOUR: AgentId = 2;
-        agent_at(&mut world, NEIGHBOUR, speaker_tile());
-
-        for (speaker, text) in [(SPEAKER, "hi"), (NEIGHBOUR, "hello")] {
-            world.trigger(ShowFloatingText {
-                text: text.to_owned(),
-                agent_id: speaker,
-                text_type: FloatingTextType::PlayerMessage,
-                color: None,
-            });
-            world.flush();
-        }
-
-        let mut q = world.query::<&SpeechBlock>();
-        let block = q.single(&world).expect("one tile, one block");
-        assert_eq!(block.compose(), "hi\nhello");
-    }
-
     /// The agent's position is read once, at spawn, and never again — so a speaker
     /// who walks away leaves the text behind on the tile they spoke from, and
     /// their next line starts a new block on the new tile.
@@ -1368,6 +1207,76 @@ mod tests {
             block.compose()
         );
         assert!(block.compose().contains("line 5"));
+    }
+
+    /// The mode is part of the key too, again following `StaticText::addMessage`.
+    /// Merging the two would put the orange creature-say inside the yellow
+    /// player block, and one entity carries one `TextColor`, so the orange would
+    /// never render at all.
+    #[test]
+    fn a_creature_say_does_not_join_a_player_speech_block() {
+        let mut world = observer_world();
+
+        for kind in [
+            FloatingTextType::PlayerMessage,
+            FloatingTextType::CreatureSay,
+        ] {
+            world.trigger(ShowFloatingText {
+                text: "hi".to_owned(),
+                agent_id: SPEAKER,
+                text_type: kind,
+                color: None,
+            });
+            world.flush();
+        }
+
+        assert_eq!(
+            world.query::<&SpeechBlock>().iter(&world).count(),
+            2,
+            "the two modes were merged into one block"
+        );
+    }
+
+    /// A block is keyed on the speaker as well as the tile, following OTClient's
+    /// `StaticText::addMessage`, which refuses to append when the name differs.
+    /// Two agents standing on one tile therefore get a block each rather than
+    /// interleaving their lines into one.
+    #[test]
+    fn two_speakers_on_one_tile_get_a_block_each() {
+        let mut world = observer_world();
+        const NEIGHBOUR: AgentId = 2;
+        agent_at(&mut world, NEIGHBOUR, speaker_tile());
+
+        for speaker in [SPEAKER, NEIGHBOUR] {
+            world.trigger(ShowFloatingText {
+                text: "hi".to_owned(),
+                agent_id: speaker,
+                text_type: FloatingTextType::PlayerMessage,
+                color: None,
+            });
+            world.flush();
+        }
+
+        assert_eq!(world.query::<&SpeechBlock>().iter(&world).count(), 2);
+    }
+
+    #[test]
+    fn the_same_speaker_in_the_same_mode_still_composes_one_block() {
+        let mut world = observer_world();
+
+        for text in ["first", "second"] {
+            world.trigger(ShowFloatingText {
+                text: text.to_owned(),
+                agent_id: SPEAKER,
+                text_type: FloatingTextType::CreatureSay,
+                color: None,
+            });
+            world.flush();
+        }
+
+        let mut q = world.query::<&SpeechBlock>();
+        let block = q.single(&world).unwrap();
+        assert_eq!(block.lines.len(), 2);
     }
 
     use bevy::ecs::system::RunSystemOnce;
@@ -1603,6 +1512,20 @@ mod tests {
         );
     }
 
+    /// OTClient anchors every static text the same way regardless of mode, and so
+    /// does this.
+    #[test]
+    fn creature_say_hangs_at_the_same_height_as_speech() {
+        let anchor = speaker_tile();
+        let cam = tile_centre(&anchor);
+        let size = Vec2::new(GAME_VIEW_WIDTH, GAME_VIEW_HEIGHT);
+
+        assert_eq!(
+            anchor_px(&anchor, FloatingTextType::CreatureSay, cam, size),
+            anchor_px(&anchor, FloatingTextType::PlayerMessage, cam, size)
+        );
+    }
+
     // --- `position_floating_texts` / `resolve_speech_collisions` world tests ---
     //
     // Mutation testing found that both systems can be deleted wholesale with the
@@ -1659,6 +1582,7 @@ mod tests {
             .spawn((
                 FloatingText {
                     kind: FloatingTextType::HitPoints,
+                    speaker: SPEAKER,
                     anchor: anchor.clone(),
                     spawned_at: Duration::ZERO,
                     offset_y: 0.0,
@@ -1728,6 +1652,7 @@ mod tests {
                 .spawn((
                     FloatingText {
                         kind: FloatingTextType::HitPoints,
+                        speaker: SPEAKER,
                         anchor: anchor.clone(),
                         spawned_at: Duration::ZERO,
                         offset_y: 0.0,
@@ -1785,6 +1710,7 @@ mod tests {
             .spawn((
                 FloatingText {
                     kind: FloatingTextType::HitPoints,
+                    speaker: SPEAKER,
                     anchor: anchor.clone(),
                     spawned_at: Duration::ZERO,
                     offset_y: 0.0,
@@ -1830,6 +1756,7 @@ mod tests {
             .spawn((
                 FloatingText {
                     kind: FloatingTextType::HitPoints,
+                    speaker: SPEAKER,
                     anchor: anchor.clone(),
                     spawned_at: Duration::ZERO,
                     offset_y: 0.0,
@@ -1856,6 +1783,7 @@ mod tests {
             .spawn((
                 FloatingText {
                     kind: FloatingTextType::HitPoints,
+                    speaker: SPEAKER,
                     anchor: anchor.clone(),
                     spawned_at: Duration::ZERO,
                     offset_y: 0.0,
@@ -1902,6 +1830,7 @@ mod tests {
                 .spawn((
                     FloatingText {
                         kind: FloatingTextType::HitPoints,
+                        speaker: SPEAKER,
                         anchor: anchor.clone(),
                         spawned_at: Duration::ZERO,
                         offset_y,

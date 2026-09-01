@@ -44,11 +44,8 @@ pub enum InteractionIntent {
         source_item_id: ItemId,
         target: ItemPlacement,
         target_item_id: ItemId,
+        target_agent: Option<AgentId>,
     },
-    /// The `CombatTarget` resource has already been applied optimistically by
-    /// the caller (gesture or Escape handler); this only carries what to tell
-    /// the server. No reach requirement — like `Look`, targeting works at any
-    /// distance.
     SetTarget(Option<AgentId>, u32),
 }
 
@@ -83,6 +80,7 @@ impl InteractionIntent {
                 source_item_id,
                 target,
                 target_item_id,
+                target_agent,
             } => Some(ClientMessage::UseItemWith {
                 source: source.to_wire_position(),
                 source_item_id: *source_item_id,
@@ -90,6 +88,7 @@ impl InteractionIntent {
                 target: target.to_wire_position(),
                 target_item_id: *target_item_id,
                 target_index: target.wire_stack_index(),
+                target_agent: *target_agent,
             }),
             InteractionIntent::SetTarget(agent_id, seq) => Some(ClientMessage::SetTarget {
                 agent_id: *agent_id,

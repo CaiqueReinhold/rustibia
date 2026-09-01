@@ -75,6 +75,7 @@ pub enum ClientMessage {
         target: Position,
         target_item_id: ItemId,
         target_index: u8,
+        target_agent: Option<AgentId>,
     },
     Look {
         position: Position,
@@ -790,6 +791,7 @@ fn decode_floating_text_type(b: u8) -> Result<FloatingTextType, MessageDecodeErr
     match b {
         0x01 => Ok(FloatingTextType::HitPoints),
         0x02 => Ok(FloatingTextType::PlayerMessage),
+        0x03 => Ok(FloatingTextType::CreatureSay),
         _ => Err(MessageDecodeError::WrongSequence),
     }
 }
@@ -923,6 +925,7 @@ impl Encoder for GameMessageCodec {
                 target,
                 target_item_id,
                 target_index,
+                target_agent,
             } => {
                 dst.put_u8(CLI_USE_ITEM_WITH);
                 encode_position(source, dst);
@@ -931,6 +934,7 @@ impl Encoder for GameMessageCodec {
                 encode_position(target, dst);
                 dst.put_u16_le(target_item_id);
                 dst.put_u8(target_index);
+                encode_optional_agent(target_agent, dst);
             }
             ClientMessage::Look { position } => {
                 dst.put_u8(CLI_LOOK);
@@ -1034,6 +1038,14 @@ mod tests {
     }
 
     #[test]
+    fn three_decodes_as_creature_say() {
+        assert_eq!(
+            decode_floating_text_type(0x03).unwrap(),
+            FloatingTextType::CreatureSay
+        );
+    }
+
+    #[test]
     fn say_encodes_type_target_then_trailing_message() {
         let payload = payload_of(ClientMessage::Say {
             message: "hello".to_owned(),
@@ -1119,6 +1131,36 @@ mod tests {
         });
         assert_eq!(payload[0], 17);
         assert_eq!(u16::from_le_bytes([payload[1], payload[2]]), 0xFFFF);
+    }
+
+    #[test]
+    fn use_item_with_encodes_the_target_agent_last() {
+        let payload = payload_of(ClientMessage::UseItemWith {
+            source: Position { x: 10, y: 11, z: 7 },
+            source_item_id: 1234,
+            source_index: 0,
+            target: Position { x: 12, y: 13, z: 7 },
+            target_item_id: 5678,
+            target_index: 1,
+            target_agent: Some(42),
+        });
+
+        assert_eq!(&payload[payload.len() - 2..], &[42, 0]);
+    }
+
+    #[test]
+    fn no_target_agent_encodes_as_the_sentinel() {
+        let payload = payload_of(ClientMessage::UseItemWith {
+            source: Position { x: 10, y: 11, z: 7 },
+            source_item_id: 1234,
+            source_index: 0,
+            target: Position { x: 12, y: 13, z: 7 },
+            target_item_id: 5678,
+            target_index: 1,
+            target_agent: None,
+        });
+
+        assert_eq!(&payload[payload.len() - 2..], &[0xFF, 0xFF]);
     }
 
     use asynchronous_codec::Decoder;

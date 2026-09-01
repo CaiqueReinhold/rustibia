@@ -161,8 +161,8 @@ pub mod ui {
 
         pub const LOCAL_CHANNEL_NAME: &str = "Local";
         pub const LOCAL_CHANNEL_COLOR: Srgba = Srgba::new(0.94, 0.94, 0.0, 1.0);
+        pub const CREATURE_SAY_COLOR: Srgba = Srgba::new(0.996, 0.396, 0.0, 1.0);
 
-        /// Must equal the server's `chat.max_message_length` in
         pub const MAX_MESSAGE_LENGTH: usize = 255;
     }
 
