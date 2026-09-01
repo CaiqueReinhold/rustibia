@@ -10,6 +10,7 @@ pub mod map {
     pub const MIN_FLOOR: u8 = 0;
     pub const MAX_FLOOR: u8 = 15;
     pub const BASE_FLOOR: u8 = 7;
+    pub const UNDERGROUND_REACH: u8 = 2;
 }
 
 pub mod z_order {
