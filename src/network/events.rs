@@ -80,7 +80,10 @@ pub struct ShowTextMessage {
 #[derive(Event, Debug)]
 pub struct ShowFloatingText {
     pub text: String,
-    pub agent_id: AgentId,
+    /// The block key, not the anchor. Only ever `Some` for text this client raised
+    /// itself off `ChatMessage`; the wire names no speaker.
+    pub agent_id: Option<AgentId>,
+    pub position: Position,
     pub text_type: FloatingTextType,
     pub color: Option<(u8, u8, u8)>,
 }
@@ -164,6 +167,7 @@ pub struct ChatMessageReceived {
     pub author: u16,
     pub message_type: ChatMessageType,
     pub channel: u16,
+    pub position: Option<Position>,
     pub text: String,
 }
 
@@ -181,14 +185,6 @@ pub struct PlayerIntroduced {
 #[derive(Event, Debug)]
 pub struct AgentLifeChanged {
     pub agent_id: u16,
-    /// Absolute for the local player, a PERCENTAGE for every other agent.
-    ///
-    /// The player is sent their real `current`/`maximum`; anyone else is sent
-    /// `Pool::to_wire()` -- `current / maximum * 100` -- against a `max` of 100,
-    /// because you do not get to know a creature's hit points.
-    ///
-    /// Writing both fields is what lets one handler serve both: the ratio comes
-    /// out right either way, and the player's real numbers survive.
     pub current: u32,
     pub max: u32,
 }
@@ -196,8 +192,6 @@ pub struct AgentLifeChanged {
 #[derive(Event, Debug)]
 pub struct AgentManaChanged {
     pub agent_id: u16,
-    /// Absolute, unlike life above -- the server only sends this for the local
-    /// player, who does know their own numbers.
     pub current: u32,
     pub max: u32,
 }
@@ -389,12 +383,14 @@ pub fn route_event(msg: ServerMessage, commands: &mut Commands) {
             author,
             message_type,
             channel,
+            position,
             text,
         } => {
             commands.trigger(ChatMessageReceived {
                 author,
                 message_type,
                 channel,
+                position,
                 text,
             });
         }
@@ -406,13 +402,14 @@ pub fn route_event(msg: ServerMessage, commands: &mut Commands) {
         }
         ServerMessage::FloatingText {
             text,
-            agent_id,
+            position,
             text_type,
             color,
         } => {
             commands.trigger(ShowFloatingText {
                 text,
-                agent_id,
+                agent_id: None,
+                position,
                 text_type,
                 color,
             });

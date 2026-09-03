@@ -3,7 +3,7 @@ use std::sync::Arc;
 use bevy::prelude::*;
 
 use crate::conf::{
-    agent::{SPEED_PARAM_A, SPEED_PARAM_B, SPEED_PARAM_C},
+    agent::{DIAGONAL_STEP_FACTOR, SPEED_PARAM_A, SPEED_PARAM_B, SPEED_PARAM_C},
     server::TICK_DURATION_MS,
 };
 use crate::core::SpriteConfig;
@@ -43,14 +43,15 @@ impl Agent {
             .round()
             .max(1.0);
 
-        let mut tile_speed = (1000.0 * (tile_friction as f32) / move_speed).floor();
-        if is_diagonal {
-            tile_speed *= 2.5;
-        }
-        let tile_speed_tick =
-            (tile_speed / (TICK_DURATION_MS as f32)).ceil() * (TICK_DURATION_MS as f32);
+        let tile_speed = (1000.0 * (tile_friction as f32) / move_speed).floor();
+        let step_ms =
+            ((tile_speed / (TICK_DURATION_MS as f32)).ceil() * (TICK_DURATION_MS as f32)) as u32;
 
-        tile_speed_tick as u32
+        if is_diagonal {
+            step_ms * DIAGONAL_STEP_FACTOR
+        } else {
+            step_ms
+        }
     }
 }
 
@@ -220,11 +221,18 @@ mod tests {
         assert_eq!(agent.get_step_duration(150, false), 500, "10 ticks");
         assert_eq!(
             agent.get_step_duration(150, true),
-            1250,
-            "25 ticks diagonal"
+            1500,
+            "30 ticks diagonal"
         );
         // 260 is the friction of `ornamented stone floor` (id 21718), one of the
         // ten values this side used to truncate through a `u8`.
         assert_eq!(agent.get_step_duration(260, false), 900, "18 ticks");
+        // Rounding before the multiply, not after: 2600 here would mean the
+        // diagonal had been scaled first and is no whole multiple of the step.
+        assert_eq!(
+            agent.get_step_duration(260, true),
+            2700,
+            "54 ticks diagonal"
+        );
     }
 }

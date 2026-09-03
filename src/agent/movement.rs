@@ -66,11 +66,11 @@ pub fn on_start_agent_move(
         return;
     };
 
-    let step_time_ms = agent.get_step_duration(tile_modifier, event.direction.is_diagonal());
+    let slide_ms = agent.get_step_duration(tile_modifier, false);
     commands.entity(entity).insert(Moving {
         start: start_position,
         end: end_position,
-        timer: Timer::new(Duration::from_millis(step_time_ms as u64), TimerMode::Once),
+        timer: Timer::new(Duration::from_millis(slide_ms as u64), TimerMode::Once),
     });
 }
 
@@ -210,6 +210,8 @@ pub fn process_agent_move_queues(
 mod tests {
     use super::*;
     use crate::agent::FacingDirection;
+    use crate::items::{Item, ItemConfig, ItemFlag};
+    use std::sync::Arc;
 
     fn at(x: u16, y: u16) -> Position {
         Position { x, y, z: 7 }
@@ -257,6 +259,62 @@ mod tests {
             world.get::<Agent>(entity).unwrap().direction,
             FacingDirection::East,
             "and still turns"
+        );
+    }
+
+    /// OTClient's `updateWalk` drives the slide from `getStepDuration(true)` and only
+    /// terminates the walk on the full duration, so a diagonal is drawn at the same speed
+    /// as a cardinal and the extra time is spent standing still on the new tile.
+    #[test]
+    fn a_diagonal_is_drawn_at_cardinal_speed() {
+        let ground = Arc::new(ItemConfig {
+            id: 1,
+            flags: vec![ItemFlag::Ground],
+            friction: Some(150),
+            slot: None,
+            minimap_color: None,
+            elevation: None,
+        });
+        let mut world = World::new();
+        let mut map = Map::default();
+        for pos in [at(100, 100), at(101, 101), at(101, 100)] {
+            map.replace_tile(vec![Arc::new(Item::new(ground.clone(), 1))], &pos);
+        }
+        let entity = world
+            .spawn((
+                Agent {
+                    agent_id: 1,
+                    speed: 120,
+                    ..Default::default()
+                },
+                at(100, 100),
+                Transform::default(),
+            ))
+            .id();
+        map.add_agent(1, entity);
+        world.insert_resource(map);
+        world.add_observer(on_start_agent_move);
+
+        world.trigger(StartAgentMove {
+            agent_id: 1,
+            direction: WalkingDirection::SouthEast,
+        });
+        world.flush();
+
+        let diagonal = world.get::<Moving>(entity).unwrap().timer.duration();
+
+        world.trigger(StartAgentMove {
+            agent_id: 1,
+            direction: WalkingDirection::East,
+        });
+        world.flush();
+
+        let cardinal = world.get::<Moving>(entity).unwrap().timer.duration();
+
+        assert_eq!(diagonal, Duration::from_millis(500));
+        assert_eq!(
+            diagonal, cardinal,
+            "a diagonal is drawn in the same time as a cardinal, not 2.5x it"
         );
     }
 }

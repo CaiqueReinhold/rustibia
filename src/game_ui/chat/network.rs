@@ -1,10 +1,13 @@
 use bevy::prelude::*;
 
 use crate::conf::ui::chat as conf;
+use crate::core::{ChatMessageType, FloatingTextType};
 use crate::game_ui::chat::events::{AppendChatMessage, CloseChannel, OpenChannel};
 use crate::game_ui::chat::routing::{channel_for, resolve_author};
 use crate::game_ui::chat::state::{ChannelConfig, ChannelId, ChatMessage, ChatState};
-use crate::network::events::{ChannelListReceived, ChatMessageReceived, PlayerIntroduced};
+use crate::network::events::{
+    ChannelListReceived, ChatMessageReceived, PlayerIntroduced, ShowFloatingText,
+};
 use crate::network::{ClientMessage, SendMessage};
 
 /// Server channels are static config, so the list is fetched once and cached.
@@ -74,6 +77,20 @@ pub fn on_chat_message_received(
         // A channel message for a tab we already closed — a race against
         // CLI_CLOSE_CHANNEL. Drop it.
         return;
+    }
+
+    if matches!(event.message_type, ChatMessageType::Local)
+        && let Some(position) = event.position.clone()
+    {
+        // can't derive position here because event.author is in a different
+        // id space than the agent ids used by map
+        commands.trigger(ShowFloatingText {
+            text: event.text.clone(),
+            position,
+            text_type: FloatingTextType::PlayerMessage,
+            color: None,
+            agent_id: Some(event.author),
+        });
     }
 
     commands.trigger(AppendChatMessage {

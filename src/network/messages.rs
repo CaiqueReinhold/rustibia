@@ -231,6 +231,7 @@ pub enum ServerMessage {
         author: u16,
         message_type: ChatMessageType,
         channel: u16,
+        position: Option<Position>,
         text: String,
     },
     ChannelList {
@@ -242,7 +243,7 @@ pub enum ServerMessage {
     },
     FloatingText {
         text: String,
-        agent_id: AgentId,
+        position: Position,
         text_type: FloatingTextType,
         color: Option<(u8, u8, u8)>,
     },
@@ -609,12 +610,14 @@ fn decode_message(buf: &mut Reader) -> Result<ServerMessage, MessageDecodeError>
             let author = buf.read_u16_le()?;
             let message_type = decode_chat_message_type(buf.read_u8()?)?;
             let channel = buf.read_u16_le()?;
+            let position = decode_optional_position(buf)?;
             let text_len = buf.read_u16_le()? as usize;
             let text = buf.read_string(text_len)?;
             Ok(ServerMessage::ChatMessage {
                 author,
                 message_type,
                 channel,
+                position,
                 text,
             })
         }
@@ -638,12 +641,12 @@ fn decode_message(buf: &mut Reader) -> Result<ServerMessage, MessageDecodeError>
         SRV_FLOATING_TEXT => {
             let text_len = buf.read_u16_le()? as usize;
             let text = buf.read_string(text_len)?;
-            let agent_id = buf.read_u16_le()?;
+            let position = decode_position(buf)?;
             let text_type = decode_floating_text_type(buf.read_u8()?)?;
             let color = decode_optional_color(buf)?;
             Ok(ServerMessage::FloatingText {
                 text,
-                agent_id,
+                position,
                 text_type,
                 color,
             })
@@ -752,6 +755,16 @@ fn decode_items(buf: &mut Reader) -> Result<Box<[Option<(ItemId, u8)>]>, Message
     Ok(items.into())
 }
 
+/// A flag byte, then a position only if the flag is set -- the same shape as
+/// `decode_optional_color`, and for the same reason: reading five bytes that were
+/// never written misaligns the rest of the frame.
+fn decode_optional_position(buf: &mut Reader) -> Result<Option<Position>, MessageDecodeError> {
+    if buf.read_u8()? == 0 {
+        return Ok(None);
+    }
+    Ok(Some(decode_position(buf)?))
+}
+
 fn decode_position(buf: &mut Reader) -> Result<Position, MessageDecodeError> {
     Ok(Position {
         x: buf.read_u16_le()?,
@@ -790,8 +803,7 @@ fn decode_chat_message_type(b: u8) -> Result<ChatMessageType, MessageDecodeError
 fn decode_floating_text_type(b: u8) -> Result<FloatingTextType, MessageDecodeError> {
     match b {
         0x01 => Ok(FloatingTextType::HitPoints),
-        0x02 => Ok(FloatingTextType::PlayerMessage),
-        0x03 => Ok(FloatingTextType::CreatureSay),
+        0x02 => Ok(FloatingTextType::CreatureSay),
         _ => Err(MessageDecodeError::WrongSequence),
     }
 }
@@ -1038,9 +1050,9 @@ mod tests {
     }
 
     #[test]
-    fn three_decodes_as_creature_say() {
+    fn two_decodes_as_creature_say() {
         assert_eq!(
-            decode_floating_text_type(0x03).unwrap(),
+            decode_floating_text_type(0x02).unwrap(),
             FloatingTextType::CreatureSay
         );
     }
@@ -1179,6 +1191,7 @@ mod tests {
         payload.extend_from_slice(&3u16.to_le_bytes()); // author
         payload.push(0x03); // Channel
         payload.extend_from_slice(&7u16.to_le_bytes()); // channel
+        payload.push(0x00); // position absent
         payload.extend_from_slice(&5u16.to_le_bytes()); // len
         payload.extend_from_slice(b"hello");
 
@@ -1189,11 +1202,47 @@ mod tests {
                 author,
                 message_type,
                 channel,
+                position,
                 text,
             } => {
                 assert_eq!(author, 3);
                 assert!(matches!(message_type, ChatMessageType::Channel));
                 assert_eq!(channel, 7);
+                assert_eq!(position, None, "no position bytes may be consumed");
+                assert_eq!(text, "hello");
+            }
+            other => panic!("expected ChatMessage, got {other:?}"),
+        }
+        assert!(buf.is_empty(), "the frame must be fully consumed");
+    }
+
+    /// The exact byte layout `encode_chat_message_carries_the_speaker_s_tile_for_local_speech`
+    /// produces in the server repository. The pair is the pin: local speech is the
+    /// only line that carries a tile, and the tile is what the bubble hangs on.
+    #[test]
+    fn decodes_a_local_chat_message() {
+        let mut payload = vec![SRV_CHAT_MESSAGE];
+        payload.extend_from_slice(&3u16.to_le_bytes()); // author
+        payload.push(0x01); // Local
+        payload.extend_from_slice(&0u16.to_le_bytes()); // channel
+        payload.push(0x01); // position present
+        payload.extend_from_slice(&300u16.to_le_bytes()); // position x
+        payload.extend_from_slice(&400u16.to_le_bytes()); // position y
+        payload.push(7); // position z
+        payload.extend_from_slice(&5u16.to_le_bytes()); // len
+        payload.extend_from_slice(b"hello");
+
+        let mut codec = GameMessageCodec {};
+        let mut buf = frame(&payload);
+        match codec.decode(&mut buf).unwrap().unwrap() {
+            ServerMessage::ChatMessage {
+                message_type,
+                position,
+                text,
+                ..
+            } => {
+                assert!(matches!(message_type, ChatMessageType::Local));
+                assert_eq!(position, Some(Position::new(300, 400, 7)));
                 assert_eq!(text, "hello");
             }
             other => panic!("expected ChatMessage, got {other:?}"),
@@ -1256,7 +1305,9 @@ mod tests {
         let mut payload = vec![SRV_FLOATING_TEXT];
         payload.extend_from_slice(&3u16.to_le_bytes()); // text length
         payload.extend_from_slice(b"-25");
-        payload.extend_from_slice(&100u16.to_le_bytes()); // agent id
+        payload.extend_from_slice(&0x0201u16.to_le_bytes()); // position x
+        payload.extend_from_slice(&0x0403u16.to_le_bytes()); // position y
+        payload.push(7); // position z
         payload.push(0x01); // HitPoints
         payload.push(0x01); // colour present
         payload.extend_from_slice(&[255, 0, 64]);
@@ -1266,12 +1317,12 @@ mod tests {
         match codec.decode(&mut buf).unwrap().unwrap() {
             ServerMessage::FloatingText {
                 text,
-                agent_id,
+                position,
                 text_type,
                 color,
             } => {
                 assert_eq!(text, "-25");
-                assert_eq!(agent_id, 100u16);
+                assert_eq!(position, Position::new(0x0201, 0x0403, 7));
                 assert!(matches!(text_type, FloatingTextType::HitPoints));
                 assert_eq!(color, Some((255, 0, 64)));
             }
@@ -1285,21 +1336,23 @@ mod tests {
         let mut payload = vec![SRV_FLOATING_TEXT];
         payload.extend_from_slice(&2u16.to_le_bytes());
         payload.extend_from_slice(b"hi");
-        payload.extend_from_slice(&1u16.to_le_bytes()); // agent id
-        payload.push(0x02); // PlayerMessage
+        payload.extend_from_slice(&300u16.to_le_bytes()); // position x
+        payload.extend_from_slice(&400u16.to_le_bytes()); // position y
+        payload.push(7); // position z
+        payload.push(0x02); // CreatureSay
         payload.push(0x00); // colour absent
 
         let mut codec = GameMessageCodec {};
         let mut buf = frame(&payload);
         match codec.decode(&mut buf).unwrap().unwrap() {
             ServerMessage::FloatingText {
-                agent_id,
+                position,
                 text_type,
                 color,
                 ..
             } => {
-                assert_eq!(agent_id, 1u16);
-                assert!(matches!(text_type, FloatingTextType::PlayerMessage));
+                assert_eq!(position, Position::new(300, 400, 7));
+                assert!(matches!(text_type, FloatingTextType::CreatureSay));
                 assert_eq!(color, None, "no colour bytes may be consumed");
             }
             other => panic!("expected FloatingText, got {other:?}"),
@@ -1329,7 +1382,9 @@ mod tests {
     fn an_unknown_floating_text_type_is_rejected() {
         let mut payload = vec![SRV_FLOATING_TEXT];
         payload.extend_from_slice(&0u16.to_le_bytes()); // empty text
-        payload.extend_from_slice(&1u16.to_le_bytes()); // agent id
+        payload.extend_from_slice(&10u16.to_le_bytes()); // position x
+        payload.extend_from_slice(&10u16.to_le_bytes()); // position y
+        payload.push(7); // position z
         payload.push(0x09); // not a type
         payload.push(0x00);
 
@@ -1418,6 +1473,7 @@ mod tests {
         payload.extend_from_slice(&0u16.to_le_bytes());
         payload.push(0x09); // not a valid type
         payload.extend_from_slice(&0u16.to_le_bytes());
+        payload.push(0x00); // position absent
         payload.extend_from_slice(&0u16.to_le_bytes());
 
         let mut codec = GameMessageCodec {};
